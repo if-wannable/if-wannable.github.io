@@ -823,11 +823,11 @@ tr:last-child td {
   }
 
   #trendCanvas {
-    height: 240px;
+    height: 200px;
   }
 
   #optionVoteCanvas {
-    height: 380px;
+    height: 300px;
   }
 
   .option-legend {
@@ -835,7 +835,13 @@ tr:last-child td {
   }
 
   .legend-item {
-    min-height: 34px;
+    min-height: 30px;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .legend-name {
+    font-size: 11px;
   }
 
   .panel-head {

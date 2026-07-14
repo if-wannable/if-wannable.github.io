@@ -463,9 +463,12 @@ function drawOptionChart() {
   });
 
   // Tighter padding on narrow (mobile) canvases so the chart area gets more room.
-  const pad = W < 500
-    ? { top: 20, right: 16, bottom: 38, left: 44 }
+  const narrow = W < 500;
+  const pad = narrow
+    ? { top: 18, right: 14, bottom: 34, left: 38 }
     : { top: 24, right: 28, bottom: 44, left: 60 };
+  const fontPx = narrow ? 10 : 12;
+  const fontBold = `${narrow ? 10 : 12}px system-ui`;
   const w = W - pad.left - pad.right, h = H - pad.top - pad.bottom;
 
   // Build series based on mode. Both modes share the same x-coordinate system
@@ -519,11 +522,11 @@ function drawOptionChart() {
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+w, y); ctx.stroke();
   }
 
-  ctx.fillStyle = "#68736e"; ctx.font = "12px system-ui";
+  ctx.fillStyle = "#68736e"; ctx.font = fontPx + "px system-ui";
   ctx.textAlign = "right"; ctx.textBaseline = "middle";
   for (let i = 0; i <= 4; i++) {
     const val = gridVals[i];
-    ctx.fillText(Math.round(val).toLocaleString("zh-CN"), pad.left-10, pad.top+(h/4)*i);
+    ctx.fillText(Math.round(val).toLocaleString("zh-CN"), pad.left-8, pad.top+(h/4)*i);
   }
 
   if (!voteSnaps.length || (mode === "growth" && voteSnaps.length < 2)) {
@@ -556,14 +559,14 @@ function drawOptionChart() {
     if (isActive) {
       const last = opt.points.at(-1);
       const lx = xFor(last.snapIndex), ly = yFor(last.value);
-      ctx.font = "bold 12px system-ui";
+      ctx.font = `bold ${fontPx}px system-ui`;
       ctx.textBaseline = "middle";
       const label = opt.name.length > 12 ? opt.name.slice(0,12)+"…" : opt.name;
       const lw = ctx.measureText(label).width;
-      const bx = Math.min(lx + 8, W - lw - 6);
+      const bx = Math.min(lx + 6, W - lw - 4);
       ctx.fillStyle = opt.color + "22";
       ctx.beginPath();
-      ctx.roundRect(bx - 4, ly - 10, lw + 8, 20, 4);
+      ctx.roundRect(bx - 4, ly - 9, lw + 8, 18, 4);
       ctx.fill();
       ctx.fillStyle = opt.color;
       ctx.textAlign = "left";
@@ -574,18 +577,19 @@ function drawOptionChart() {
     if (isActive && opt.points.length) {
       ctx.fillStyle = opt.color;
       ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
+      const dotR = narrow ? 2.5 : 3.5;
       opt.points.forEach(p => {
         const px = xFor(p.snapIndex), py = yFor(p.value);
         ctx.beginPath();
-        ctx.arc(px, py, 3.5, 0, Math.PI*2);
+        ctx.arc(px, py, dotR, 0, Math.PI*2);
         ctx.fill();
         ctx.stroke();
       });
     }
   });
 
-  ctx.fillStyle = "#68736e"; ctx.font = "12px system-ui";
+  ctx.fillStyle = "#68736e"; ctx.font = fontPx + "px system-ui";
   ctx.textAlign = "center"; ctx.textBaseline = "top";
   // Scale x-axis label density to canvas width: ~1 label per 130px, min 3.
   const labelStep = Math.max(1, Math.ceil(voteSnaps.length * 130 / Math.max(W, 1)));
@@ -632,25 +636,27 @@ function drawOptionChart() {
     });
     // Larger halo dots at the hover snapshot for each visible option
     hoverPoints.forEach(p => {
+      const haloR = narrow ? 7 : 9;
+      const dotR = narrow ? 4 : 5;
       ctx.fillStyle = p.color + "33";
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 9, 0, Math.PI*2);
+      ctx.arc(p.x, p.y, haloR, 0, Math.PI*2);
       ctx.fill();
       ctx.fillStyle = p.color;
       ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+      ctx.arc(p.x, p.y, dotR, 0, Math.PI*2);
       ctx.fill();
       ctx.stroke();
     });
-    ctx.font = "12px system-ui";
-    const lineH = 16;
-    const boxW = Math.min(320, Math.max(...lines.map(l => ctx.measureText(l).width)) + 16);
-    const boxH = lines.length * lineH + 10;
-    let boxX = vx + 10;
-    if (boxX + boxW > W - 4) boxX = vx - boxW - 10;
-    const boxY = pad.top + 6;
+    ctx.font = fontPx + "px system-ui";
+    const lineH = narrow ? 14 : 16;
+    const boxW = Math.min(320, Math.max(...lines.map(l => ctx.measureText(l).width)) + 14);
+    const boxH = lines.length * lineH + 8;
+    let boxX = vx + 8;
+    if (boxX + boxW > W - 4) boxX = vx - boxW - 8;
+    const boxY = pad.top + 4;
     ctx.fillStyle = "rgba(255,255,255,0.96)";
     ctx.strokeStyle = "#d9dfdc";
     ctx.lineWidth = 1;
@@ -660,8 +666,8 @@ function drawOptionChart() {
     ctx.textAlign = "left"; ctx.textBaseline = "top";
     lines.forEach((line, i) => {
       ctx.fillStyle = "#17201c";
-      ctx.font = i === 0 ? "bold 12px system-ui" : "12px system-ui";
-      ctx.fillText(line, boxX + 8, boxY + 6 + i * lineH);
+      ctx.font = i === 0 ? `bold ${fontPx}px system-ui` : `${fontPx}px system-ui`;
+      ctx.fillText(line, boxX + 6, boxY + 5 + i * lineH);
     });
   }
 
