@@ -569,7 +569,7 @@ function drawOptionChart() {
       const bx = Math.min(lx + 6, W - lw - 4);
       ctx.fillStyle = opt.color + "22";
       ctx.beginPath();
-      ctx.roundRect(bx - 4, ly - 9, lw + 8, 18, 4);
+      roundRect(ctx, bx - 4, ly - 9, lw + 8, 18, 4);
       ctx.fill();
       ctx.fillStyle = opt.color;
       ctx.textAlign = "left";
@@ -664,7 +664,7 @@ function drawOptionChart() {
     ctx.strokeStyle = "#d9dfdc";
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxW, boxH, 6);
+    roundRect(ctx, boxX, boxY, boxW, boxH, 6);
     ctx.fill(); ctx.stroke();
     ctx.textAlign = "left"; ctx.textBaseline = "top";
     lines.forEach((line, i) => {
