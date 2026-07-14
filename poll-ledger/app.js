@@ -1,4 +1,4 @@
-const STORAGE_KEY = "douban-poll-ledger-v1";
+const STORAGE_KEY = "douban-poll-ledger-v3";
 
 const sampleCsv = `captured_at,topic_id,poll_id,participant_count,result_visible,option_id,option,votes,percent,note
 2026-07-14T10:31:18+08:00,493741132,10258668,3559,true,32843356,anna 刘耀文,905,25,已登录/已投票后可查看结果
@@ -207,9 +207,11 @@ async function load() {
   loadStored();
   state.rows = mergeRows(state.rows, parseCsv(sampleCsv).filter(r => r.participant_count !== 0));
   const rows = await fetchCsv();
+  console.log("[poll-ledger] fetchCsv returned", rows ? `${rows.length} rows` : "null");
   if (rows) {
     state.rows = mergeRows(state.rows, rows);
     state.selectedKey = [...groupedRows().keys()][0] || "";
+    console.log("[poll-ledger] total rows after merge:", state.rows.length, "groups:", groupedRows().size);
     return;
   }
   state.selectedKey = [...groupedRows().keys()][0] || "";
