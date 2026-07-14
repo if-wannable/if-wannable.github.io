@@ -42,6 +42,8 @@ const els = {
   leaderFoot: document.querySelector("#leaderFoot"),
   trendCanvas: document.querySelector("#trendCanvas"),
   optionVoteCanvas: document.querySelector("#optionVoteCanvas"),
+  optionGrowthCanvas: document.querySelector("#optionGrowthCanvas"),
+  optionGrowthStatus: document.querySelector("#optionGrowthStatus"),
   optionTrendStatus: document.querySelector("#optionTrendStatus"),
   optionLegend: document.querySelector("#optionLegend"),
   segments: document.querySelectorAll(".segment"),
@@ -235,6 +237,7 @@ function render() {
   renderTable();
   drawChart();
   drawOptionVoteLineChart();
+  drawOptionGrowthChart();
   save();
 }
 
@@ -404,9 +407,10 @@ function drawOptionVoteLineChart() {
   if (!canvas || !legend) return;
 
   const voteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
-  // Width: enforce a comfortable spacing per snapshot so the chart scrolls horizontally
-  const containerW = canvas.parentElement?.clientWidth || 980;
-  const spacing = 80;
+  // Width: enforce comfortable spacing per snapshot; use a small container width threshold
+  // so the chart scrolls horizontally rather than compressing all points together.
+  const containerW = 600;
+  const spacing = 100;
   const neededW = (voteSnaps.length - 1) * spacing + 200;
   const W = Math.max(containerW, neededW), H = canvas.clientHeight || 340;
 
@@ -577,6 +581,117 @@ function drawOptionVoteLineChart() {
   }
 
   canvas._chartMeta = { seriesList, xFor, yFor, voteSnaps };
+}
+
+function drawOptionGrowthChart() {
+  const canvas = els.optionGrowthCanvas;
+  const status = els.optionGrowthStatus;
+  if (!canvas) return;
+
+  const voteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
+  const options = optionList().map((row, i) => ({
+    id: row.option_id || row.option,
+    name: row.option,
+    color: OPTION_COLORS[i % OPTION_COLORS.length]
+  }));
+
+  const containerW = 600;
+  const spacing = 100;
+  const neededW = (voteSnaps.length - 1) * spacing + 200;
+  const W = Math.max(containerW, neededW), H = canvas.clientHeight || 340;
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(W * ratio);
+  canvas.height = Math.floor(H * ratio);
+  canvas.style.width = W + "px";
+  canvas.style.height = H + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { top: 24, right: 28, bottom: 44, left: 60 };
+  const w = W - pad.left - pad.right, h = H - pad.top - pad.bottom;
+
+  // growth[i] = votes[i] - votes[i-1] for each option
+  const growthSeries = options.map(opt => {
+    const points = [];
+    for (let i = 1; i < voteSnaps.length; i++) {
+      const prev = voteSnaps[i-1].items.find(r => (r.option_id||r.option) === opt.id);
+      const curr = voteSnaps[i].items.find(r => (r.option_id||r.option) === opt.id);
+      if (prev?.votes != null && curr?.votes != null) {
+        points.push({ snapIndex: i, growth: curr.votes - prev.votes, votes: curr.votes, time: voteSnaps[i].time });
+      }
+    }
+    return { ...opt, points };
+  });
+
+  const allGrowth = growthSeries.flatMap(s => s.points.map(p => p.growth));
+  const maxAbs = Math.max(1, ...allGrowth.map(Math.abs));
+
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "#d9dfdc"; ctx.lineWidth = 1;
+  // zero line in the middle
+  const zeroY = pad.top + h/2;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (h/4)*i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+w, y); ctx.stroke();
+  }
+  // emphasize zero line
+  ctx.strokeStyle = "#b8c5be";
+  ctx.beginPath(); ctx.moveTo(pad.left, zeroY); ctx.lineTo(pad.left+w, zeroY); ctx.stroke();
+
+  ctx.fillStyle = "#68736e"; ctx.font = "12px system-ui";
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (let i = 0; i <= 4; i++) {
+    const val = maxAbs - (maxAbs*2/4)*i;
+    ctx.fillText((val >= 0 ? "+" : "") + Math.round(val).toLocaleString("zh-CN"), pad.left-10, pad.top+(h/4)*i);
+  }
+
+  if (voteSnaps.length < 2) {
+    status.textContent = "需要至少 2 个快照";
+    ctx.fillStyle = "#68736e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("快照不足，无法计算增长", W/2, H/2);
+    return;
+  }
+
+  status.textContent = `${voteSnaps.length} 个快照 · 显示相邻快照票数增量`;
+  const xFor = i => pad.left + (w/(voteSnaps.length-1))*i;
+  const yFor = v => zeroY - (v/maxAbs)*(h/2);
+  const hasActive = state.activeOptionIds.size > 0;
+
+  growthSeries.forEach(opt => {
+    const isActive = state.activeOptionIds.has(opt.id);
+    if (!opt.points.length) return;
+    ctx.strokeStyle = hasActive && !isActive ? opt.color + "28" : opt.color;
+    ctx.lineWidth = isActive ? 3 : 1.5;
+    ctx.beginPath();
+    opt.points.forEach((p, i) => {
+      const x = xFor(p.snapIndex), y = yFor(p.growth);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    if (isActive) {
+      const last = opt.points.at(-1);
+      const lx = xFor(last.snapIndex), ly = yFor(last.growth);
+      ctx.font = "bold 12px system-ui";
+      ctx.textBaseline = "middle";
+      const label = opt.name.length > 12 ? opt.name.slice(0,12)+"…" : opt.name;
+      const lw = ctx.measureText(label).width;
+      const bx = Math.min(lx + 8, W - lw - 6);
+      ctx.fillStyle = opt.color + "22";
+      ctx.beginPath();
+      ctx.roundRect(bx - 4, ly - 10, lw + 8, 20, 4);
+      ctx.fill();
+      ctx.fillStyle = opt.color;
+      ctx.textAlign = "left";
+      ctx.fillText(label, bx, ly);
+    }
+  });
+
+  ctx.fillStyle = "#68736e"; ctx.font = "12px system-ui";
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  ctx.fillText(formatShortDate(voteSnaps[0].time), xFor(0), pad.top+h+14);
+  if (voteSnaps.length > 1) ctx.fillText(formatShortDate(voteSnaps.at(-1).time), xFor(voteSnaps.length-1), pad.top+h+14);
 }
 
 // ── Ranking export ─────────────────────────────────────────────────────────────
@@ -808,7 +923,7 @@ function bindEvents() {
     });
   }
 
-  window.addEventListener("resize", () => { drawChart(); drawOptionVoteLineChart(); });
+  window.addEventListener("resize", () => { drawChart(); drawOptionVoteLineChart(); drawOptionGrowthChart(); });
 
   // Auto-refresh every 10 minutes
   setInterval(async () => {

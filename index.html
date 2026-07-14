@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>投票记录台</title>
-  <link rel="stylesheet" href="./styles.css?v=5">
+  <link rel="stylesheet" href="./styles.css?v=6">
 </head>
 <body>
   <div class="app-shell">
@@ -87,6 +87,16 @@
           <div class="option-legend" id="optionLegend" aria-label="选项图例"></div>
         </div>
 
+        <div class="chart-panel option-trend-panel">
+          <div class="panel-head">
+            <h1>选项票数增长</h1>
+            <div class="status-line" id="optionGrowthStatus"></div>
+          </div>
+          <div class="chart-scroll-wrap">
+            <canvas id="optionGrowthCanvas" height="340" aria-label="每个选项票数增长折线图"></canvas>
+          </div>
+        </div>
+
         <div class="chart-panel ranking-panel">
           <div class="panel-head">
             <h1>当前排名</h1>
@@ -125,6 +135,6 @@
     </main>
   </div>
 
-  <script src="./app.js?v=5"></script>
+  <script src="./app.js?v=6"></script>
 </body>
 </html>
