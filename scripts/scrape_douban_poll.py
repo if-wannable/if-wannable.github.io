@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Scrape Douban group poll and append snapshot to douban_poll_log.csv.
+"""Scrape Douban group poll using Playwright (renders JS).
 
-Requires environment variable DOUBAN_COOKIE (Douban login cookies).
-Optional: DOUBAN_TOPIC_ID (default 493741132), DOUBAN_POLL_ID (default 10258668),
-          DEBUG=1 to save raw HTML for inspection.
+Requires environment variable DOUBAN_COOKIE.
+Optional: DOUBAN_TOPIC_ID (default 493741132), DOUBAN_POLL_ID (default 10258668).
 """
 
 import csv
@@ -14,120 +13,117 @@ import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-import requests
 from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
 
 TOPIC_ID = os.environ.get("DOUBAN_TOPIC_ID", "493741132")
 POLL_ID = os.environ.get("DOUBAN_POLL_ID", "10258668")
 TOPIC_URL = f"https://www.douban.com/group/topic/{TOPIC_ID}/"
-VOTE_URL = f"https://www.douban.com/group/topic/{TOPIC_ID}/vote"
 CSV_PATH = Path(__file__).resolve().parent.parent / "douban_poll_log.csv"
-DEBUG = os.environ.get("DEBUG") == "1"
 
 CSV_HEADERS = [
     "captured_at", "topic_id", "poll_id", "participant_count",
     "result_visible", "option_id", "option", "votes", "percent", "note",
 ]
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                  "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-    "Referer": "https://www.douban.com/",
-}
-
 CST = timezone(timedelta(hours=8))
+UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
 
-def fetch_page(cookie: str, url: str = TOPIC_URL) -> str:
-    headers = {**HEADERS, "Cookie": cookie, "Referer": TOPIC_URL}
-    resp = requests.get(url, headers=headers, timeout=30, allow_redirects=True)
-    resp.raise_for_status()
-    return resp.text
-
-
-def extract_poll_from_json(html: str):
-    """Try to find poll data embedded in <script> tags as JSON."""
-    soup = BeautifulSoup(html, "html.parser")
-    for script in soup.find_all("script"):
-        text = script.string or ""
-        m = re.search(r'(?:window\.__DATA__|window\.__INITIAL_STATE__)\s*=\s*({.+?});', text, re.S)
-        if not m:
+def parse_cookie_string(cookie_str):
+    cookies = []
+    for pair in cookie_str.split(";"):
+        pair = pair.strip()
+        if not pair or "=" not in pair:
             continue
-        try:
-            data = json.loads(m.group(1))
-        except json.JSONDecodeError:
-            continue
-        poll = _dig(data, "poll") or _dig(data, "groupPoll") or _dig(data, "topic", "poll")
-        if poll:
-            return _normalize_json_poll(poll)
-    return None
-
-
-def _dig(obj, *keys):
-    cur = obj
-    for k in keys:
-        if not isinstance(cur, dict):
-            return None
-        cur = cur.get(k)
-        if cur is None:
-            return None
-    return cur
-
-
-def _normalize_json_poll(poll):
-    options = []
-    for opt in poll.get("options") or poll.get("items") or []:
-        options.append({
-            "option_id": str(opt.get("id") or opt.get("option_id") or ""),
-            "option": opt.get("name") or opt.get("label") or opt.get("option") or "",
-            "votes": opt.get("votes") or opt.get("count") or 0,
-            "percent": opt.get("percent") or opt.get("percentage"),
+        name, value = pair.split("=", 1)
+        cookies.append({
+            "name": name.strip(),
+            "value": value.strip(),
+            "domain": ".douban.com",
+            "path": "/",
         })
-    return {
-        "participant_count": poll.get("participant_count") or poll.get("total") or 0,
-        "result_visible": bool(options and any(o["votes"] for o in options)),
-        "options": options,
-    }
+    return cookies
 
 
-def extract_poll_from_html(html: str):
-    """Parse poll widget from HTML. Adjust selectors if Douban changes markup."""
+def render_page(cookie_str) -> str:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+        context = browser.new_context(user_agent=UA, locale="zh-CN")
+        context.add_cookies(parse_cookie_string(cookie_str))
+        page = context.new_page()
+        page.goto(TOPIC_URL, wait_until="domcontentloaded", timeout=60000)
+        try:
+            page.wait_for_load_state("networkidle", timeout=15000)
+        except Exception:
+            pass
+        page.wait_for_timeout(3000)
+        html = page.content()
+        browser.close()
+        return html
+
+
+def extract_poll(html: str):
     soup = BeautifulSoup(html, "html.parser")
 
     poll_node = (
-        soup.find("div", class_=re.compile(r"poll"))
-        or soup.find("div", id="poll")
-        or soup.find("div", class_="group-poll")
+        soup.find("div", attrs={"data-entity-type": "poll"})
+        or soup.find("div", class_=re.compile(r"poll-wrap"))
+        or soup.find("div", class_=re.compile(r"poll"))
     )
     if not poll_node:
         return None
 
     participant_count = 0
-    participant_node = poll_node.find(class_=re.compile(r"participant|total|count"))
-    if participant_node:
-        m = re.search(r"(\d+)", participant_node.get_text())
+    for node in poll_node.find_all(string=re.compile(r"\d+\s*人?(?:参与|投票)")):
+        m = re.search(r"(\d+)", str(node))
         if m:
             participant_count = int(m.group(1))
+            break
+    if not participant_count:
+        node = poll_node.find(class_=re.compile(r"participant|total|count|meta"))
+        if node:
+            m = re.search(r"(\d+)", node.get_text())
+            if m:
+                participant_count = int(m.group(1))
 
     options = []
-    for li in poll_node.find_all("li"):
-        name_node = li.find(class_=re.compile(r"option|label|name|text"))
+    for li in poll_node.find_all(["li", "div"], class_=re.compile(r"option|item|choice")):
+        name_node = li.find(class_=re.compile(r"name|label|text|title"))
         votes_node = li.find(class_=re.compile(r"vote|count|num"))
-        percent_node = li.find(class_=re.compile(r"percent|rate"))
-        opt_id = li.get("data-id") or li.get("data-option-id") or ""
+        percent_node = li.find(class_=re.compile(r"percent|rate|ratio"))
+        bar_node = li.find(class_=re.compile(r"bar|progress|fill"))
+
         option_text = name_node.get_text(strip=True) if name_node else li.get_text(strip=True)
-        votes = 0
+        if not option_text:
+            continue
+
+        votes = None
         if votes_node:
             m = re.search(r"(\d+)", votes_node.get_text())
             if m:
                 votes = int(m.group(1))
+        elif bar_node:
+            style = bar_node.get("style", "") + bar_node.find("span").get("style", "") if bar_node.find("span") else bar_node.get("style", "")
+            m = re.search(r"width:\s*(\d+(?:\.\d+)?)%", style)
+            if m:
+                pct = float(m.group(1))
+                if participant_count:
+                    votes = round(participant_count * pct / 100)
+
         percent = None
         if percent_node:
             m = re.search(r"(\d+(?:\.\d+)?)\s*%", percent_node.get_text())
             if m:
                 percent = m.group(1)
+        elif bar_node:
+            style = bar_node.get("style", "")
+            m = re.search(r"width:\s*(\d+(?:\.\d+)?)%", style)
+            if m:
+                percent = m.group(1)
+
+        opt_id = li.get("data-id") or li.get("data-option-id") or ""
         options.append({
             "option_id": str(opt_id),
             "option": option_text,
@@ -138,7 +134,7 @@ def extract_poll_from_html(html: str):
     if not options:
         return None
 
-    result_visible = any(o["votes"] for o in options)
+    result_visible = any(o["votes"] is not None for o in options)
     return {
         "participant_count": participant_count,
         "result_visible": result_visible,
@@ -158,8 +154,8 @@ def append_csv(snapshot):
             "result_visible": str(snapshot["result_visible"]).lower(),
             "option_id": opt["option_id"],
             "option": opt["option"],
-            "votes": opt["votes"] if snapshot["result_visible"] else "",
-            "percent": opt["percent"] if snapshot["result_visible"] else "",
+            "votes": opt["votes"] if opt["votes"] is not None else "",
+            "percent": opt["percent"] if opt["percent"] is not None else "",
             "note": "GitHub Actions 自动抓取" + ("，已见票数" if snapshot["result_visible"] else "，仅参与人数"),
         })
 
@@ -178,36 +174,25 @@ def main():
         print("ERROR: DOUBAN_COOKIE not set", file=sys.stderr)
         sys.exit(1)
 
-    html = fetch_page(cookie, VOTE_URL)
+    html = render_page(cookie)
     debug_path = Path("douban_debug.html")
     debug_path.write_text(html, encoding="utf-8")
-    print(f"DEBUG: saved vote page HTML to {debug_path.resolve()}", file=sys.stderr)
-    print(f"DEBUG: fetched URL: {VOTE_URL}", file=sys.stderr)
+    print(f"DEBUG: saved rendered HTML to {debug_path.resolve()} ({len(html)} bytes)", file=sys.stderr)
 
-    if "没有访问权限" in html or "login" in html.lower()[:2000]:
-        print("ERROR: cookie invalid or expired (page shows login/no-access)", file=sys.stderr)
+    if "没有访问权限" in html[:5000] or "login" in html.lower()[:2000]:
+        print("ERROR: cookie invalid or expired", file=sys.stderr)
         sys.exit(2)
 
-    snapshot = extract_poll_from_json(html) or extract_poll_from_html(html)
+    snapshot = extract_poll(html)
     if not snapshot:
-        print("ERROR: could not parse poll data.", file=sys.stderr)
+        print("ERROR: could not parse poll data from rendered HTML.", file=sys.stderr)
         soup = BeautifulSoup(html, "html.parser")
-        title = soup.find("title")
-        print(f"  page title: {title.get_text(strip=True) if title else '(none)'}", file=sys.stderr)
-        poll_nodes = soup.find_all(class_=re.compile(r"poll", re.I))
-        print(f"  elements with 'poll' in class: {len(poll_nodes)}", file=sys.stderr)
-        for node in poll_nodes[:5]:
-            print(f"    - <{node.name}> class={node.get('class')} id={node.get('id')}", file=sys.stderr)
-        vote_nodes = soup.find_all(class_=re.compile(r"vote|option|result", re.I))
-        print(f"  elements with vote/option/result in class: {len(vote_nodes)}", file=sys.stderr)
-        for node in vote_nodes[:8]:
-            print(f"    - <{node.name}> class={node.get('class')} id={node.get('id')}", file=sys.stderr)
-        poll_scripts = [s for s in soup.find_all("script") if s.string and ("poll" in s.string.lower() or "option" in s.string.lower() or "vote" in s.string.lower())]
-        print(f"  scripts mentioning poll/option/vote: {len(poll_scripts)}", file=sys.stderr)
-        for s in poll_scripts[:3]:
-            snippet = (s.string or "").strip()[:500]
-            print(f"    snippet: {snippet}", file=sys.stderr)
-        print("  HTML length:", len(html), file=sys.stderr)
+        poll_nodes = soup.find_all(attrs={"data-entity-type": "poll"})
+        print(f"  data-entity-type=poll nodes: {len(poll_nodes)}", file=sys.stderr)
+        poll_class_nodes = soup.find_all(class_=re.compile(r"poll", re.I))
+        print(f"  elements with 'poll' in class: {len(poll_class_nodes)}", file=sys.stderr)
+        for node in poll_class_nodes[:5]:
+            print(f"    - <{node.name}> class={node.get('class')} children={len(node.find_all())}", file=sys.stderr)
         sys.exit(3)
 
     print(f"participant_count={snapshot['participant_count']} "
