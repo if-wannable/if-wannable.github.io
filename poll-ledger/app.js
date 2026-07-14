@@ -418,7 +418,7 @@ function drawOptionChart() {
   const visibleW = canvas.parentElement?.clientWidth || 600;
   const spacing = 100;
   const neededW = Math.max(visibleW, (voteSnaps.length - 1) * spacing + 200);
-  const W = neededW, H = canvas.clientHeight || 340;
+  const W = neededW, H = canvas.clientHeight || 420;
 
   const ratio = window.devicePixelRatio || 1;
   canvas.width = Math.floor(W * ratio);
@@ -576,8 +576,14 @@ function drawOptionChart() {
 
   ctx.fillStyle = "#68736e"; ctx.font = "12px system-ui";
   ctx.textAlign = "center"; ctx.textBaseline = "top";
-  ctx.fillText(formatShortDate(voteSnaps[0].time), xFor(0), pad.top+h+14);
-  if (voteSnaps.length > 1) ctx.fillText(formatShortDate(voteSnaps.at(-1).time), xFor(voteSnaps.length-1), pad.top+h+14);
+  // Show ~8 evenly spaced x-axis labels (first, last, and intermediates).
+  const labelStep = Math.max(1, Math.ceil(voteSnaps.length / 8));
+  for (let i = 0; i < voteSnaps.length; i += labelStep) {
+    ctx.fillText(formatShortDate(voteSnaps[i].time), xFor(i), pad.top+h+14);
+  }
+  if (voteSnaps.length > 1 && (voteSnaps.length - 1) % labelStep !== 0) {
+    ctx.fillText(formatShortDate(voteSnaps.at(-1).time), xFor(voteSnaps.length-1), pad.top+h+14);
+  }
 
   if (state.hoverSnapIndex !== null && state.hoverSnapIndex >= 0 && state.hoverSnapIndex < voteSnaps.length) {
     const snap = voteSnaps[state.hoverSnapIndex];

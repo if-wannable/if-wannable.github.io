@@ -370,7 +370,7 @@ h1 {
 }
 
 #optionVoteCanvas {
-  height: 340px;
+  height: 420px;
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
@@ -793,6 +793,6 @@ tr:last-child td {
 
   #trendCanvas,
   #optionVoteCanvas {
-    height: 240px;
+    height: 320px;
   }
 }
