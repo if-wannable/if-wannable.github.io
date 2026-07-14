@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -31,6 +31,14 @@ jobs:
         env:
           DOUBAN_COOKIE: ${{ secrets.DOUBAN_COOKIE }}
         run: python scripts/scrape_douban_poll.py
+
+      - name: Upload debug HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: douban-debug-html
+          path: douban_debug.html
+          retention-days: 7
 
       - name: Commit CSV
         run: |

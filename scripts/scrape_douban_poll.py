@@ -178,9 +178,9 @@ def main():
         sys.exit(1)
 
     html = fetch_page(cookie)
-    if DEBUG:
-        Path("/tmp/douban_topic_debug.html").write_text(html, encoding="utf-8")
-        print("DEBUG: saved HTML to /tmp/douban_topic_debug.html", file=sys.stderr)
+    debug_path = Path("douban_debug.html")
+    debug_path.write_text(html, encoding="utf-8")
+    print(f"DEBUG: saved HTML to {debug_path.resolve()}", file=sys.stderr)
 
     if "没有访问权限" in html or "login" in html.lower()[:2000]:
         print("ERROR: cookie invalid or expired (page shows login/no-access)", file=sys.stderr)
@@ -188,7 +188,20 @@ def main():
 
     snapshot = extract_poll_from_json(html) or extract_poll_from_html(html)
     if not snapshot:
-        print("ERROR: could not parse poll data. Run with DEBUG=1 to inspect HTML.", file=sys.stderr)
+        print("ERROR: could not parse poll data.", file=sys.stderr)
+        soup = BeautifulSoup(html, "html.parser")
+        title = soup.find("title")
+        print(f"  page title: {title.get_text(strip=True) if title else '(none)'}", file=sys.stderr)
+        poll_nodes = soup.find_all(class_=re.compile(r"poll", re.I))
+        print(f"  elements with 'poll' in class: {len(poll_nodes)}", file=sys.stderr)
+        for node in poll_nodes[:5]:
+            print(f"    - <{node.name}> class={node.get('class')} id={node.get('id')}", file=sys.stderr)
+        poll_scripts = [s for s in soup.find_all("script") if s.string and ("poll" in s.string.lower() or "option" in s.string.lower())]
+        print(f"  scripts mentioning poll/option: {len(poll_scripts)}", file=sys.stderr)
+        for s in poll_scripts[:2]:
+            snippet = s.string.strip()[:500]
+            print(f"    snippet: {snippet}", file=sys.stderr)
+        print("  HTML length:", len(html), file=sys.stderr)
         sys.exit(3)
 
     print(f"participant_count={snapshot['participant_count']} "
