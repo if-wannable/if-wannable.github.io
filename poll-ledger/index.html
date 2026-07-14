@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>投票记录台</title>
-  <link rel="stylesheet" href="./styles.css?v=6">
+  <link rel="stylesheet" href="./styles.css?v=7">
 </head>
 <body>
   <div class="app-shell">
@@ -74,27 +74,21 @@
 
         <div class="chart-panel option-trend-panel">
           <div class="panel-head">
-            <h1>选项实时票数</h1>
-            <div style="display:flex;align-items:center;gap:10px">
+            <h1>选项票数</h1>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <div class="segmented" role="group" aria-label="选项图表模式">
+                <button class="segment is-active" type="button" data-opt-mode="votes">实时票数</button>
+                <button class="segment" type="button" data-opt-mode="growth">涨幅</button>
+              </div>
               <div class="status-line" id="optionTrendStatus"></div>
               <button id="clearHighlightBtn" class="button secondary compact" type="button">清除高亮</button>
               <button id="exportCsvBtn" class="button secondary compact" type="button">导出 CSV</button>
             </div>
           </div>
-          <div class="chart-scroll-wrap">
-            <canvas id="optionVoteCanvas" height="340" aria-label="每个选项实时票数折线图"></canvas>
+          <div class="chart-scroll-wrap" id="optionChartScroll">
+            <canvas id="optionVoteCanvas" height="340" aria-label="选项票数折线图"></canvas>
           </div>
           <div class="option-legend" id="optionLegend" aria-label="选项图例"></div>
-        </div>
-
-        <div class="chart-panel option-trend-panel">
-          <div class="panel-head">
-            <h1>选项票数增长</h1>
-            <div class="status-line" id="optionGrowthStatus"></div>
-          </div>
-          <div class="chart-scroll-wrap">
-            <canvas id="optionGrowthCanvas" height="340" aria-label="每个选项票数增长折线图"></canvas>
-          </div>
         </div>
 
         <div class="chart-panel ranking-panel">
@@ -135,6 +129,6 @@
     </main>
   </div>
 
-  <script src="./app.js?v=6"></script>
+  <script src="./app.js?v=7"></script>
 </body>
 </html>

@@ -357,7 +357,6 @@ h1 {
 }
 
 #trendCanvas,
-#optionTrendCanvas,
 #optionVoteCanvas {
   display: block;
   background: linear-gradient(180deg, #fcfdfd, #f6f8f7);
@@ -368,6 +367,17 @@ h1 {
 #trendCanvas {
   width: 100%;
   height: 320px;
+}
+
+#optionVoteCanvas {
+  height: 340px;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#optionVoteCanvas.is-dragging {
+  cursor: grabbing;
 }
 
 .chart-scroll-wrap {
@@ -387,10 +397,6 @@ h1 {
 }
 .chart-scroll-wrap::-webkit-scrollbar-track {
   background: #f4f6f5;
-}
-
-#optionVoteCanvas {
-  height: 340px;
 }
 
 .option-trend-panel {
@@ -786,7 +792,6 @@ tr:last-child td {
   }
 
   #trendCanvas,
-  #optionTrendCanvas,
   #optionVoteCanvas {
     height: 240px;
   }

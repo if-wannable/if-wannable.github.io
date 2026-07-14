@@ -42,11 +42,11 @@ const els = {
   leaderFoot: document.querySelector("#leaderFoot"),
   trendCanvas: document.querySelector("#trendCanvas"),
   optionVoteCanvas: document.querySelector("#optionVoteCanvas"),
-  optionGrowthCanvas: document.querySelector("#optionGrowthCanvas"),
-  optionGrowthStatus: document.querySelector("#optionGrowthStatus"),
+  optionChartScroll: document.querySelector("#optionChartScroll"),
   optionTrendStatus: document.querySelector("#optionTrendStatus"),
   optionLegend: document.querySelector("#optionLegend"),
   segments: document.querySelectorAll(".segment"),
+  optionSegments: document.querySelectorAll("[data-opt-mode]"),
   rankingList: document.querySelector("#rankingList"),
   rankingStatus: document.querySelector("#rankingStatus"),
   exportRankingBtn: document.querySelector("#exportRankingBtn"),
@@ -62,9 +62,12 @@ let state = {
   rows: [],
   selectedKey: "",
   chartMode: "participants",
+  optionMode: "votes",
   activeOptionIds: new Set(),
   hoverSnapIndex: null
 };
+
+let dragState = null;
 
 // ── CSV parsing ──────────────────────────────────────────────────────────────
 
@@ -236,8 +239,7 @@ function render() {
   renderRanking();
   renderTable();
   drawChart();
-  drawOptionVoteLineChart();
-  drawOptionGrowthChart();
+  drawOptionChart();
   save();
 }
 
@@ -400,19 +402,23 @@ function drawChart() {
   if (points.length > 1) ctx.fillText(formatShortDate(points.at(-1).time), points.at(-1).x, pad.top+h+14);
 }
 
-function drawOptionVoteLineChart() {
+
+function drawOptionChart() {
   const canvas = els.optionVoteCanvas;
   const legend = els.optionLegend;
   const status = els.optionTrendStatus;
   if (!canvas || !legend) return;
 
+  const mode = state.optionMode;
   const voteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
-  // Width: enforce comfortable spacing per snapshot; use a small container width threshold
-  // so the chart scrolls horizontally rather than compressing all points together.
-  const containerW = 600;
+
+  // Width: use the scroll-wrap's visible width as the floor so the chart fills
+  // the panel; when there are many snapshots, neededW exceeds visibleW and the
+  // canvas overflows -> horizontal scrollbar kicks in.
+  const visibleW = canvas.parentElement?.clientWidth || 600;
   const spacing = 100;
-  const neededW = (voteSnaps.length - 1) * spacing + 200;
-  const W = Math.max(containerW, neededW), H = canvas.clientHeight || 340;
+  const neededW = Math.max(visibleW, (voteSnaps.length - 1) * spacing + 200);
+  const W = neededW, H = canvas.clientHeight || 340;
 
   const ratio = window.devicePixelRatio || 1;
   canvas.width = Math.floor(W * ratio);
@@ -432,7 +438,6 @@ function drawOptionVoteLineChart() {
   const latestSnap = voteSnaps.at(-1);
   const previousSnap = voteSnaps.at(-2);
 
-  // Build legend
   legend.innerHTML = "";
   options.forEach(option => {
     const latestRow = latestSnap?.items.find(r => (r.option_id||r.option) === option.id);
@@ -452,7 +457,7 @@ function drawOptionVoteLineChart() {
     item.addEventListener("click", () => {
       if (state.activeOptionIds.has(option.id)) state.activeOptionIds.delete(option.id);
       else state.activeOptionIds.add(option.id);
-      drawOptionVoteLineChart();
+      drawOptionChart();
     });
     legend.append(item);
   });
@@ -460,219 +465,100 @@ function drawOptionVoteLineChart() {
   const pad = { top: 24, right: 28, bottom: 44, left: 60 };
   const w = W - pad.left - pad.right, h = H - pad.top - pad.bottom;
 
-  const allVotes = options.flatMap(opt =>
-    voteSnaps.flatMap(snap => {
-      const r = snap.items.find(item => (item.option_id||item.option) === opt.id);
-      return r?.votes != null ? [r.votes] : [];
-    })
-  );
-  const max = Math.max(1, ...allVotes);
-
-  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = "#d9dfdc"; ctx.lineWidth = 1;
-  for (let i = 0; i <= 5; i++) {
-    const y = pad.top + (h/5)*i;
-    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+w, y); ctx.stroke();
-  }
-  ctx.fillStyle = "#68736e"; ctx.font = "12px system-ui";
-  ctx.textAlign = "right"; ctx.textBaseline = "middle";
-  for (let i = 0; i <= 5; i++) {
-    ctx.fillText(Math.round(max-(max/5)*i).toLocaleString("zh-CN"), pad.left-10, pad.top+(h/5)*i);
-  }
-
-  if (!voteSnaps.length) {
-    status.textContent = "尚无可见票数";
-    ctx.fillStyle = "#68736e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("等页面显示票数后，这里会绘制折线图", W/2, H/2);
-    canvas._chartMeta = null;
-    return;
-  }
-
-  status.textContent = `${voteSnaps.length} 个票数快照`;
-  const xFor = i => pad.left + (voteSnaps.length===1 ? w/2 : (w/(voteSnaps.length-1))*i);
-  const yFor = v => pad.top + h - (v/max)*h;
-  const hasActive = state.activeOptionIds.size > 0;
-
+  // Build series based on mode. Both modes share the same x-coordinate system
+  // (index into voteSnaps), so toggling between them keeps positions stable.
   const seriesList = [];
+  let yFor, gridVals, zeroY;
 
-  options.forEach(option => {
-    const isActive = state.activeOptionIds.has(option.id);
-    const canvasPoints = voteSnaps.map((snap, i) => {
-      const r = snap.items.find(item => (item.option_id||item.option) === option.id);
-      if (!r || r.votes === null) return null;
-      return { x: xFor(i), y: yFor(r.votes), votes: r.votes, time: snap.time };
-    }).filter(Boolean);
-    seriesList.push({ id: option.id, name: option.name, color: option.color, canvasPoints });
-
-    if (!canvasPoints.length) return;
-    ctx.strokeStyle = hasActive && !isActive ? option.color + "28" : option.color;
-    ctx.lineWidth = isActive ? 3 : 1.5;
-    ctx.beginPath();
-    canvasPoints.forEach((p, i) => i===0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-    ctx.stroke();
-
-    // Label at end of active line
-    if (isActive) {
-      const last = canvasPoints.at(-1);
-      ctx.font = "bold 12px system-ui";
-      ctx.textBaseline = "middle";
-      const label = option.name.length > 12 ? option.name.slice(0,12)+"…" : option.name;
-      const lw = ctx.measureText(label).width;
-      const lx = Math.min(last.x + 8, W - lw - 6);
-      // background pill
-      ctx.fillStyle = option.color + "22";
-      ctx.beginPath();
-      ctx.roundRect(lx - 4, last.y - 10, lw + 8, 20, 4);
-      ctx.fill();
-      ctx.fillStyle = option.color;
-      ctx.textAlign = "left";
-      ctx.fillText(label, lx, last.y);
-    }
-  });
-
-  ctx.fillStyle = "#68736e"; ctx.font = "12px system-ui";
-  ctx.textAlign = "center"; ctx.textBaseline = "top";
-  ctx.fillText(formatShortDate(voteSnaps[0].time), xFor(0), pad.top+h+14);
-  if (voteSnaps.length > 1) ctx.fillText(formatShortDate(voteSnaps.at(-1).time), xFor(voteSnaps.length-1), pad.top+h+14);
-
-  // Hover indicator: vertical line + tooltip with all option votes at that snapshot
-  if (state.hoverSnapIndex !== null && state.hoverSnapIndex >= 0 && state.hoverSnapIndex < voteSnaps.length) {
-    const snap = voteSnaps[state.hoverSnapIndex];
-    const vx = xFor(state.hoverSnapIndex);
-    // vertical line
-    ctx.strokeStyle = "#85b79c";
-    ctx.setLineDash([4, 4]);
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(vx, pad.top);
-    ctx.lineTo(vx, pad.top + h);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // tooltip box — only show selected (highlighted) options, or all if none selected
-    const hasSelection = state.activeOptionIds.size > 0;
-    const visibleOpts = hasSelection
-      ? options.filter(opt => state.activeOptionIds.has(opt.id))
-      : options;
-    const lines = [formatShortDate(snap.time)];
-    visibleOpts.forEach(opt => {
-      const r = snap.items.find(item => (item.option_id||item.option) === opt.id);
-      if (r && r.votes !== null) lines.push(`${opt.name}: ${r.votes.toLocaleString("zh-CN")}`);
-    });
-    ctx.font = "12px system-ui";
-    const lineH = 16;
-    const boxW = Math.min(260, Math.max(...lines.map(l => ctx.measureText(l).width)) + 16);
-    const boxH = lines.length * lineH + 10;
-    let boxX = vx + 10;
-    if (boxX + boxW > W - 4) boxX = vx - boxW - 10;
-    const boxY = pad.top + 6;
-    ctx.fillStyle = "rgba(255,255,255,0.96)";
-    ctx.strokeStyle = "#d9dfdc";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxW, boxH, 6);
-    ctx.fill(); ctx.stroke();
-    ctx.textAlign = "left"; ctx.textBaseline = "top";
-    lines.forEach((line, i) => {
-      if (i === 0) { ctx.fillStyle = "#17201c"; ctx.font = "bold 12px system-ui"; }
-      else { ctx.fillStyle = "#17201c"; ctx.font = "12px system-ui"; }
-      ctx.fillText(line, boxX + 8, boxY + 6 + i * lineH);
-    });
-  }
-
-  canvas._chartMeta = { seriesList, xFor, yFor, voteSnaps };
-}
-
-function drawOptionGrowthChart() {
-  const canvas = els.optionGrowthCanvas;
-  const status = els.optionGrowthStatus;
-  if (!canvas) return;
-
-  const voteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
-  const options = optionList().map((row, i) => ({
-    id: row.option_id || row.option,
-    name: row.option,
-    color: OPTION_COLORS[i % OPTION_COLORS.length]
-  }));
-
-  const containerW = 600;
-  const spacing = 100;
-  const neededW = (voteSnaps.length - 1) * spacing + 200;
-  const W = Math.max(containerW, neededW), H = canvas.clientHeight || 340;
-  const ratio = window.devicePixelRatio || 1;
-  canvas.width = Math.floor(W * ratio);
-  canvas.height = Math.floor(H * ratio);
-  canvas.style.width = W + "px";
-  canvas.style.height = H + "px";
-  const ctx = canvas.getContext("2d");
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  ctx.clearRect(0, 0, W, H);
-
-  const pad = { top: 24, right: 28, bottom: 44, left: 60 };
-  const w = W - pad.left - pad.right, h = H - pad.top - pad.bottom;
-
-  // growth[i] = votes[i] - votes[i-1] for each option
-  const growthSeries = options.map(opt => {
-    const points = [];
-    for (let i = 1; i < voteSnaps.length; i++) {
-      const prev = voteSnaps[i-1].items.find(r => (r.option_id||r.option) === opt.id);
-      const curr = voteSnaps[i].items.find(r => (r.option_id||r.option) === opt.id);
-      if (prev?.votes != null && curr?.votes != null) {
-        points.push({ snapIndex: i, growth: curr.votes - prev.votes, votes: curr.votes, time: voteSnaps[i].time });
+  if (mode === "growth") {
+    const allGrowth = [];
+    options.forEach(opt => {
+      const points = [];
+      for (let i = 1; i < voteSnaps.length; i++) {
+        const prev = voteSnaps[i-1].items.find(r => (r.option_id||r.option) === opt.id);
+        const curr = voteSnaps[i].items.find(r => (r.option_id||r.option) === opt.id);
+        if (prev?.votes != null && curr?.votes != null) {
+          const growth = curr.votes - prev.votes;
+          points.push({ snapIndex: i, value: growth, votes: curr.votes, time: voteSnaps[i].time });
+          allGrowth.push(growth);
+        }
       }
-    }
-    return { ...opt, points };
-  });
-
-  const allGrowth = growthSeries.flatMap(s => s.points.map(p => p.growth));
-  const maxAbs = Math.max(1, ...allGrowth.map(Math.abs));
+      seriesList.push({ id: opt.id, name: opt.name, color: opt.color, points });
+    });
+    const maxAbs = Math.max(1, ...allGrowth.map(Math.abs));
+    zeroY = pad.top + h/2;
+    yFor = v => zeroY - (v / maxAbs) * (h/2);
+    gridVals = [maxAbs, maxAbs/2, 0, -maxAbs/2, -maxAbs];
+  } else {
+    const allVotes = [];
+    options.forEach(opt => {
+      const points = [];
+      voteSnaps.forEach((snap, i) => {
+        const r = snap.items.find(item => (item.option_id||item.option) === opt.id);
+        if (r?.votes != null) {
+          points.push({ snapIndex: i, value: r.votes, votes: r.votes, time: snap.time });
+          allVotes.push(r.votes);
+        }
+      });
+      seriesList.push({ id: opt.id, name: opt.name, color: opt.color, points });
+    });
+    const max = Math.max(1, ...allVotes);
+    zeroY = pad.top + h;
+    yFor = v => pad.top + h - (v / max) * h;
+    gridVals = [max, max*3/4, max/2, max/4, 0];
+  }
 
   ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
   ctx.strokeStyle = "#d9dfdc"; ctx.lineWidth = 1;
-  // zero line in the middle
-  const zeroY = pad.top + h/2;
   for (let i = 0; i <= 4; i++) {
     const y = pad.top + (h/4)*i;
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+w, y); ctx.stroke();
   }
-  // emphasize zero line
-  ctx.strokeStyle = "#b8c5be";
-  ctx.beginPath(); ctx.moveTo(pad.left, zeroY); ctx.lineTo(pad.left+w, zeroY); ctx.stroke();
+  if (mode === "growth") {
+    ctx.strokeStyle = "#b8c5be";
+    ctx.beginPath(); ctx.moveTo(pad.left, zeroY); ctx.lineTo(pad.left+w, zeroY); ctx.stroke();
+  }
 
   ctx.fillStyle = "#68736e"; ctx.font = "12px system-ui";
   ctx.textAlign = "right"; ctx.textBaseline = "middle";
   for (let i = 0; i <= 4; i++) {
-    const val = maxAbs - (maxAbs*2/4)*i;
-    ctx.fillText((val >= 0 ? "+" : "") + Math.round(val).toLocaleString("zh-CN"), pad.left-10, pad.top+(h/4)*i);
+    const val = gridVals[i];
+    const label = mode === "growth"
+      ? (val > 0 ? "+" : "") + Math.round(val).toLocaleString("zh-CN")
+      : Math.round(val).toLocaleString("zh-CN");
+    ctx.fillText(label, pad.left-10, pad.top+(h/4)*i);
   }
 
-  if (voteSnaps.length < 2) {
-    status.textContent = "需要至少 2 个快照";
+  if (!voteSnaps.length || (mode === "growth" && voteSnaps.length < 2)) {
+    status.textContent = mode === "growth" ? "需要至少 2 个快照" : "尚无可见票数";
     ctx.fillStyle = "#68736e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("快照不足，无法计算增长", W/2, H/2);
+    ctx.fillText(mode === "growth" ? "快照不足，无法计算增长" : "等页面显示票数后，这里会绘制折线图", W/2, H/2);
+    canvas._chartMeta = null;
     return;
   }
 
-  status.textContent = `${voteSnaps.length} 个快照 · 显示相邻快照票数增量`;
-  const xFor = i => pad.left + (w/(voteSnaps.length-1))*i;
-  const yFor = v => zeroY - (v/maxAbs)*(h/2);
+  status.textContent = mode === "growth"
+    ? `${voteSnaps.length} 个快照 · 显示相邻快照票数增量`
+    : `${voteSnaps.length} 个票数快照`;
+
+  const xFor = i => pad.left + (voteSnaps.length === 1 ? w/2 : (w/(voteSnaps.length-1))*i);
   const hasActive = state.activeOptionIds.size > 0;
 
-  growthSeries.forEach(opt => {
+  seriesList.forEach(opt => {
     const isActive = state.activeOptionIds.has(opt.id);
     if (!opt.points.length) return;
     ctx.strokeStyle = hasActive && !isActive ? opt.color + "28" : opt.color;
     ctx.lineWidth = isActive ? 3 : 1.5;
     ctx.beginPath();
     opt.points.forEach((p, i) => {
-      const x = xFor(p.snapIndex), y = yFor(p.growth);
+      const x = xFor(p.snapIndex), y = yFor(p.value);
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     });
     ctx.stroke();
 
     if (isActive) {
       const last = opt.points.at(-1);
-      const lx = xFor(last.snapIndex), ly = yFor(last.growth);
+      const lx = xFor(last.snapIndex), ly = yFor(last.value);
       ctx.font = "bold 12px system-ui";
       ctx.textBaseline = "middle";
       const label = opt.name.length > 12 ? opt.name.slice(0,12)+"…" : opt.name;
@@ -692,7 +578,61 @@ function drawOptionGrowthChart() {
   ctx.textAlign = "center"; ctx.textBaseline = "top";
   ctx.fillText(formatShortDate(voteSnaps[0].time), xFor(0), pad.top+h+14);
   if (voteSnaps.length > 1) ctx.fillText(formatShortDate(voteSnaps.at(-1).time), xFor(voteSnaps.length-1), pad.top+h+14);
+
+  if (state.hoverSnapIndex !== null && state.hoverSnapIndex >= 0 && state.hoverSnapIndex < voteSnaps.length) {
+    const snap = voteSnaps[state.hoverSnapIndex];
+    const vx = xFor(state.hoverSnapIndex);
+    ctx.strokeStyle = "#85b79c";
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(vx, pad.top);
+    ctx.lineTo(vx, pad.top + h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const hasSelection = state.activeOptionIds.size > 0;
+    const visibleOpts = hasSelection
+      ? options.filter(opt => state.activeOptionIds.has(opt.id))
+      : options;
+    const lines = [formatShortDate(snap.time)];
+    visibleOpts.forEach(opt => {
+      const r = snap.items.find(item => (item.option_id||item.option) === opt.id);
+      if (r && r.votes !== null) {
+        if (mode === "growth" && state.hoverSnapIndex > 0) {
+          const prevSnap = voteSnaps[state.hoverSnapIndex - 1];
+          const prevRow = prevSnap?.items.find(item => (item.option_id||item.option) === opt.id);
+          const growth = prevRow?.votes != null ? r.votes - prevRow.votes : null;
+          lines.push(`${opt.name}: ${r.votes.toLocaleString("zh-CN")} 票${growth !== null ? ` (${growth >= 0 ? "+" : ""}${growth})` : ""}`);
+        } else {
+          lines.push(`${opt.name}: ${r.votes.toLocaleString("zh-CN")} 票`);
+        }
+      }
+    });
+    ctx.font = "12px system-ui";
+    const lineH = 16;
+    const boxW = Math.min(320, Math.max(...lines.map(l => ctx.measureText(l).width)) + 16);
+    const boxH = lines.length * lineH + 10;
+    let boxX = vx + 10;
+    if (boxX + boxW > W - 4) boxX = vx - boxW - 10;
+    const boxY = pad.top + 6;
+    ctx.fillStyle = "rgba(255,255,255,0.96)";
+    ctx.strokeStyle = "#d9dfdc";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxW, boxH, 6);
+    ctx.fill(); ctx.stroke();
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    lines.forEach((line, i) => {
+      ctx.fillStyle = "#17201c";
+      ctx.font = i === 0 ? "bold 12px system-ui" : "12px system-ui";
+      ctx.fillText(line, boxX + 8, boxY + 6 + i * lineH);
+    });
+  }
+
+  canvas._chartMeta = { seriesList, xFor, yFor, voteSnaps, mode };
 }
+
 
 // ── Ranking export ─────────────────────────────────────────────────────────────
 
@@ -845,85 +785,137 @@ function bindEvents() {
     });
   });
 
+  els.optionSegments.forEach(seg => {
+    seg.addEventListener("click", () => {
+      state.optionMode = seg.dataset.optMode;
+      els.optionSegments.forEach(s => s.classList.toggle("is-active", s === seg));
+      state.hoverSnapIndex = null;
+      drawOptionChart();
+    });
+  });
+
   if (els.refreshBtn) els.refreshBtn.addEventListener("click", manualRefresh);
   if (els.exportRankingBtn) els.exportRankingBtn.addEventListener("click", exportRankingImage);
   if (els.exportCsvBtn) els.exportCsvBtn.addEventListener("click", exportDataCsv);
   if (els.clearHighlightBtn) els.clearHighlightBtn.addEventListener("click", () => {
     state.activeOptionIds.clear();
-    drawOptionVoteLineChart();
+    drawOptionChart();
   });
 
-  // Canvas interactions: click line to toggle highlight, hover to show tooltip
+  // Canvas interactions: click line to toggle highlight, hover for tooltip,
+  // drag to pan horizontally when the chart overflows its scroll-wrap.
   if (els.optionVoteCanvas) {
-    els.optionVoteCanvas.addEventListener("click", event => {
-      const meta = els.optionVoteCanvas._chartMeta;
-      if (!meta) return;
-      const rect = els.optionVoteCanvas.getBoundingClientRect();
-      const mx = event.clientX - rect.left, my = event.clientY - rect.top;
-      // First try: click near a line point → toggle that option
-      let closestLine = null, minDist = Infinity;
+    const canvas = els.optionVoteCanvas;
+    const scrollWrap = canvas.parentElement;
+
+    const pointXY = p => {
+      const meta = canvas._chartMeta;
+      if (!meta) return null;
+      return { x: meta.xFor(p.snapIndex), y: meta.yFor(p.value) };
+    };
+
+    const findNearestOption = (mx, my) => {
+      const meta = canvas._chartMeta;
+      if (!meta) return { id: null, dist: Infinity };
+      let closestId = null, minDist = Infinity;
       meta.seriesList.forEach(opt => {
-        opt.canvasPoints.forEach(p => {
-          const d = Math.hypot(mx - p.x, my - p.y);
-          if (d < minDist) { minDist = d; closestLine = opt.id; }
+        opt.points.forEach(p => {
+          const xy = pointXY(p);
+          if (!xy) return;
+          const d = Math.hypot(mx - xy.x, my - xy.y);
+          if (d < minDist) { minDist = d; closestId = opt.id; }
         });
       });
-      if (minDist < 32) {
-        if (state.activeOptionIds.has(closestLine)) state.activeOptionIds.delete(closestLine);
-        else state.activeOptionIds.add(closestLine);
-        drawOptionVoteLineChart();
-      }
+      return { id: closestId, dist: minDist };
+    };
+
+    const findNearestSnap = mx => {
+      const meta = canvas._chartMeta;
+      if (!meta || !meta.voteSnaps?.length) return null;
+      let nearestIdx = 0, minXDist = Infinity;
+      meta.voteSnaps.forEach((_, i) => {
+        const d = Math.abs(mx - meta.xFor(i));
+        if (d < minXDist) { minXDist = d; nearestIdx = i; }
+      });
+      return nearestIdx;
+    };
+
+    canvas.addEventListener("mousedown", event => {
+      const meta = canvas._chartMeta;
+      if (!meta) return;
+      dragState = {
+        startX: event.clientX,
+        scrollLeft: scrollWrap?.scrollLeft ?? 0,
+        moved: false
+      };
     });
 
-    els.optionVoteCanvas.addEventListener("mousemove", event => {
-      const meta = els.optionVoteCanvas._chartMeta;
+    canvas.addEventListener("mousemove", event => {
+      const meta = canvas._chartMeta;
       if (!meta) return;
-      const rect = els.optionVoteCanvas.getBoundingClientRect();
+      const rect = canvas.getBoundingClientRect();
       const mx = event.clientX - rect.left, my = event.clientY - rect.top;
-      // Find nearest line point (for cursor hint)
-      let minDist = Infinity;
-      meta.seriesList.forEach(opt => {
-        opt.canvasPoints.forEach(p => {
-          const d = Math.hypot(mx - p.x, my - p.y);
-          if (d < minDist) minDist = d;
-        });
-      });
-      els.optionVoteCanvas.style.cursor = minDist < 32 ? "pointer" : "default";
 
-      // Find nearest snapshot by x → update hover tooltip
-      const { voteSnaps, xFor } = meta;
-      if (!voteSnaps || voteSnaps.length === 0) return;
-      const pad = { left: 60, right: 28 };
-      const chartLeft = pad.left;
-      const chartRight = xFor(voteSnaps.length - 1);
-      if (mx < chartLeft - 20 || mx > chartRight + 20) {
-        if (state.hoverSnapIndex !== null) {
-          state.hoverSnapIndex = null;
-          drawOptionVoteLineChart();
+      if (dragState) {
+        const dx = event.clientX - dragState.startX;
+        if (Math.abs(dx) > 5) {
+          dragState.moved = true;
+          canvas.classList.add("is-dragging");
+          if (scrollWrap) scrollWrap.scrollLeft = dragState.scrollLeft - dx;
         }
         return;
       }
-      // nearest index by x distance
-      let nearestIdx = 0, minXDist = Infinity;
-      voteSnaps.forEach((_, i) => {
-        const d = Math.abs(mx - xFor(i));
-        if (d < minXDist) { minXDist = d; nearestIdx = i; }
-      });
-      if (state.hoverSnapIndex !== nearestIdx) {
+
+      const { dist } = findNearestOption(mx, my);
+      canvas.style.cursor = dist < 32 ? "pointer" : "grab";
+
+      const chartLeft = 60, chartRight = meta.xFor(meta.voteSnaps.length - 1);
+      if (mx < chartLeft - 20 || mx > chartRight + 20) {
+        if (state.hoverSnapIndex !== null) {
+          state.hoverSnapIndex = null;
+          drawOptionChart();
+        }
+        return;
+      }
+      const nearestIdx = findNearestSnap(mx);
+      if (nearestIdx !== null && state.hoverSnapIndex !== nearestIdx) {
         state.hoverSnapIndex = nearestIdx;
-        drawOptionVoteLineChart();
+        drawOptionChart();
       }
     });
 
-    els.optionVoteCanvas.addEventListener("mouseleave", () => {
+    canvas.addEventListener("mouseup", event => {
+      if (!dragState) return;
+      const wasMoved = dragState.moved;
+      dragState = null;
+      canvas.classList.remove("is-dragging");
+
+      if (wasMoved) return;
+
+      const meta = canvas._chartMeta;
+      if (!meta) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = event.clientX - rect.left, my = event.clientY - rect.top;
+      const { id, dist } = findNearestOption(mx, my);
+      if (dist < 32 && id) {
+        if (state.activeOptionIds.has(id)) state.activeOptionIds.delete(id);
+        else state.activeOptionIds.add(id);
+        drawOptionChart();
+      }
+    });
+
+    canvas.addEventListener("mouseleave", () => {
+      if (dragState) { dragState = null; canvas.classList.remove("is-dragging"); }
       if (state.hoverSnapIndex !== null) {
         state.hoverSnapIndex = null;
-        drawOptionVoteLineChart();
+        drawOptionChart();
       }
     });
   }
 
-  window.addEventListener("resize", () => { drawChart(); drawOptionVoteLineChart(); drawOptionGrowthChart(); });
+  window.addEventListener("resize", () => { drawChart(); drawOptionChart(); });
+
+
 
   // Auto-refresh every 10 minutes
   setInterval(async () => {
