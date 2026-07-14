@@ -462,7 +462,10 @@ function drawOptionChart() {
     legend.append(item);
   });
 
-  const pad = { top: 24, right: 28, bottom: 44, left: 60 };
+  // Tighter padding on narrow (mobile) canvases so the chart area gets more room.
+  const pad = W < 500
+    ? { top: 20, right: 16, bottom: 38, left: 44 }
+    : { top: 24, right: 28, bottom: 44, left: 60 };
   const w = W - pad.left - pad.right, h = H - pad.top - pad.bottom;
 
   // Build series based on mode. Both modes share the same x-coordinate system
@@ -584,8 +587,8 @@ function drawOptionChart() {
 
   ctx.fillStyle = "#68736e"; ctx.font = "12px system-ui";
   ctx.textAlign = "center"; ctx.textBaseline = "top";
-  // Show ~8 evenly spaced x-axis labels (first, last, and intermediates).
-  const labelStep = Math.max(1, Math.ceil(voteSnaps.length / 8));
+  // Scale x-axis label density to canvas width: ~1 label per 130px, min 3.
+  const labelStep = Math.max(1, Math.ceil(voteSnaps.length * 130 / Math.max(W, 1)));
   for (let i = 0; i < voteSnaps.length; i += labelStep) {
     ctx.fillText(formatShortDate(voteSnaps[i].time), xFor(i), pad.top+h+14);
   }
@@ -662,7 +665,7 @@ function drawOptionChart() {
     });
   }
 
-  canvas._chartMeta = { seriesList, xFor, yFor, voteSnaps, mode };
+  canvas._chartMeta = { seriesList, xFor, yFor, voteSnaps, mode, pad };
 }
 
 
@@ -901,7 +904,7 @@ function bindEvents() {
       const { dist } = findNearestOption(mx, my);
       canvas.style.cursor = dist < 32 ? "pointer" : "grab";
 
-      const chartLeft = 60, chartRight = meta.xFor(meta.voteSnaps.length - 1);
+      const chartLeft = meta.pad?.left ?? 60, chartRight = meta.xFor(meta.voteSnaps.length - 1);
       if (mx < chartLeft - 20 || mx > chartRight + 20) {
         if (state.hoverSnapIndex !== null) {
           state.hoverSnapIndex = null;

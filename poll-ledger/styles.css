@@ -374,6 +374,7 @@ h1 {
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: pan-x;
 }
 
 #optionVoteCanvas.is-dragging {
@@ -762,9 +763,12 @@ tr:last-child td {
   }
 
   .topbar,
-  .metric-grid,
   .capture-layout {
     grid-template-columns: 1fr;
+  }
+
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .top-actions {
@@ -775,6 +779,29 @@ tr:last-child td {
 @media (max-width: 620px) {
   .brand-subtitle {
     display: none;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  .brand-title {
+    font-size: 16px;
+  }
+
+  .rail {
+    padding: 10px 12px;
+  }
+
+  .workspace {
+    padding: 10px;
+  }
+
+  .chart-panel,
+  .data-panel,
+  .metric {
+    padding: 12px;
   }
 
   .url-row,
@@ -788,11 +815,57 @@ tr:last-child td {
   }
 
   .metric {
-    min-height: 96px;
+    min-height: 88px;
   }
 
-  #trendCanvas,
+  .metric strong {
+    font-size: clamp(20px, 6vw, 30px);
+  }
+
+  #trendCanvas {
+    height: 240px;
+  }
+
   #optionVoteCanvas {
-    height: 480px;
+    height: 380px;
+  }
+
+  .option-legend {
+    grid-template-columns: 1fr;
+  }
+
+  .legend-item {
+    min-height: 34px;
+  }
+
+  .panel-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .panel-head h1 {
+    font-size: 16px;
+  }
+
+  .segment {
+    min-height: 32px;
+    min-width: 56px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .button.compact {
+    min-height: 32px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  table {
+    min-width: 560px;
+  }
+
+  th, td {
+    padding: 9px 10px;
+    font-size: 12px;
   }
 }
