@@ -143,13 +143,14 @@ const els = {
   leaderMetric: document.querySelector("#leaderMetric"),
   leaderFoot: document.querySelector("#leaderFoot"),
   trendCanvas: document.querySelector("#trendCanvas"),
+  optionVoteCanvas: document.querySelector("#optionVoteCanvas"),
   optionTrendCanvas: document.querySelector("#optionTrendCanvas"),
   optionTrendStatus: document.querySelector("#optionTrendStatus"),
   optionLegend: document.querySelector("#optionLegend"),
   segments: document.querySelectorAll(".segment"),
-  optionGrid: document.querySelector("#optionGrid"),
   rankingList: document.querySelector("#rankingList"),
   rankingStatus: document.querySelector("#rankingStatus"),
+  exportRankingBtn: document.querySelector("#exportRankingBtn"),
   snapshotForm: document.querySelector("#snapshotForm"),
   capturedAtInput: document.querySelector("#capturedAtInput"),
   participantInput: document.querySelector("#participantInput"),
@@ -169,7 +170,8 @@ const els = {
 let state = {
   rows: [],
   selectedKey: "",
-  chartMode: "participants"
+  chartMode: "participants",
+  hoveredOptionId: null
 };
 
 const OPTION_COLORS = [
@@ -218,14 +220,15 @@ function parseCsv(text) {
 }
 
 function normalizeRow(item) {
+  const option = String(item.option || "");
   return {
     captured_at: String(item.captured_at || ""),
     topic_id: String(item.topic_id || ""),
     poll_id: String(item.poll_id || ""),
     participant_count: toNumber(item.participant_count),
     result_visible: String(item.result_visible).toLowerCase() === "true",
-    option_id: String(item.option_id || ""),
-    option: String(item.option || ""),
+    option_id: option,
+    option: option,
     votes: toOptionalNumber(item.votes),
     percent: toOptionalNumber(String(item.percent || "").replace("%", "")),
     note: String(item.note || "")
@@ -363,11 +366,11 @@ function render() {
   if (!state.selectedKey) state.selectedKey = [...groupedRows().keys()][0] || "";
   renderTrackers();
   renderMetrics();
-  renderOptions();
   renderRanking();
   renderEditor();
   renderTable();
   drawChart();
+  drawOptionVoteLineChart();
   drawOptionVoteChart();
   save();
 }
@@ -612,16 +615,6 @@ function drawChart() {
   });
   ctx.stroke();
 
-  points.forEach((point) => {
-    ctx.fillStyle = "#ffffff";
-    ctx.beginPath();
-    ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#167447";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  });
-
   ctx.fillStyle = "#68736e";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -681,13 +674,20 @@ function drawOptionVoteChart() {
     const previousVotes = previousRow?.votes ?? null;
     const totalGrowth = latestVotes !== null && series?.baseline !== null ? latestVotes - series.baseline : null;
     const intervalGrowth = latestVotes !== null && previousVotes !== null ? latestVotes - previousVotes : null;
+    const isHighlighted = state.hoveredOptionId === option.id;
     const item = document.createElement("div");
-    item.className = "legend-item";
+    item.className = "legend-item" + (isHighlighted ? " is-highlighted" : "");
+    item.dataset.optionId = option.id;
     item.innerHTML = `
       <span class="legend-swatch" style="background:${option.color}"></span>
       <span class="legend-name" title="${escapeAttr(option.name)}">${escapeHtml(option.name)}</span>
       <span class="legend-value">${latestVotes === null ? "-" : `${latestVotes.toLocaleString("zh-CN")} 票`}${totalGrowth === null ? "" : ` · 累计 ${totalGrowth >= 0 ? "+" : ""}${totalGrowth}`}${intervalGrowth === null ? "" : ` · 上轮 ${intervalGrowth >= 0 ? "+" : ""}${intervalGrowth}`}</span>
     `;
+    item.addEventListener("click", () => {
+      state.hoveredOptionId = state.hoveredOptionId === option.id ? null : option.id;
+      drawOptionVoteLineChart();
+      drawOptionVoteChart();
+    });
     legend.append(item);
   });
 
@@ -730,7 +730,10 @@ function drawOptionVoteChart() {
   const xFor = (index) => pad.left + (voteSnaps.length === 1 ? width / 2 : (width / (voteSnaps.length - 1)) * index);
   const yFor = (value) => pad.top + height - (value / max) * height;
 
+  const hasHighlight = state.hoveredOptionId !== null;
+
   growthSeries.forEach((option) => {
+    const isActive = state.hoveredOptionId === option.id;
     const points = option.points.map((point) => ({
       x: xFor(point.snapIndex),
       y: yFor(point.growth),
@@ -740,8 +743,8 @@ function drawOptionVoteChart() {
     }));
     if (points.length === 0) return;
 
-    ctx.strokeStyle = option.color;
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = hasHighlight && !isActive ? option.color + "28" : option.color;
+    ctx.lineWidth = isActive ? 3 : 2;
     ctx.beginPath();
     points.forEach((point, index) => {
       if (index === 0) ctx.moveTo(point.x, point.y);
@@ -749,24 +752,265 @@ function drawOptionVoteChart() {
     });
     ctx.stroke();
 
-    points.forEach((point) => {
-      ctx.fillStyle = "#ffffff";
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, 3.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = option.color;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    });
+    if (isActive && points.length > 0) {
+      const last = points.at(-1);
+      ctx.font = "bold 12px system-ui";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      const label = option.name.length > 12 ? option.name.slice(0, 12) + "…" : option.name;
+      const labelX = Math.min(last.x + 6, displayWidth - ctx.measureText(label).width - 8);
+      ctx.fillStyle = option.color;
+      ctx.fillText(label, labelX, last.y);
+    }
   });
 
   const first = voteSnaps[0];
   const last = voteSnaps.at(-1);
   ctx.fillStyle = "#68736e";
+  ctx.font = "12px system-ui";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   ctx.fillText(formatShortDate(first.time), xFor(0), pad.top + height + 14);
   if (last !== first) ctx.fillText(formatShortDate(last.time), xFor(voteSnaps.length - 1), pad.top + height + 14);
+
+  canvas._chartMeta = {
+    seriesList: growthSeries.map((option) => ({
+      id: option.id,
+      canvasPoints: option.points.map((point) => ({ x: xFor(point.snapIndex), y: yFor(point.growth) }))
+    })),
+    xFor, yFor
+  };
+}
+
+function drawOptionVoteLineChart() {
+  const canvas = els.optionVoteCanvas;
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const ratio = window.devicePixelRatio || 1;
+  const displayWidth = canvas.clientWidth || 980;
+  const displayHeight = canvas.clientHeight || 300;
+  canvas.width = Math.floor(displayWidth * ratio);
+  canvas.height = Math.floor(displayHeight * ratio);
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, displayWidth, displayHeight);
+
+  const voteSnaps = snapshots().filter((snap) => snap.items.some((row) => row.votes !== null));
+  const options = optionList().map((row, index) => ({
+    id: row.option_id || row.option,
+    name: row.option,
+    color: OPTION_COLORS[index % OPTION_COLORS.length]
+  }));
+
+  const pad = { top: 24, right: 28, bottom: 44, left: 60 };
+  const width = displayWidth - pad.left - pad.right;
+  const height = displayHeight - pad.top - pad.bottom;
+
+  const allVotes = options.flatMap((option) =>
+    voteSnaps.flatMap((snap) => {
+      const row = snap.items.find((item) => (item.option_id || item.option) === option.id);
+      return row?.votes !== null && row?.votes !== undefined ? [row.votes] : [];
+    })
+  );
+  const max = Math.max(1, ...allVotes);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, displayWidth, displayHeight);
+  ctx.strokeStyle = "#d9dfdc";
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i += 1) {
+    const y = pad.top + (height / 5) * i;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(pad.left + width, y);
+    ctx.stroke();
+  }
+  ctx.fillStyle = "#68736e";
+  ctx.font = "12px system-ui";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i <= 5; i += 1) {
+    const value = max - (max / 5) * i;
+    ctx.fillText(Math.round(value).toLocaleString("zh-CN"), pad.left - 10, pad.top + (height / 5) * i);
+  }
+
+  if (voteSnaps.length === 0) {
+    ctx.fillStyle = "#68736e";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("等页面显示票数后，这里会绘制折线图", displayWidth / 2, displayHeight / 2);
+    return;
+  }
+
+  const xFor = (index) => pad.left + (voteSnaps.length === 1 ? width / 2 : (width / (voteSnaps.length - 1)) * index);
+  const yFor = (value) => pad.top + height - (value / max) * height;
+  const hasHighlight = state.hoveredOptionId !== null;
+
+  options.forEach((option) => {
+    const isActive = state.hoveredOptionId === option.id;
+    const points = voteSnaps.map((snap, index) => {
+      const row = snap.items.find((item) => (item.option_id || item.option) === option.id);
+      if (!row || row.votes === null) return null;
+      return { x: xFor(index), y: yFor(row.votes), votes: row.votes, time: snap.time };
+    }).filter(Boolean);
+    if (points.length === 0) return;
+
+    ctx.strokeStyle = hasHighlight && !isActive ? option.color + "28" : option.color;
+    ctx.lineWidth = isActive ? 3 : 2;
+    ctx.beginPath();
+    points.forEach((point, index) => {
+      if (index === 0) ctx.moveTo(point.x, point.y);
+      else ctx.lineTo(point.x, point.y);
+    });
+    ctx.stroke();
+
+    if (isActive && points.length > 0) {
+      const last = points.at(-1);
+      ctx.font = "bold 12px system-ui";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      const label = option.name.length > 12 ? option.name.slice(0, 12) + "…" : option.name;
+      const labelX = Math.min(last.x + 6, displayWidth - ctx.measureText(label).width - 8);
+      ctx.fillStyle = option.color;
+      ctx.fillText(label, labelX, last.y);
+    }
+  });
+
+  const first = voteSnaps[0];
+  const last = voteSnaps.at(-1);
+  ctx.fillStyle = "#68736e";
+  ctx.font = "12px system-ui";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText(formatShortDate(first.time), xFor(0), pad.top + height + 14);
+  if (last !== first) ctx.fillText(formatShortDate(last.time), xFor(voteSnaps.length - 1), pad.top + height + 14);
+
+  canvas._chartMeta = {
+    seriesList: options.map((option) => ({
+      id: option.id,
+      canvasPoints: voteSnaps.map((snap, index) => {
+        const row = snap.items.find((item) => (item.option_id || item.option) === option.id);
+        if (!row || row.votes === null) return null;
+        return { x: xFor(index), y: yFor(row.votes) };
+      }).filter(Boolean)
+    })),
+    xFor, yFor
+  };
+}
+
+function exportRankingImage() {
+  const list = els.rankingList;
+  if (!list || !list.children.length) return;
+  const items = [...list.querySelectorAll(".ranking-item")];
+  const ratio = window.devicePixelRatio || 2;
+  const itemH = 52;
+  const pad = { x: 24, top: 48, bottom: 24 };
+  const itemW = Math.min(Math.max(list.clientWidth || 600, 360), 760);
+  const totalH = pad.top + items.length * (itemH + 6) - 6 + pad.bottom;
+  const canvas = document.createElement("canvas");
+  canvas.width = (itemW + pad.x * 2) * ratio;
+  canvas.height = totalH * ratio;
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+  ctx.fillStyle = "#f4f6f5";
+  ctx.fillRect(0, 0, itemW + pad.x * 2, totalH);
+
+  ctx.fillStyle = "#17201c";
+  ctx.font = "bold 16px system-ui";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText("当前排名", pad.x, 26);
+
+  ctx.fillStyle = "#68736e";
+  ctx.font = "12px system-ui";
+  ctx.textAlign = "right";
+  ctx.fillText(els.rankingStatus.textContent, itemW + pad.x, 26);
+
+  const GOLD = "#a97619";
+  const GREEN = "#167447";
+
+  items.forEach((item, idx) => {
+    const y = pad.top + idx * (itemH + 6);
+    const isTop = item.classList.contains("is-top");
+
+    ctx.fillStyle = "#ffffff";
+    roundRect(ctx, pad.x, y, itemW, itemH, 8);
+    ctx.fill();
+    if (isTop) {
+      ctx.strokeStyle = GOLD;
+      ctx.lineWidth = 1.5;
+      roundRect(ctx, pad.x, y, itemW, itemH, 8);
+      ctx.stroke();
+    }
+
+    const rankEl = item.querySelector(".ranking-rank");
+    const rankNum = rankEl?.textContent?.trim() || String(idx + 1);
+    const circleX = pad.x + 16 + 14;
+    const circleY = y + itemH / 2;
+    ctx.beginPath();
+    ctx.arc(circleX, circleY, 14, 0, Math.PI * 2);
+    ctx.fillStyle = isTop ? GOLD : "#eef3ef";
+    ctx.fill();
+    ctx.fillStyle = isTop ? "#2a2a2a" : "#68736e";
+    ctx.font = "bold 13px system-ui";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(rankNum, circleX, circleY);
+
+    const nameEl = item.querySelector(".ranking-name");
+    const name = nameEl?.textContent?.trim() || "";
+    ctx.fillStyle = "#17201c";
+    ctx.font = "600 13px system-ui";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(name.length > 18 ? name.slice(0, 18) + "…" : name, pad.x + 44, y + itemH / 2 - 8);
+
+    const barEl = item.querySelector(".ranking-bar span");
+    const barWidthPct = barEl ? parseFloat(barEl.style.width) : 0;
+    const barW = Math.max(4, ((itemW - 44 - 90) * barWidthPct) / 100);
+    const barY = y + itemH / 2 + 8;
+    ctx.fillStyle = "#e8eeeb";
+    roundRect(ctx, pad.x + 44, barY - 3, itemW - 44 - 90, 6, 3);
+    ctx.fill();
+    const grad = ctx.createLinearGradient(pad.x + 44, 0, pad.x + 44 + barW, 0);
+    grad.addColorStop(0, GREEN);
+    grad.addColorStop(1, GOLD);
+    ctx.fillStyle = grad;
+    roundRect(ctx, pad.x + 44, barY - 3, barW, 6, 3);
+    ctx.fill();
+
+    const votesEl = item.querySelector(".ranking-votes");
+    const votesText = votesEl ? [...votesEl.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim() : "";
+    const pctEl = item.querySelector(".ranking-percent");
+    const pctText = pctEl?.textContent?.trim() || "";
+    ctx.fillStyle = "#17201c";
+    ctx.font = "600 13px system-ui";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(votesText, pad.x + itemW - 4, y + itemH / 2 - 8);
+    ctx.fillStyle = "#68736e";
+    ctx.font = "12px system-ui";
+    ctx.fillText(pctText, pad.x + itemW - 4, y + itemH / 2 + 8);
+  });
+
+  const link = document.createElement("a");
+  link.download = `ranking_${Date.now()}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
 }
 
 function parsePastedText(text) {
@@ -902,6 +1146,7 @@ function bindEvents() {
     render();
   });
   els.exportBtn.addEventListener("click", downloadCsv);
+  if (els.exportRankingBtn) els.exportRankingBtn.addEventListener("click", exportRankingImage);
   els.resetBtn.addEventListener("click", () => {
     state.rows = [];
     state.selectedKey = "";
@@ -924,11 +1169,54 @@ function bindEvents() {
   });
   window.addEventListener("resize", () => {
     drawChart();
+    drawOptionVoteLineChart();
     drawOptionVoteChart();
+  });
+
+  [els.optionVoteCanvas, els.optionTrendCanvas].forEach((canvas) => {
+    if (!canvas) return;
+    canvas.addEventListener("click", (event) => {
+      const meta = canvas._chartMeta;
+      if (!meta) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = event.clientX - rect.left;
+      const my = event.clientY - rect.top;
+      const { seriesList, xFor, yFor } = meta;
+      let closest = null;
+      let minDist = Infinity;
+      seriesList.forEach((option) => {
+        option.canvasPoints.forEach((point) => {
+          const dist = Math.hypot(mx - point.x, my - point.y);
+          if (dist < minDist) { minDist = dist; closest = option.id; }
+        });
+      });
+      if (minDist < 30) {
+        state.hoveredOptionId = state.hoveredOptionId === closest ? null : closest;
+        drawOptionVoteLineChart();
+        drawOptionVoteChart();
+      }
+    });
   });
 }
 
 load().then(() => {
   bindEvents();
   render();
+  setInterval(async () => {
+    for (const path of ["./douban_poll_log.csv", "../douban_poll_log.csv"]) {
+      try {
+        const response = await fetch(path, { cache: "no-store" });
+        if (response.ok) {
+          const rows = parseCsv(await response.text());
+          if (rows.length) {
+            state.rows = mergeRows(state.rows, rows);
+            render();
+            return;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, 10 * 60 * 1000);
 });
