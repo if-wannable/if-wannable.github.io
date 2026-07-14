@@ -418,7 +418,7 @@ function drawOptionChart() {
   const visibleW = canvas.parentElement?.clientWidth || 600;
   const spacing = 100;
   const neededW = Math.max(visibleW, (voteSnaps.length - 1) * spacing + 200);
-  const W = neededW, H = canvas.clientHeight || 420;
+  const W = neededW, H = canvas.clientHeight || 620;
 
   const ratio = window.devicePixelRatio || 1;
   canvas.width = Math.floor(W * ratio);
@@ -479,16 +479,17 @@ function drawOptionChart() {
         const curr = voteSnaps[i].items.find(r => (r.option_id||r.option) === opt.id);
         if (prev?.votes != null && curr?.votes != null) {
           const growth = curr.votes - prev.votes;
-          points.push({ snapIndex: i, value: growth, votes: curr.votes, time: voteSnaps[i].time });
-          allGrowth.push(growth);
+          // No negative y-axis: clamp plotted value to >= 0, keep raw for tooltip.
+          points.push({ snapIndex: i, value: Math.max(0, growth), rawGrowth: growth, votes: curr.votes, time: voteSnaps[i].time });
+          allGrowth.push(Math.max(0, growth));
         }
       }
       seriesList.push({ id: opt.id, name: opt.name, color: opt.color, points });
     });
-    const maxAbs = Math.max(1, ...allGrowth.map(Math.abs));
-    zeroY = pad.top + h/2;
-    yFor = v => zeroY - (v / maxAbs) * (h/2);
-    gridVals = [maxAbs, maxAbs/2, 0, -maxAbs/2, -maxAbs];
+    const max = Math.max(1, ...allGrowth);
+    zeroY = pad.top + h;
+    yFor = v => pad.top + h - (v / max) * h;
+    gridVals = [max, max*3/4, max/2, max/4, 0];
   } else {
     const allVotes = [];
     options.forEach(opt => {
@@ -514,19 +515,12 @@ function drawOptionChart() {
     const y = pad.top + (h/4)*i;
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+w, y); ctx.stroke();
   }
-  if (mode === "growth") {
-    ctx.strokeStyle = "#b8c5be";
-    ctx.beginPath(); ctx.moveTo(pad.left, zeroY); ctx.lineTo(pad.left+w, zeroY); ctx.stroke();
-  }
 
   ctx.fillStyle = "#68736e"; ctx.font = "12px system-ui";
   ctx.textAlign = "right"; ctx.textBaseline = "middle";
   for (let i = 0; i <= 4; i++) {
     const val = gridVals[i];
-    const label = mode === "growth"
-      ? (val > 0 ? "+" : "") + Math.round(val).toLocaleString("zh-CN")
-      : Math.round(val).toLocaleString("zh-CN");
-    ctx.fillText(label, pad.left-10, pad.top+(h/4)*i);
+    ctx.fillText(Math.round(val).toLocaleString("zh-CN"), pad.left-10, pad.top+(h/4)*i);
   }
 
   if (!voteSnaps.length || (mode === "growth" && voteSnaps.length < 2)) {
@@ -572,6 +566,20 @@ function drawOptionChart() {
       ctx.textAlign = "left";
       ctx.fillText(label, bx, ly);
     }
+
+    // Dots on active option's entire line
+    if (isActive && opt.points.length) {
+      ctx.fillStyle = opt.color;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      opt.points.forEach(p => {
+        const px = xFor(p.snapIndex), py = yFor(p.value);
+        ctx.beginPath();
+        ctx.arc(px, py, 3.5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
   });
 
   ctx.fillStyle = "#68736e"; ctx.font = "12px system-ui";
@@ -602,18 +610,36 @@ function drawOptionChart() {
       ? options.filter(opt => state.activeOptionIds.has(opt.id))
       : options;
     const lines = [formatShortDate(snap.time)];
+    const hoverPoints = [];
     visibleOpts.forEach(opt => {
       const r = snap.items.find(item => (item.option_id||item.option) === opt.id);
       if (r && r.votes !== null) {
+        let value = r.votes;
         if (mode === "growth" && state.hoverSnapIndex > 0) {
           const prevSnap = voteSnaps[state.hoverSnapIndex - 1];
           const prevRow = prevSnap?.items.find(item => (item.option_id||item.option) === opt.id);
           const growth = prevRow?.votes != null ? r.votes - prevRow.votes : null;
+          value = Math.max(0, growth ?? 0);
           lines.push(`${opt.name}: ${r.votes.toLocaleString("zh-CN")} 票${growth !== null ? ` (${growth >= 0 ? "+" : ""}${growth})` : ""}`);
         } else {
           lines.push(`${opt.name}: ${r.votes.toLocaleString("zh-CN")} 票`);
         }
+        hoverPoints.push({ x: vx, y: yFor(value), color: opt.color });
       }
+    });
+    // Larger halo dots at the hover snapshot for each visible option
+    hoverPoints.forEach(p => {
+      ctx.fillStyle = p.color + "33";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 9, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = p.color;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
     });
     ctx.font = "12px system-ui";
     const lineH = 16;
