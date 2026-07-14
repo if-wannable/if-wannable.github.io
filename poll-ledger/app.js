@@ -404,10 +404,11 @@ function drawOptionVoteLineChart() {
   if (!canvas || !legend) return;
 
   const voteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
-  // Dynamic width: 60px per snapshot, min 980
+  // Width: enforce a comfortable spacing per snapshot so the chart scrolls horizontally
   const containerW = canvas.parentElement?.clientWidth || 980;
-  const dynamicW = Math.max(containerW, voteSnaps.length * 60 + 100);
-  const W = dynamicW, H = canvas.clientHeight || 340;
+  const spacing = 80;
+  const neededW = (voteSnaps.length - 1) * spacing + 200;
+  const W = Math.max(containerW, neededW), H = canvas.clientHeight || 340;
 
   const ratio = window.devicePixelRatio || 1;
   canvas.width = Math.floor(W * ratio);
@@ -544,9 +545,13 @@ function drawOptionVoteLineChart() {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // tooltip box
+    // tooltip box — only show selected (highlighted) options, or all if none selected
+    const hasSelection = state.activeOptionIds.size > 0;
+    const visibleOpts = hasSelection
+      ? options.filter(opt => state.activeOptionIds.has(opt.id))
+      : options;
     const lines = [formatShortDate(snap.time)];
-    options.forEach(opt => {
+    visibleOpts.forEach(opt => {
       const r = snap.items.find(item => (item.option_id||item.option) === opt.id);
       if (r && r.votes !== null) lines.push(`${opt.name}: ${r.votes.toLocaleString("zh-CN")}`);
     });
