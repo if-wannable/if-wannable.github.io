@@ -1,761 +1,184 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  
-  
-  <title>摘豆子工作室</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta property="og:type" content="website">
-<meta property="og:title" content="摘豆子工作室">
-<meta property="og:url" content="http://example.com/index.html">
-<meta property="og:site_name" content="摘豆子工作室">
-<meta property="og:locale" content="zh_CN">
-<meta property="article:author" content="John Doe">
-<meta name="twitter:card" content="summary">
-  
-    <link rel="alternate" href="/atom.xml" title="摘豆子工作室" type="application/atom+xml">
-  
-  
-    <link rel="shortcut icon" href="/favicon.png">
-  
-  
-  
-<link rel="stylesheet" href="/css/style.css">
-
-  
-<link rel="stylesheet" href="/css/custom.css">
-
-  
-    
-<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
-
-  
-  
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.2.0/css/fork-awesome.min.css">
-
-<meta name="generator" content="Hexo 8.1.2"></head>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>投票记录台</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
 <body>
-  <div id="container">
-    <div id="wrap">
-      <header id="header">
-  <div id="banner"></div>
-  <div id="header-outer" class="outer">
-    <div id="header-title" class="inner">
-      <h1 id="logo-wrap">
-        <a href="/" id="logo">摘豆子工作室</a>
-      </h1>
-      
-        <h2 id="subtitle-wrap">
-          <a href="/" id="subtitle">🦙</a>
-        </h2>
-      
-    </div>
-    <div id="header-inner" class="inner">
-      <nav id="main-nav">
-        <a id="main-nav-toggle" class="nav-icon"><span class="fa fa-bars"></span></a>
-        
-          <a class="main-nav-link" href="/">Home</a>
-        
-          <a class="main-nav-link" href="/archives">Archives</a>
-        
-      </nav>
-      <nav id="sub-nav">
-        
-        
-          <a class="nav-icon" href="/atom.xml" title="RSS 订阅"><span class="fa fa-rss"></span></a>
-        
-        <a class="nav-icon nav-search-btn" title="搜索"><span class="fa fa-search"></span></a>
-      </nav>
-      <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://example.com"></form>
+  <div class="app-shell">
+    <aside class="rail">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">票</div>
+        <div>
+          <div class="brand-title">投票记录台</div>
+          <div class="brand-subtitle">Poll Ledger</div>
+        </div>
       </div>
-    </div>
-  </div>
-</header>
 
-      <div class="outer">
-        <section id="main"><!-- 标题 -->
-<div style="text-align: center; padding: 25px 0 15px;">
-  <h1 style="font-size: 1.8em; color: var(--secondary); margin: 0;">🌸 TO-DO-LIST</h1>
-  <p style="color: #999; margin-top: 8px; font-size: 0.95em;" id="today-date"></p>
-  <p style="margin-top: 5px; font-size: 0.75em;">
-    <span id="sync-progress" style="color: #f5a623; display: none;">⏳ 同步中...</span>
-    <span id="sync-status" style="font-size: 0.8em; color: #f5a623; display: none;">⏳ 同步中...</span>
-  </p>
-  <div style="margin-top: 10px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
-    <button id="export-btn" style="background: #7eb86e; color: white; border: none; padding: 6px 16px; border-radius: 20px; font-size: 0.85em; cursor: pointer;">📋 导出任务</button>
-    <button id="refresh-btn" style="background: #7eb86e; color: white; border: none; padding: 6px 16px; border-radius: 20px; font-size: 0.85em; cursor: pointer;">🔄 手动刷新</button>
-    <button id="sync-btn" style="background: #7eb86e; color: white; border: none; padding: 6px 16px; border-radius: 20px; font-size: 0.85em; cursor: pointer; display: none;">☁️ 同步到云端</button>
-    <button id="admin-btn" style="background: #add5a2; color: white; border: none; padding: 6px 16px; border-radius: 20px; font-size: 0.85em; cursor: pointer;">🔒 解锁编辑</button>
-  </div>
-  <p style="font-size: 0.8em; margin-top: 8px; display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
-    <span id="cloud-status" style="color: #7eb86e;"></span>
-    <span id="admin-status" style="color: #999; display: none;">✅ 已解锁编辑模式</span>
-  </p>
-</div>
+      <nav class="tabs" aria-label="视图">
+        <button class="tab is-active" type="button" data-view="dashboard" title="总览">
+          <span aria-hidden="true">⌁</span>
+          <span>总览</span>
+        </button>
+        <button class="tab" type="button" data-view="capture" title="采集">
+          <span aria-hidden="true">＋</span>
+          <span>采集</span>
+        </button>
+        <button class="tab" type="button" data-view="data" title="数据">
+          <span aria-hidden="true">▦</span>
+          <span>数据</span>
+        </button>
+      </nav>
 
-<div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-  <button id="batch-delete-btn" style="background: #ff6b6b; color: white; border: none; padding: 6px 16px; border-radius: 20px; font-size: 0.85em; cursor: pointer; display: none;">🗑️ 一键删除</button>
-</div>
+      <div class="tracker-list" id="trackerList" aria-label="投票列表"></div>
+    </aside>
 
-<!-- 豆瓣卡贴任务 -->
-<div class="module-card" data-section="card" style="padding: 20px;">
-  <h3 style="font-size: 1.1em; font-weight: 600; color: var(--secondary); margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">
-    <span>🃏</span> 豆瓣卡贴
-  </h3>
-  <div id="card-tasks"></div>
-  <button class="add-task-btn" style="margin-top: 15px; background: #f0f8ed; color: #7eb86e; border: 1px dashed #add5a2; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85em; display: none;">+ 新增任务</button>
-</div>
-
-<!-- 豆瓣顶帖任务 -->
-<div class="module-card" data-section="bump" style="padding: 20px;">
-  <h3 style="font-size: 1.1em; font-weight: 600; color: var(--secondary); margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">
-    <span>📋</span> 豆瓣顶帖
-    <button class="batch-del-btn" data-section="bump" style="margin-left: auto; background: #ff6b6b; color: white; border: none; padding: 4px 12px; border-radius: 15px; font-size: 0.75em; cursor: pointer; display: none;">🗑️ 一键删除</button>
-  </h3>
-  <div id="bump-tasks"></div>
-  <button class="add-task-btn" style="margin-top: 15px; background: #f0f8ed; color: #7eb86e; border: 1px dashed #add5a2; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85em; display: none;">+ 新增任务</button>
-</div>
-
-<!-- 豆瓣咔主页 -->
-<div class="module-card" data-section="home" style="padding: 20px;">
-  <h3 style="font-size: 1.1em; font-weight: 600; color: var(--secondary); margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">
-    <span>🏠</span> 豆瓣咔主页
-  </h3>
-  <div id="home-tasks"></div>
-  <button class="add-task-btn" style="margin-top: 15px; background: #f0f8ed; color: #7eb86e; border: 1px dashed #add5a2; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85em; display: none;">+ 新增任务</button>
-</div>
-
-<!-- 其余任务 -->
-<div class="module-card" data-section="other" style="padding: 20px;">
-  <h3 style="font-size: 1.1em; font-weight: 600; color: var(--secondary); margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">
-    <span>✨</span> 其余任务
-  </h3>
-  <div id="other-tasks"></div>
-  <button class="add-task-btn" style="margin-top: 15px; background: #f0f8ed; color: #7eb86e; border: 1px dashed #add5a2; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85em; display: none;">+ 新增任务</button>
-</div>
-
-
-<!-- 脚本 -->
-<script>
-const GIST_CONFIG = {
-  gistId: 'b153fed7b323ef2c10c230f12bd67142',
-  token: localStorage.getItem('github_token') || '',
-  filename: 'tasks.json'
-};
-
-const DEFAULT_TASKS = {
-  card: [{ id: 'card-1', text: '签到打卡' }, { id: 'card-2', text: '盖楼回复' }],
-  bump: [
-    { id: 'bump-1', text: '点击顶帖', link: 'https://www.douban.com/group/topic/486670265/?_spm_id=MTk4OTA4NTUw&dt_dapp=1&dt_platform=com.douban.activity.wechat_friends&_i=8212575DYOxO7j,8212578DYOxO7j' },
-    { id: 'bump-2', text: '待添加' },
-    { id: 'bump-3', text: '待添加' }
-  ],
-  home: [{ id: 'home-1', text: '访问个人主页' }, { id: 'home-2', text: '查看最新动态' }],
-  other: [{ id: 'other-1', text: '微博超话签到' }, { id: 'other-2', text: '转发微博' }, { id: 'other-3', text: '播放音乐' }]
-};
-
-let TASKS_CONFIG = DEFAULT_TASKS;
-const ADMIN_PASSWORD = '123456';
-let isAdminUnlocked = false;
-let batchDeleteMode = false;
-
-// 初始化
-document.getElementById('today-date').innerText = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
-
-function updateCloudStatus(message, isError) {
-  const status = document.getElementById('cloud-status');
-  if (status) {
-    status.innerText = message;
-    status.style.color = isError ? '#e74c3c' : '#7eb86e';
-  }
-}
-
-function formatTimeAgo(timestamp) {
-  if (!timestamp) return '';
-  const minutes = Math.floor((Date.now() - parseInt(timestamp)) / 60000);
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes}分钟前`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}小时前`;
-  return `${Math.floor(hours / 24)}天前`;
-}
-
-function loadTasksFromCache() {
-  const cached = localStorage.getItem('tasks_cache');
-  if (cached) {
-    try {
-      TASKS_CONFIG = JSON.parse(cached);
-      updateCloudStatus(`💾 使用本地缓存 (${formatTimeAgo(localStorage.getItem('tasks_cache_time'))})`, false);
-      return true;
-    } catch(e) {}
-  }
-  return false;
-}
-
-function loadTasksFromGist(forceRefresh, callback) {
-  if (!forceRefresh && loadTasksFromCache()) {
-    callback && callback(TASKS_CONFIG);
-    return;
-  }
-  if (!GIST_CONFIG.gistId) {
-    updateCloudStatus('⚠️ 未配置云端同步', true);
-    callback && callback(null);
-    return;
-  }
-
-  const progress = document.getElementById('sync-progress');
-  progress.style.display = 'inline';
-
-  const timeout = setTimeout(() => {
-    progress.style.display = 'none';
-    if (loadTasksFromCache()) {
-      updateCloudStatus('⏱️ 加载超时，使用本地缓存', false);
-    } else {
-      updateCloudStatus('⏱️ 加载超时，使用默认任务', true);
-    }
-    callback && callback(TASKS_CONFIG);
-  }, 5000);
-
-  const headers = GIST_CONFIG.token ? { 'Authorization': `token ${GIST_CONFIG.token}` } : {};
-  fetch(`https://api.github.com/gists/${GIST_CONFIG.gistId}?_=${Date.now()}`, { cache: 'no-cache', headers })
-    .then(res => res.json())
-    .then(data => {
-      clearTimeout(timeout);
-      progress.style.display = 'none';
-      if (data.message?.includes('rate limit')) {
-        if (loadTasksFromCache()) {
-          updateCloudStatus('⚠️ API 限流，使用本地缓存', false);
-        } else {
-          updateCloudStatus('⚠️ API 限流，点击手动刷新重试', true);
-        }
-        callback && callback(null);
-        return;
-      }
-      if (data.files?.[GIST_CONFIG.filename]) {
-        try {
-          TASKS_CONFIG = JSON.parse(data.files[GIST_CONFIG.filename].content);
-          localStorage.setItem('tasks_cache', JSON.stringify(TASKS_CONFIG));
-          localStorage.setItem('tasks_cache_time', Date.now());
-          updateCloudStatus('☁️ 已从云端加载', false);
-          callback && callback(TASKS_CONFIG);
-        } catch(e) {
-          updateCloudStatus('⚠️ 云端数据格式错误', true);
-          callback && callback(null);
-        }
-      } else {
-        updateCloudStatus('⚠️ Gist 中无 tasks.json，请先点击同步', true);
-        callback && callback(null);
-      }
-    })
-    .catch(() => {
-      clearTimeout(timeout);
-      progress.style.display = 'none';
-      if (loadTasksFromCache()) {
-        updateCloudStatus('⚠️ 网络错误，使用本地缓存', false);
-      } else {
-        updateCloudStatus('⚠️ 加载失败，点击手动刷新重试', true);
-      }
-      callback && callback(null);
-    });
-}
-
-function saveTasksToGist(callback) {
-  if (!GIST_CONFIG.gistId || !GIST_CONFIG.token) {
-    const token = prompt('同步到云端需要 GitHub Token，请输入：\n\n（Token 将保存在本机 localStorage 中，不会上传）');
-    if (token?.trim()) {
-      GIST_CONFIG.token = token.trim();
-      localStorage.setItem('github_token', GIST_CONFIG.token);
-    } else {
-      alert('❌ 未提供 Token，无法同步到云端。');
-      callback && callback(false);
-      return;
-    }
-  }
-
-  const content = { [GIST_CONFIG.filename]: { content: JSON.stringify(TASKS_CONFIG, null, 2) } };
-  fetch(`https://api.github.com/gists/${GIST_CONFIG.gistId}`, {
-    method: 'PATCH',
-    headers: { 'Authorization': `token ${GIST_CONFIG.token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ files: content })
-  })
-  .then(res => {
-    if (res.ok) {
-      localStorage.setItem('tasks_cache', JSON.stringify(TASKS_CONFIG));
-      localStorage.setItem('tasks_cache_time', Date.now());
-      updateCloudStatus('✅ 已同步到云端', false);
-      callback && callback(true);
-    } else {
-      res.text().then(text => alert(`❌ 同步失败！HTTP ${res.status}\n\n${text || ''}`));
-      callback && callback(false);
-    }
-  })
-  .catch(err => {
-    alert(`❌ 同步失败！网络错误: ${err.message || ''}`);
-    callback && callback(false);
-  });
-}
-
-function linkify(text) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  return text.replace(urlRegex, '<a href="$1" target="_blank" style="color:inherit;text-decoration:none;cursor:text;word-break:break-all;" onclick="event.stopPropagation();if(isAdminUnlocked)return false;">$1</a>');
-}
-
-function compressImage(file, callback) {
-  const reader = new FileReader();
-  reader.readAsDataURL(file);
-  reader.onload = e => {
-    const img = new Image();
-    img.src = e.target.result;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let width = img.width, height = img.height;
-      const maxSize = 1000;
-      if (width > height && width > maxSize) {
-        height = (height * maxSize) / width;
-        width = maxSize;
-      } else if (height > maxSize) {
-        width = (width * maxSize) / height;
-        height = maxSize;
-      }
-      canvas.width = width;
-      canvas.height = height;
-      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-      callback(canvas.toDataURL('image/jpeg', 0.7));
-    };
-  };
-}
-
-function renderTasks() {
-  ['card', 'bump', 'home', 'other'].forEach(section => {
-    const container = document.getElementById(`${section}-tasks`);
-    container.innerHTML = '';
-    (TASKS_CONFIG[section] || []).forEach((task, index) => {
-      const isChecked = localStorage.getItem(task.id) === 'true';
-      const hasLink = !!task.link;
-      const taskClass = `task-item${hasLink ? ' has-link' : ''}`;
-      const textClass = `task-text${hasLink ? ' has-link' : ''}${isChecked && !isAdminUnlocked ? ' checked' : ''}`;
-      const images = task.images || [];
-
-      let html = `<div class="${taskClass}" data-link="${task.link || ''}">
-        <div class="task-item-inner">
-          <span class="task-num">${String(index + 1).padStart(2, '0')}</span>
-          <span class="${textClass}" data-id="${task.id}" data-section="${section}">${linkify(task.text)}${isAdminUnlocked ? '<span class=\'edit-btn-small\' style=\'margin-left:6px;\' data-id=\''+task.id+'\' data-section=\''+section+'\'>✏️</span>' : ''}</span>`;
-
-      if (hasLink) {
-        html += `<span class="jump-btn" data-link="${task.link}">🔗 跳转</span>
-          <span class="edit-link-btn" data-id="${task.id}" data-section="${section}">✏️</span>`;
-      }
-
-      html += `<span class="delete-btn" data-id="${task.id}" data-section="${section}">🗑️</span>
-        <input type="checkbox" class="task-checkbox" data-id="${task.id}" style="display:${!isAdminUnlocked || batchDeleteMode ? 'inline' : 'none'}" ${isChecked ? 'checked' : ''}>`;
-
-      if (isAdminUnlocked) {
-        html += `<label class="add-img-btn-small" title="上传图片">📷<input type="file" accept="image/*" style="display:none" data-task-id="${task.id}" data-section="${section}"></label>`;
-      }
-
-      html += `</div>`;
-
-      if (images.length > 0) {
-        html += `<div class="task-images-row">`;
-        images.forEach((img, idx) => {
-          html += `<div class="task-thumb-wrap">
-            <img src="${img}" class="task-thumb" onclick="event.stopPropagation();openImagePreview('${img.replace(/'/g, "\\'")}')">`;
-          if (isAdminUnlocked) {
-            html += `<span class="img-delete-btn" data-task-id="${task.id}" data-section="${section}" data-img-idx="${idx}">×</span>`;
-          }
-          html += `</div>`;
-        });
-        html += `</div>`;
-      }
-
-      html += `</div>`;
-      container.insertAdjacentHTML('beforeend', html);
-    });
-  });
-}
-
-function updateAdminStatus() {
-  const isDisplay = isAdminUnlocked ? 'inline' : 'none';
-  const notDisplay = isAdminUnlocked ? 'none' : 'inline-block';
-
-  document.getElementById('admin-btn').innerText = isAdminUnlocked ? '🔓 锁定编辑' : '🔒 解锁编辑';
-  document.getElementById('admin-status').style.display = isAdminUnlocked ? 'inline' : 'none';
-  document.getElementById('sync-btn').style.display = 'none';
-  document.getElementById('batch-delete-btn').style.display = isAdminUnlocked ? 'inline' : 'none';
-
-  document.querySelectorAll('.delete-btn, .edit-link-btn').forEach(b => b.style.display = isDisplay);
-  document.querySelectorAll('.add-task-btn').forEach(b => b.style.display = isAdminUnlocked ? 'block' : 'none');
-  document.querySelectorAll('.jump-btn').forEach(b => b.style.display = notDisplay);
-  document.querySelectorAll('.add-img-btn-small').forEach(b => b.style.display = isAdminUnlocked ? 'flex' : 'none');
-
-  document.querySelectorAll('.task-text a').forEach(a => {
-    if (isAdminUnlocked) {
-      a.style.color = 'inherit';
-      a.style.textDecoration = 'none';
-      a.style.cursor = 'text';
-    } else {
-      a.style.color = '#2196f3';
-      a.style.textDecoration = 'underline';
-      a.style.cursor = 'pointer';
-    }
-  });
-}
-
-function openLink(link) {
-  if (link) window.open(link, '_blank');
-}
-
-function bindAllEvents() {
-  document.querySelectorAll('.task-checkbox').forEach(checkbox => {
-    checkbox.onclick = e => e.stopPropagation();
-    checkbox.onchange = function(e) {
-      e.stopPropagation();
-      const taskId = this.dataset.id;
-      localStorage.setItem(taskId, this.checked);
-      const textEl = document.querySelector(`.task-text[data-id="${taskId}"]`);
-      if (textEl && !isAdminUnlocked) this.checked ? textEl.classList.add('checked') : textEl.classList.remove('checked');
-    };
-  });
-
-  document.querySelectorAll('.jump-btn').forEach(btn => {
-    btn.onclick = e => {
-      e.stopPropagation();
-      openLink(btn.dataset.link);
-    };
-  });
-
-  document.querySelectorAll('.task-item.has-link').forEach(item => {
-    item.onclick = () => {
-      if (!isAdminUnlocked) openLink(item.dataset.link);
-    };
-  });
-
-  function editTask(section, id) {
-    const task = TASKS_CONFIG[section].find(t => t.id === id);
-    const newText = prompt('编辑任务内容：\n\n编辑后将自动同步，其他人刷新就能看到变化。', task.text);
-    if (newText?.trim()) {
-      task.text = newText.trim();
-      refresh();
-    }
-  }
-
-  document.querySelectorAll('.edit-btn-small').forEach(btn => {
-    btn.onclick = function(e) {
-      e.stopPropagation();
-      editTask(this.dataset.section, this.dataset.id);
-    };
-  });
-
-  document.querySelectorAll('.task-text').forEach(taskText => {
-    taskText.onclick = function(e) {
-      e.stopPropagation();
-      if (!isAdminUnlocked) {
-        openLink(this.dataset.link);
-        return;
-      }
-      editTask(this.dataset.section, this.dataset.id);
-    };
-  });
-
-  document.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.onclick = function(e) {
-      e.stopPropagation();
-      if (!isAdminUnlocked || !confirm('确定要删除这个任务吗？')) return;
-      TASKS_CONFIG[this.dataset.section] = TASKS_CONFIG[this.dataset.section].filter(t => t.id !== this.dataset.id);
-      localStorage.removeItem(this.dataset.id);
-      refresh();
-    };
-  });
-
-  document.querySelectorAll('.edit-link-btn').forEach(btn => {
-    btn.onclick = function(e) {
-      e.stopPropagation();
-      if (!isAdminUnlocked) return alert('请先解锁编辑模式');
-      const task = TASKS_CONFIG[this.dataset.section].find(t => t.id === this.dataset.id);
-      const newLink = prompt('编辑链接地址：', task.link || '');
-      if (newLink !== null) {
-        task.link = newLink.trim() || undefined;
-        const newText = prompt('编辑链接文字：', task.text);
-        if (newText?.trim()) task.text = newText.trim();
-        refresh();
-      }
-    };
-  });
-
-  document.querySelectorAll('input[type="file"][data-task-id]').forEach(input => {
-    input.onchange = function(e) {
-      e.stopPropagation();
-      const file = this.files[0];
-      if (!file) return;
-      const task = TASKS_CONFIG[this.dataset.section].find(t => t.id === this.dataset.taskId);
-      compressImage(file, dataUrl => {
-        if (!task.images) task.images = [];
-        task.images.push(dataUrl);
-        refresh();
-      });
-    };
-  });
-
-  document.querySelectorAll('.img-delete-btn').forEach(btn => {
-    btn.onclick = function(e) {
-      e.stopPropagation();
-      if (!isAdminUnlocked || !confirm('确定删除这张图片？')) return;
-      const task = TASKS_CONFIG[this.dataset.section].find(t => t.id === this.dataset.taskId);
-      if (task.images) {
-        task.images.splice(parseInt(this.dataset.imgIdx), 1);
-        refresh();
-      }
-    };
-  });
-
-  updateAdminStatus();
-}
-
-function refresh(autoSync = true) {
-  renderTasks();
-  bindAllEvents();
-  if (autoSync && isAdminUnlocked) {
-    saveTasksToGist();
-  }
-}
-
-// 事件绑定
-document.getElementById('admin-btn').onclick = function() {
-  if (isAdminUnlocked) {
-    isAdminUnlocked = false;
-    refresh();
-    return;
-  }
-  if (localStorage.getItem('admin_unlocked_once') === 'true') {
-    isAdminUnlocked = true;
-    refresh();
-    return;
-  }
-  const pwd = prompt('请输入管理员密码：');
-  if (pwd === ADMIN_PASSWORD) {
-    isAdminUnlocked = true;
-    localStorage.setItem('admin_unlocked_once', 'true');
-    refresh();
-    if (!GIST_CONFIG.token) {
-      const token = prompt('检测到未配置 GitHub Token。\n\n请输入 GitHub Personal Access Token：');
-      if (token?.trim()) {
-        GIST_CONFIG.token = token.trim();
-        localStorage.setItem('github_token', GIST_CONFIG.token);
-      }
-    }
-  } else if (pwd !== null) {
-    alert('密码错误！');
-  }
-};
-
-document.querySelectorAll('.add-task-btn').forEach(btn => {
-  btn.onclick = function() {
-    if (!isAdminUnlocked) return;
-    const section = this.closest('.module-card').dataset.section;
-    const text = prompt('请输入新任务内容：', '新任务');
-    if (text?.trim()) {
-      TASKS_CONFIG[section].push({ id: `${section}-${Date.now()}`, text: text.trim() });
-      refresh();
-    }
-  };
-});
-
-function updateBatchDeleteButton() {
-  const btn = document.getElementById('batch-delete-btn');
-  const checkedCount = document.querySelectorAll('.task-checkbox:checked').length;
-  btn.innerText = checkedCount > 0 ? '✅ 确认删除' : '↩️ 返回';
-}
-
-document.getElementById('batch-delete-btn').onclick = function() {
-  if (!isAdminUnlocked) return;
-
-  if (!batchDeleteMode) {
-    batchDeleteMode = true;
-    this.innerText = '↩️ 返回';
-    document.querySelectorAll('.task-checkbox').forEach(cb => {
-      cb.style.display = 'inline';
-      const originalOnChange = cb.onchange;
-      cb.onchange = function(e) {
-        if (originalOnChange) originalOnChange.call(this, e);
-        updateBatchDeleteButton();
-      };
-    });
-    document.querySelectorAll('.delete-btn, .edit-btn-small').forEach(b => b.style.display = 'none');
-    document.querySelectorAll('.add-img-btn-small').forEach(b => b.style.display = 'none');
-    return;
-  }
-
-  const checkedIds = [];
-  document.querySelectorAll('.task-checkbox:checked').forEach(cb => checkedIds.push(cb.dataset.id));
-  if (checkedIds.length === 0) {
-    batchDeleteMode = false;
-    this.innerText = '🗑️ 一键删除';
-    document.querySelectorAll('.task-checkbox').forEach(cb => cb.style.display = isAdminUnlocked ? 'none' : 'inline');
-    document.querySelectorAll('.delete-btn, .edit-btn-small').forEach(b => b.style.display = 'inline');
-    document.querySelectorAll('.add-img-btn-small').forEach(b => b.style.display = 'flex');
-    return;
-  }
-  if (!confirm(`确定要删除选中的 ${checkedIds.length} 个任务吗？`)) return;
-  ['card', 'bump', 'home', 'other'].forEach(section => {
-    TASKS_CONFIG[section] = TASKS_CONFIG[section].filter(t => !checkedIds.includes(t.id));
-  });
-  checkedIds.forEach(id => localStorage.removeItem(id));
-  batchDeleteMode = false;
-  this.innerText = '🗑️ 一键删除';
-  refresh();
-};
-
-document.getElementById('sync-btn').onclick = function() {
-  const status = document.getElementById('sync-status');
-  status.style.display = 'inline';
-  saveTasksToGist(success => {
-    status.style.display = 'none';
-    alert(success ? '✅ 同步成功！' : '❌ 同步失败！');
-  });
-};
-
-document.getElementById('refresh-btn').onclick = () => {
-  updateCloudStatus('🔄 从云端刷新中...', false);
-  loadTasksFromGist(true, refresh);
-};
-
-document.getElementById('export-btn').onclick = () => {
-  const sectionNames = { card: '豆瓣卡贴', bump: '豆瓣顶帖', home: '豆瓣咔主页', other: '其余任务' };
-  let output = '';
-  ['card', 'bump', 'home', 'other'].forEach(section => {
-    const tasks = TASKS_CONFIG[section] || [];
-    if (tasks.length === 0) return;
-    output += `【${sectionNames[section]}】\n`;
-    tasks.forEach((task, i) => {
-      output += `${i + 1}. ${task.text}${task.link ? ' ' + task.link : ''}\n`;
-    });
-    output += '\n';
-  });
-  navigator.clipboard.writeText(output)
-    .then(() => alert(`已复制到剪贴板！\n\n${output}`))
-    .catch(() => {
-      const ta = document.createElement('textarea');
-      ta.value = output;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      alert(`已复制到剪贴板！\n\n${output}`);
-    });
-};
-
-// 图片预览
-function openImagePreview(src) {
-  const modal = document.getElementById('image-modal');
-  const img = document.getElementById('image-modal-img');
-  img.src = src;
-  modal.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-}
-function closeImagePreview() {
-  const modal = document.getElementById('image-modal');
-  modal.style.display = 'none';
-  document.body.style.overflow = '';
-}
-
-// 初始化
-if (loadTasksFromCache()) refresh();
-loadTasksFromGist(true, refresh);
-</script>
-
-<!-- 图片预览模态框 -->
-<div id="image-modal" onclick="closeImagePreview()" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:99999;justify-content:center;align-items:center;cursor:zoom-out;">
-  <img id="image-modal-img" style="max-width:90%;max-height:90%;object-fit:contain;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
-</div>
-
-<!-- 文章列表 -->
-
-  
-    <article id="post-placeholder" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2026/05/08/placeholder/" class="article-date">
-  <time class="dt-published" datetime="2026-05-08T08:37:00.000Z" itemprop="datePublished">2026-05-08</time>
-</a>
-    
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2026/05/08/placeholder/"> </a>
-    </h1>
-  
-
+    <main class="workspace">
+      <header class="topbar">
+        <div class="topic-meta">
+          <label class="field-label" for="topicUrl">投票链接</label>
+          <div class="url-row">
+            <input id="topicUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://www.douban.com/group/topic/493741132/">
+            <button id="applyUrlBtn" class="button" type="button">载入</button>
+          </div>
+        </div>
+        <div class="top-actions">
+          <label class="button secondary file-button" for="csvFile">导入 CSV</label>
+          <input id="csvFile" class="sr-only" type="file" accept=".csv,text/csv">
+          <button id="exportBtn" class="button secondary" type="button">导出 CSV</button>
+          <button id="resetBtn" class="icon-button" type="button" title="清空本地数据" aria-label="清空本地数据">×</button>
+        </div>
       </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://example.com/2026/05/08/placeholder/" data-id="cuid5vCVyxrg0AZ4VZUyDBVMO" data-title=" " class="article-share-link"><span class="fa fa-share">分享</span></a>
-      
-      
-      
-    </footer>
+
+      <section id="dashboardView" class="view is-visible" aria-label="总览">
+        <div class="metric-grid">
+          <div class="metric">
+            <span class="metric-label">参与人数</span>
+            <strong id="participantMetric">-</strong>
+            <span id="participantDelta" class="metric-foot">暂无变化</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">记录点</span>
+            <strong id="snapshotMetric">-</strong>
+            <span id="lastCaptureMetric" class="metric-foot">尚未记录</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">选项</span>
+            <strong id="optionMetric">-</strong>
+            <span id="visibilityMetric" class="metric-foot">结果未知</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">领先项</span>
+            <strong id="leaderMetric">-</strong>
+            <span id="leaderFoot" class="metric-foot">等待票数</span>
+          </div>
+        </div>
+
+        <div class="chart-panel">
+          <div class="panel-head">
+            <h1>参与人数趋势</h1>
+            <div class="segmented" role="group" aria-label="图表模式">
+              <button class="segment is-active" type="button" data-chart="participants">参与</button>
+              <button class="segment" type="button" data-chart="votes">票数</button>
+            </div>
+          </div>
+          <canvas id="trendCanvas" width="980" height="320" aria-label="趋势图"></canvas>
+        </div>
+
+        <div class="chart-panel option-trend-panel">
+          <div class="panel-head">
+            <h1>选项票数增长</h1>
+            <div class="status-line" id="optionTrendStatus">以首个票数快照为 0</div>
+          </div>
+          <canvas id="optionTrendCanvas" width="980" height="380" aria-label="每个选项票数增长折线图"></canvas>
+          <div class="option-legend" id="optionLegend" aria-label="选项图例"></div>
+        </div>
+
+        <div class="option-grid" id="optionGrid" aria-label="选项"></div>
+      </section>
+
+      <section id="captureView" class="view" aria-label="采集">
+        <div class="capture-layout">
+          <form id="snapshotForm" class="capture-panel">
+            <div class="panel-head">
+              <h1>新增记录</h1>
+              <div class="switch-line">
+                <input id="resultVisibleInput" type="checkbox">
+                <label for="resultVisibleInput">本次可见票数</label>
+              </div>
+            </div>
+            <div class="status-line capture-note">网页只整理本地日志；豆瓣实时票数由已登录浏览器采集，或手动粘贴结果后追加。</div>
+
+            <div class="form-grid">
+              <label>
+                <span>记录时间</span>
+                <input id="capturedAtInput" type="datetime-local">
+              </label>
+              <label>
+                <span>参与人数</span>
+                <input id="participantInput" type="number" min="0" step="1" placeholder="3547">
+              </label>
+              <label>
+                <span>帖子 ID</span>
+                <input id="topicIdInput" type="text" inputmode="numeric" placeholder="493741132">
+              </label>
+              <label>
+                <span>投票 ID</span>
+                <input id="pollIdInput" type="text" inputmode="numeric" placeholder="10258668">
+              </label>
+            </div>
+
+            <div class="option-editor-head">
+              <span>选项票数</span>
+              <button id="addOptionBtn" class="button secondary compact" type="button">加选项</button>
+            </div>
+            <div id="optionEditor" class="option-editor"></div>
+            <label class="note-field">
+              <span>备注</span>
+              <input id="noteInput" type="text" placeholder="投票后可查看结果">
+            </label>
+            <button class="button primary" type="submit">追加记录</button>
+          </form>
+
+          <div class="capture-panel">
+            <div class="panel-head">
+              <h1>粘贴快照</h1>
+              <button id="parseTextBtn" class="button secondary compact" type="button">解析</button>
+            </div>
+            <textarea id="pasteArea" spellcheck="false" placeholder="每个人可以投五票（最多选5项）&#10;3547人参与 · 距离结束还有 2天2时29分&#10;anna 刘耀文&#10;Mimi 张泽禹&#10;..."></textarea>
+            <div id="parseStatus" class="status-line">可从网页可见文本中提取参与人数和选项。</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="dataView" class="view" aria-label="数据">
+        <div class="data-panel">
+          <div class="panel-head">
+            <h1>日志</h1>
+            <div class="status-line" id="rowCount">0 行</div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>时间</th>
+                  <th>参与</th>
+                  <th>选项</th>
+                  <th>票数</th>
+                  <th>百分比</th>
+                  <th>备注</th>
+                </tr>
+              </thead>
+              <tbody id="dataRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
-  
-</article>
 
-
-
-  
-
-
-
-</section>
-        
-      </div>
-      <footer id="footer">
-  
-  <div class="outer">
-    <div id="footer-info" class="inner">
-      
-      &copy; 2026 John Doe<br>
-      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
-    </div>
-  </div>
-</footer>
-
-    </div>
-    <nav id="mobile-nav">
-  
-    <a href="/" class="mobile-nav-link">Home</a>
-  
-    <a href="/archives" class="mobile-nav-link">Archives</a>
-  
-</nav>
-    
-
-
-<script src="/js/jquery-3.6.4.min.js"></script>
-
-
-
-  
-<script src="/fancybox/jquery.fancybox.min.js"></script>
-
-
-
-
-<script src="/js/script.js"></script>
-
-
-
-
-
-  </div>
+  <script src="./app.js"></script>
 </body>
 </html>
