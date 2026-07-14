@@ -2,7 +2,7 @@ name: Scrape Douban Poll
 
 on:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -32,14 +32,6 @@ jobs:
         env:
           DOUBAN_COOKIE: ${{ secrets.DOUBAN_COOKIE }}
         run: python scripts/scrape_douban_poll.py
-
-      - name: Upload debug HTML
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: douban-debug-html
-          path: douban_debug.html
-          retention-days: 7
 
       - name: Commit CSV
         run: |
