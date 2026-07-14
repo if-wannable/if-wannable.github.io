@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>投票记录台</title>
-  <link rel="stylesheet" href="./styles.css?v=3">
+  <link rel="stylesheet" href="./styles.css?v=4">
 </head>
 <body>
   <div class="app-shell">
@@ -75,9 +75,15 @@
         <div class="chart-panel option-trend-panel">
           <div class="panel-head">
             <h1>选项实时票数</h1>
-            <div class="status-line" id="optionTrendStatus"></div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="status-line" id="optionTrendStatus"></div>
+              <button id="clearHighlightBtn" class="button secondary compact" type="button">清除高亮</button>
+              <button id="exportCsvBtn" class="button secondary compact" type="button">导出 CSV</button>
+            </div>
           </div>
-          <canvas id="optionVoteCanvas" width="980" height="340" aria-label="每个选项实时票数折线图"></canvas>
+          <div class="chart-scroll-wrap">
+            <canvas id="optionVoteCanvas" height="340" aria-label="每个选项实时票数折线图"></canvas>
+          </div>
           <div class="option-legend" id="optionLegend" aria-label="选项图例"></div>
         </div>
 
@@ -119,6 +125,6 @@
     </main>
   </div>
 
-  <script src="./app.js?v=3"></script>
+  <script src="./app.js?v=4"></script>
 </body>
 </html>

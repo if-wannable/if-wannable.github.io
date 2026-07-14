@@ -48,6 +48,8 @@ const els = {
   rankingList: document.querySelector("#rankingList"),
   rankingStatus: document.querySelector("#rankingStatus"),
   exportRankingBtn: document.querySelector("#exportRankingBtn"),
+  exportCsvBtn: document.querySelector("#exportCsvBtn"),
+  clearHighlightBtn: document.querySelector("#clearHighlightBtn"),
   refreshBtn: document.querySelector("#refreshBtn"),
   refreshStatus: document.querySelector("#refreshStatus"),
   dataRows: document.querySelector("#dataRows"),
@@ -58,7 +60,8 @@ let state = {
   rows: [],
   selectedKey: "",
   chartMode: "participants",
-  activeOptionId: null
+  activeOptionIds: new Set(),
+  hoverSnapIndex: null
 };
 
 // ── CSV parsing ──────────────────────────────────────────────────────────────
@@ -400,15 +403,21 @@ function drawOptionVoteLineChart() {
   const status = els.optionTrendStatus;
   if (!canvas || !legend) return;
 
-  const ctx = canvas.getContext("2d");
+  const voteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
+  // Dynamic width: 60px per snapshot, min 980
+  const containerW = canvas.parentElement?.clientWidth || 980;
+  const dynamicW = Math.max(containerW, voteSnaps.length * 60 + 100);
+  const W = dynamicW, H = canvas.clientHeight || 340;
+
   const ratio = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth || 980, H = canvas.clientHeight || 340;
   canvas.width = Math.floor(W * ratio);
   canvas.height = Math.floor(H * ratio);
+  canvas.style.width = W + "px";
+  canvas.style.height = H + "px";
+  const ctx = canvas.getContext("2d");
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   ctx.clearRect(0, 0, W, H);
 
-  const voteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
   const options = optionList().map((row, i) => ({
     id: row.option_id || row.option,
     name: row.option,
@@ -426,7 +435,7 @@ function drawOptionVoteLineChart() {
     const latestVotes = latestRow?.votes ?? null;
     const previousVotes = previousRow?.votes ?? null;
     const intervalGrowth = latestVotes !== null && previousVotes !== null ? latestVotes - previousVotes : null;
-    const isActive = state.activeOptionId === option.id;
+    const isActive = state.activeOptionIds.has(option.id);
     const item = document.createElement("div");
     item.className = "legend-item" + (isActive ? " is-highlighted" : "");
     item.dataset.optionId = option.id;
@@ -436,7 +445,8 @@ function drawOptionVoteLineChart() {
       <span class="legend-value">${latestVotes === null ? "-" : `${latestVotes.toLocaleString("zh-CN")} 票`}${intervalGrowth === null ? "" : ` · 上轮 ${intervalGrowth >= 0 ? "+" : ""}${intervalGrowth}`}</span>
     `;
     item.addEventListener("click", () => {
-      state.activeOptionId = state.activeOptionId === option.id ? null : option.id;
+      if (state.activeOptionIds.has(option.id)) state.activeOptionIds.delete(option.id);
+      else state.activeOptionIds.add(option.id);
       drawOptionVoteLineChart();
     });
     legend.append(item);
@@ -476,12 +486,12 @@ function drawOptionVoteLineChart() {
   status.textContent = `${voteSnaps.length} 个票数快照`;
   const xFor = i => pad.left + (voteSnaps.length===1 ? w/2 : (w/(voteSnaps.length-1))*i);
   const yFor = v => pad.top + h - (v/max)*h;
-  const hasActive = state.activeOptionId !== null;
+  const hasActive = state.activeOptionIds.size > 0;
 
   const seriesList = [];
 
   options.forEach(option => {
-    const isActive = state.activeOptionId === option.id;
+    const isActive = state.activeOptionIds.has(option.id);
     const canvasPoints = voteSnaps.map((snap, i) => {
       const r = snap.items.find(item => (item.option_id||item.option) === option.id);
       if (!r || r.votes === null) return null;
@@ -520,7 +530,48 @@ function drawOptionVoteLineChart() {
   ctx.fillText(formatShortDate(voteSnaps[0].time), xFor(0), pad.top+h+14);
   if (voteSnaps.length > 1) ctx.fillText(formatShortDate(voteSnaps.at(-1).time), xFor(voteSnaps.length-1), pad.top+h+14);
 
-  canvas._chartMeta = { seriesList, xFor, yFor };
+  // Hover indicator: vertical line + tooltip with all option votes at that snapshot
+  if (state.hoverSnapIndex !== null && state.hoverSnapIndex >= 0 && state.hoverSnapIndex < voteSnaps.length) {
+    const snap = voteSnaps[state.hoverSnapIndex];
+    const vx = xFor(state.hoverSnapIndex);
+    // vertical line
+    ctx.strokeStyle = "#85b79c";
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(vx, pad.top);
+    ctx.lineTo(vx, pad.top + h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // tooltip box
+    const lines = [formatShortDate(snap.time)];
+    options.forEach(opt => {
+      const r = snap.items.find(item => (item.option_id||item.option) === opt.id);
+      if (r && r.votes !== null) lines.push(`${opt.name}: ${r.votes.toLocaleString("zh-CN")}`);
+    });
+    ctx.font = "12px system-ui";
+    const lineH = 16;
+    const boxW = Math.min(260, Math.max(...lines.map(l => ctx.measureText(l).width)) + 16);
+    const boxH = lines.length * lineH + 10;
+    let boxX = vx + 10;
+    if (boxX + boxW > W - 4) boxX = vx - boxW - 10;
+    const boxY = pad.top + 6;
+    ctx.fillStyle = "rgba(255,255,255,0.96)";
+    ctx.strokeStyle = "#d9dfdc";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxW, boxH, 6);
+    ctx.fill(); ctx.stroke();
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    lines.forEach((line, i) => {
+      if (i === 0) { ctx.fillStyle = "#17201c"; ctx.font = "bold 12px system-ui"; }
+      else { ctx.fillStyle = "#17201c"; ctx.font = "12px system-ui"; }
+      ctx.fillText(line, boxX + 8, boxY + 6 + i * lineH);
+    });
+  }
+
+  canvas._chartMeta = { seriesList, xFor, yFor, voteSnaps };
 }
 
 // ── Ranking export ─────────────────────────────────────────────────────────────
@@ -609,6 +660,18 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+function exportDataCsv() {
+  const rows = currentRows();
+  if (!rows.length) return;
+  const blob = new Blob([toCsv(rows)], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `douban_poll_log_${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Manual refresh ─────────────────────────────────────────────────────────────
 
 async function manualRefresh() {
@@ -664,33 +727,40 @@ function bindEvents() {
 
   if (els.refreshBtn) els.refreshBtn.addEventListener("click", manualRefresh);
   if (els.exportRankingBtn) els.exportRankingBtn.addEventListener("click", exportRankingImage);
+  if (els.exportCsvBtn) els.exportCsvBtn.addEventListener("click", exportDataCsv);
+  if (els.clearHighlightBtn) els.clearHighlightBtn.addEventListener("click", () => {
+    state.activeOptionIds.clear();
+    drawOptionVoteLineChart();
+  });
 
-  // Canvas click — find nearest line point and toggle highlight
+  // Canvas interactions: click line to toggle highlight, hover to show tooltip
   if (els.optionVoteCanvas) {
     els.optionVoteCanvas.addEventListener("click", event => {
       const meta = els.optionVoteCanvas._chartMeta;
       if (!meta) return;
       const rect = els.optionVoteCanvas.getBoundingClientRect();
       const mx = event.clientX - rect.left, my = event.clientY - rect.top;
-      let closest = null, minDist = Infinity;
+      // First try: click near a line point → toggle that option
+      let closestLine = null, minDist = Infinity;
       meta.seriesList.forEach(opt => {
         opt.canvasPoints.forEach(p => {
           const d = Math.hypot(mx - p.x, my - p.y);
-          if (d < minDist) { minDist = d; closest = opt.id; }
+          if (d < minDist) { minDist = d; closestLine = opt.id; }
         });
       });
       if (minDist < 32) {
-        state.activeOptionId = state.activeOptionId === closest ? null : closest;
+        if (state.activeOptionIds.has(closestLine)) state.activeOptionIds.delete(closestLine);
+        else state.activeOptionIds.add(closestLine);
         drawOptionVoteLineChart();
       }
     });
 
-    // Cursor hint
     els.optionVoteCanvas.addEventListener("mousemove", event => {
       const meta = els.optionVoteCanvas._chartMeta;
       if (!meta) return;
       const rect = els.optionVoteCanvas.getBoundingClientRect();
       const mx = event.clientX - rect.left, my = event.clientY - rect.top;
+      // Find nearest line point (for cursor hint)
       let minDist = Infinity;
       meta.seriesList.forEach(opt => {
         opt.canvasPoints.forEach(p => {
@@ -699,6 +769,37 @@ function bindEvents() {
         });
       });
       els.optionVoteCanvas.style.cursor = minDist < 32 ? "pointer" : "default";
+
+      // Find nearest snapshot by x → update hover tooltip
+      const { voteSnaps, xFor } = meta;
+      if (!voteSnaps || voteSnaps.length === 0) return;
+      const pad = { left: 60, right: 28 };
+      const chartLeft = pad.left;
+      const chartRight = xFor(voteSnaps.length - 1);
+      if (mx < chartLeft - 20 || mx > chartRight + 20) {
+        if (state.hoverSnapIndex !== null) {
+          state.hoverSnapIndex = null;
+          drawOptionVoteLineChart();
+        }
+        return;
+      }
+      // nearest index by x distance
+      let nearestIdx = 0, minXDist = Infinity;
+      voteSnaps.forEach((_, i) => {
+        const d = Math.abs(mx - xFor(i));
+        if (d < minXDist) { minXDist = d; nearestIdx = i; }
+      });
+      if (state.hoverSnapIndex !== nearestIdx) {
+        state.hoverSnapIndex = nearestIdx;
+        drawOptionVoteLineChart();
+      }
+    });
+
+    els.optionVoteCanvas.addEventListener("mouseleave", () => {
+      if (state.hoverSnapIndex !== null) {
+        state.hoverSnapIndex = null;
+        drawOptionVoteLineChart();
+      }
     });
   }
 
