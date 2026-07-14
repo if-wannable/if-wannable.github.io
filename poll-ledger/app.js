@@ -412,12 +412,12 @@ function drawOptionChart() {
   const mode = state.optionMode;
   const voteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
 
-  // Width: use the scroll-wrap's visible width as the floor so the chart fills
-  // the panel; when there are many snapshots, neededW exceeds visibleW and the
-  // canvas overflows -> horizontal scrollbar kicks in.
+  // Width: fit panel width; overflow with a moderate per-snapshot spacing so
+  // the chart scrolls horizontally when there are many snapshots.
   const visibleW = canvas.parentElement?.clientWidth || 600;
-  const spacing = 100;
-  const neededW = Math.max(visibleW, (voteSnaps.length - 1) * spacing + 200);
+  const narrow = visibleW < 500;
+  const spacing = 80;
+  const neededW = Math.max(visibleW, (voteSnaps.length - 1) * spacing + 160);
   const W = neededW, H = canvas.clientHeight || 620;
 
   const ratio = window.devicePixelRatio || 1;
@@ -449,10 +449,15 @@ function drawOptionChart() {
     const item = document.createElement("div");
     item.className = "legend-item" + (isActive ? " is-highlighted" : "");
     item.dataset.optionId = option.id;
+    const valueText = latestVotes === null
+      ? "-"
+      : narrow
+        ? `${latestVotes.toLocaleString("zh-CN")}${intervalGrowth !== null ? ` ${intervalGrowth >= 0 ? "+" : ""}${intervalGrowth}` : ""}`
+        : `${latestVotes.toLocaleString("zh-CN")} 票${intervalGrowth === null ? "" : ` · 上轮 ${intervalGrowth >= 0 ? "+" : ""}${intervalGrowth}`}`;
     item.innerHTML = `
       <span class="legend-swatch" style="background:${option.color}"></span>
       <span class="legend-name" title="${escapeAttr(option.name)}">${escapeHtml(option.name)}</span>
-      <span class="legend-value">${latestVotes === null ? "-" : `${latestVotes.toLocaleString("zh-CN")} 票`}${intervalGrowth === null ? "" : ` · 上轮 ${intervalGrowth >= 0 ? "+" : ""}${intervalGrowth}`}</span>
+      <span class="legend-value">${valueText}</span>
     `;
     item.addEventListener("click", () => {
       if (state.activeOptionIds.has(option.id)) state.activeOptionIds.delete(option.id);
@@ -463,12 +468,10 @@ function drawOptionChart() {
   });
 
   // Tighter padding on narrow (mobile) canvases so the chart area gets more room.
-  const narrow = W < 500;
   const pad = narrow
     ? { top: 18, right: 14, bottom: 34, left: 38 }
     : { top: 24, right: 28, bottom: 44, left: 60 };
   const fontPx = narrow ? 10 : 12;
-  const fontBold = `${narrow ? 10 : 12}px system-ui`;
   const w = W - pad.left - pad.right, h = H - pad.top - pad.bottom;
 
   // Build series based on mode. Both modes share the same x-coordinate system
