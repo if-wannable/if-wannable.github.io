@@ -148,6 +148,8 @@ const els = {
   optionLegend: document.querySelector("#optionLegend"),
   segments: document.querySelectorAll(".segment"),
   optionGrid: document.querySelector("#optionGrid"),
+  rankingList: document.querySelector("#rankingList"),
+  rankingStatus: document.querySelector("#rankingStatus"),
   snapshotForm: document.querySelector("#snapshotForm"),
   capturedAtInput: document.querySelector("#capturedAtInput"),
   participantInput: document.querySelector("#participantInput"),
@@ -362,6 +364,7 @@ function render() {
   renderTrackers();
   renderMetrics();
   renderOptions();
+  renderRanking();
   renderEditor();
   renderTable();
   drawChart();
@@ -429,6 +432,63 @@ function renderOptions() {
     `;
     els.optionGrid.append(card);
   });
+}
+
+function renderRanking() {
+  const snaps = snapshots();
+  const latest = snaps.at(-1);
+  const previous = snaps.at(-2);
+  els.rankingList.innerHTML = "";
+
+  if (!latest) {
+    els.rankingStatus.textContent = "尚无记录";
+    return;
+  }
+
+  const latestRows = (latest.items || []).filter((row) => row.votes !== null && row.votes !== undefined);
+
+  if (latestRows.length === 0) {
+    els.rankingStatus.textContent = "暂无票数，结果未可见";
+    return;
+  }
+
+  const sorted = [...latestRows].sort((a, b) => b.votes - a.votes);
+  const maxVotes = Math.max(1, sorted[0].votes);
+  const previousRank = new Map();
+  if (previous) {
+    const prevSorted = (previous.items || [])
+      .filter((row) => row.votes !== null && row.votes !== undefined)
+      .sort((a, b) => b.votes - a.votes);
+    prevSorted.forEach((row, idx) => {
+      previousRank.set(row.option_id || row.option, idx + 1);
+    });
+  }
+
+  sorted.forEach((row, idx) => {
+    const rank = idx + 1;
+    const prev = previousRank.get(row.option_id || row.option);
+    const delta = prev ? prev - rank : 0;
+    const deltaIcon = !prev ? "" : delta > 0 ? "▲" + delta : delta < 0 ? "▼" + Math.abs(delta) : "–";
+    const deltaClass = !prev ? "is-flat" : delta > 0 ? "is-up" : delta < 0 ? "is-down" : "is-flat";
+    const width = Math.max(4, Math.round((row.votes / maxVotes) * 100));
+    const li = document.createElement("li");
+    li.className = "ranking-item" + (rank <= 3 ? " is-top" : "");
+    li.innerHTML = `
+      <span class="ranking-rank">${rank}</span>
+      <span class="ranking-main">
+        <span class="ranking-name">${escapeHtml(row.option)}</span>
+        <span class="ranking-bar" aria-hidden="true"><span style="width:${width}%"></span></span>
+      </span>
+      <span class="ranking-meta">
+        <span class="ranking-votes">${row.votes.toLocaleString("zh-CN")} 票${prev ? `<span class="ranking-delta ${deltaClass}">${deltaIcon}</span>` : ""}</span>
+        <span class="ranking-percent">${row.percent === null ? "" : `${row.percent}%`}</span>
+      </span>
+    `;
+    els.rankingList.append(li);
+  });
+
+  const totalVotes = sorted.reduce((sum, row) => sum + row.votes, 0);
+  els.rankingStatus.textContent = `共 ${sorted.length} 项 · ${totalVotes.toLocaleString("zh-CN")} 票`;
 }
 
 function renderEditor() {
