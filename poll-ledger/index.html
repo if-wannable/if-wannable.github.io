@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>投票记录台</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="rail">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">票</div>
+        <div>
+          <div class="brand-title">投票记录台</div>
+          <div class="brand-subtitle">Poll Ledger</div>
+        </div>
+      </div>
+
+      <nav class="tabs" aria-label="视图">
+        <button class="tab is-active" type="button" data-view="dashboard" title="总览">
+          <span aria-hidden="true">⌁</span>
+          <span>总览</span>
+        </button>
+        <button class="tab" type="button" data-view="capture" title="采集">
+          <span aria-hidden="true">＋</span>
+          <span>采集</span>
+        </button>
+        <button class="tab" type="button" data-view="data" title="数据">
+          <span aria-hidden="true">▦</span>
+          <span>数据</span>
+        </button>
+      </nav>
+
+      <div class="tracker-list" id="trackerList" aria-label="投票列表"></div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div class="topic-meta">
+          <label class="field-label" for="topicUrl">投票链接</label>
+          <div class="url-row">
+            <input id="topicUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://www.douban.com/group/topic/493741132/">
+            <button id="applyUrlBtn" class="button" type="button">载入</button>
+          </div>
+        </div>
+        <div class="top-actions">
+          <label class="button secondary file-button" for="csvFile">导入 CSV</label>
+          <input id="csvFile" class="sr-only" type="file" accept=".csv,text/csv">
+          <button id="exportBtn" class="button secondary" type="button">导出 CSV</button>
+          <button id="resetBtn" class="icon-button" type="button" title="清空本地数据" aria-label="清空本地数据">×</button>
+        </div>
+      </header>
+
+      <section id="dashboardView" class="view is-visible" aria-label="总览">
+        <div class="metric-grid">
+          <div class="metric">
+            <span class="metric-label">参与人数</span>
+            <strong id="participantMetric">-</strong>
+            <span id="participantDelta" class="metric-foot">暂无变化</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">记录点</span>
+            <strong id="snapshotMetric">-</strong>
+            <span id="lastCaptureMetric" class="metric-foot">尚未记录</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">选项</span>
+            <strong id="optionMetric">-</strong>
+            <span id="visibilityMetric" class="metric-foot">结果未知</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">领先项</span>
+            <strong id="leaderMetric">-</strong>
+            <span id="leaderFoot" class="metric-foot">等待票数</span>
+          </div>
+        </div>
+
+        <div class="chart-panel">
+          <div class="panel-head">
+            <h1>参与人数趋势</h1>
+            <div class="segmented" role="group" aria-label="图表模式">
+              <button class="segment is-active" type="button" data-chart="participants">参与</button>
+              <button class="segment" type="button" data-chart="votes">票数</button>
+            </div>
+          </div>
+          <canvas id="trendCanvas" width="980" height="320" aria-label="趋势图"></canvas>
+        </div>
+
+        <div class="chart-panel option-trend-panel">
+          <div class="panel-head">
+            <h1>选项票数增长</h1>
+            <div class="status-line" id="optionTrendStatus">以首个票数快照为 0</div>
+          </div>
+          <canvas id="optionTrendCanvas" width="980" height="380" aria-label="每个选项票数增长折线图"></canvas>
+          <div class="option-legend" id="optionLegend" aria-label="选项图例"></div>
+        </div>
+
+        <div class="option-grid" id="optionGrid" aria-label="选项"></div>
+      </section>
+
+      <section id="captureView" class="view" aria-label="采集">
+        <div class="capture-layout">
+          <form id="snapshotForm" class="capture-panel">
+            <div class="panel-head">
+              <h1>新增记录</h1>
+              <div class="switch-line">
+                <input id="resultVisibleInput" type="checkbox">
+                <label for="resultVisibleInput">本次可见票数</label>
+              </div>
+            </div>
+            <div class="status-line capture-note">网页只整理本地日志；豆瓣实时票数由已登录浏览器采集，或手动粘贴结果后追加。</div>
+
+            <div class="form-grid">
+              <label>
+                <span>记录时间</span>
+                <input id="capturedAtInput" type="datetime-local">
+              </label>
+              <label>
+                <span>参与人数</span>
+                <input id="participantInput" type="number" min="0" step="1" placeholder="3547">
+              </label>
+              <label>
+                <span>帖子 ID</span>
+                <input id="topicIdInput" type="text" inputmode="numeric" placeholder="493741132">
+              </label>
+              <label>
+                <span>投票 ID</span>
+                <input id="pollIdInput" type="text" inputmode="numeric" placeholder="10258668">
+              </label>
+            </div>
+
+            <div class="option-editor-head">
+              <span>选项票数</span>
+              <button id="addOptionBtn" class="button secondary compact" type="button">加选项</button>
+            </div>
+            <div id="optionEditor" class="option-editor"></div>
+            <label class="note-field">
+              <span>备注</span>
+              <input id="noteInput" type="text" placeholder="投票后可查看结果">
+            </label>
+            <button class="button primary" type="submit">追加记录</button>
+          </form>
+
+          <div class="capture-panel">
+            <div class="panel-head">
+              <h1>粘贴快照</h1>
+              <button id="parseTextBtn" class="button secondary compact" type="button">解析</button>
+            </div>
+            <textarea id="pasteArea" spellcheck="false" placeholder="每个人可以投五票（最多选5项）&#10;3547人参与 · 距离结束还有 2天2时29分&#10;anna 刘耀文&#10;Mimi 张泽禹&#10;..."></textarea>
+            <div id="parseStatus" class="status-line">可从网页可见文本中提取参与人数和选项。</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="dataView" class="view" aria-label="数据">
+        <div class="data-panel">
+          <div class="panel-head">
+            <h1>日志</h1>
+            <div class="status-line" id="rowCount">0 行</div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>时间</th>
+                  <th>参与</th>
+                  <th>选项</th>
+                  <th>票数</th>
+                  <th>百分比</th>
+                  <th>备注</th>
+                </tr>
+              </thead>
+              <tbody id="dataRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
