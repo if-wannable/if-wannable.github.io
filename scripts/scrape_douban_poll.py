@@ -67,65 +67,44 @@ def render_page(cookie_str) -> str:
 def extract_poll(html: str):
     soup = BeautifulSoup(html, "html.parser")
 
-    poll_node = (
-        soup.find("div", attrs={"data-entity-type": "poll"})
-        or soup.find("div", class_=re.compile(r"poll-wrap"))
-        or soup.find("div", class_=re.compile(r"poll"))
-    )
+    poll_node = soup.find("div", attrs={"data-entity-type": "poll"})
     if not poll_node:
         return None
 
     participant_count = 0
-    for node in poll_node.find_all(string=re.compile(r"\d+\s*人?(?:参与|投票)")):
-        m = re.search(r"(\d+)", str(node))
+    meta_node = poll_node.find(class_="poll-meta")
+    if meta_node:
+        m = re.search(r"(\d+)\s*人", meta_node.get_text())
         if m:
             participant_count = int(m.group(1))
-            break
-    if not participant_count:
-        node = poll_node.find(class_=re.compile(r"participant|total|count|meta"))
-        if node:
-            m = re.search(r"(\d+)", node.get_text())
-            if m:
-                participant_count = int(m.group(1))
 
     options = []
-    for li in poll_node.find_all(["li", "div"], class_=re.compile(r"option|item|choice")):
-        name_node = li.find(class_=re.compile(r"name|label|text|title"))
-        votes_node = li.find(class_=re.compile(r"vote|count|num"))
-        percent_node = li.find(class_=re.compile(r"percent|rate|ratio"))
-        bar_node = li.find(class_=re.compile(r"bar|progress|fill"))
+    for chart in poll_node.find_all(class_="poll-chart"):
+        title_node = chart.find(class_="poll-option-title")
+        count_node = chart.find(class_="poll-option-voted-count")
+        bar_active = chart.find(class_="poll-bar-active")
 
-        option_text = name_node.get_text(strip=True) if name_node else li.get_text(strip=True)
+        option_text = title_node.get_text(strip=True) if title_node else ""
+        option_text = re.sub(r"（已选）", "", option_text)
         if not option_text:
             continue
 
         votes = None
-        if votes_node:
-            m = re.search(r"(\d+)", votes_node.get_text())
+        percent = None
+        if count_node:
+            text = count_node.get_text(strip=True)
+            m = re.search(r"(\d+)\s*[（(]\s*(\d+(?:\.\d+)?)\s*%", text)
             if m:
                 votes = int(m.group(1))
-        elif bar_node:
-            style = bar_node.get("style", "") + bar_node.find("span").get("style", "") if bar_node.find("span") else bar_node.get("style", "")
-            m = re.search(r"width:\s*(\d+(?:\.\d+)?)%", style)
-            if m:
-                pct = float(m.group(1))
-                if participant_count:
-                    votes = round(participant_count * pct / 100)
-
-        percent = None
-        if percent_node:
-            m = re.search(r"(\d+(?:\.\d+)?)\s*%", percent_node.get_text())
-            if m:
-                percent = m.group(1)
-        elif bar_node:
-            style = bar_node.get("style", "")
+                percent = m.group(2)
+        if percent is None and bar_active:
+            style = bar_active.get("style", "")
             m = re.search(r"width:\s*(\d+(?:\.\d+)?)%", style)
             if m:
                 percent = m.group(1)
 
-        opt_id = li.get("data-id") or li.get("data-option-id") or ""
         options.append({
-            "option_id": str(opt_id),
+            "option_id": option_text,
             "option": option_text,
             "votes": votes,
             "percent": percent,

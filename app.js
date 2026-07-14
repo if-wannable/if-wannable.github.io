@@ -218,14 +218,15 @@ function parseCsv(text) {
 }
 
 function normalizeRow(item) {
+  const option = String(item.option || "");
   return {
     captured_at: String(item.captured_at || ""),
     topic_id: String(item.topic_id || ""),
     poll_id: String(item.poll_id || ""),
     participant_count: toNumber(item.participant_count),
     result_visible: String(item.result_visible).toLowerCase() === "true",
-    option_id: String(item.option_id || ""),
-    option: String(item.option || ""),
+    option_id: option,
+    option: option,
     votes: toOptionalNumber(item.votes),
     percent: toOptionalNumber(String(item.percent || "").replace("%", "")),
     note: String(item.note || "")
