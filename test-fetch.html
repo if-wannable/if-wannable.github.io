@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Test CSV Fetch</title></head>
+<body>
+<h1>CSV Fetch Test</h1>
+<pre id="output">Loading...</pre>
+<script>
+(async () => {
+  const out = document.getElementById('output');
+  try {
+    const res = await fetch('./douban_poll_log.csv', { cache: 'no-store' });
+    out.textContent = `Status: ${res.status}\n`;
+    if (res.ok) {
+      const text = await res.text();
+      out.textContent += `Length: ${text.length} bytes\n`;
+      out.textContent += `First 500 chars:\n${text.slice(0, 500)}`;
+    } else {
+      out.textContent += `Error: ${res.statusText}`;
+    }
+  } catch (err) {
+    out.textContent = `Exception: ${err.message}`;
+  }
+})();
+</script>
+</body>
+</html>
