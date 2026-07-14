@@ -20,6 +20,7 @@ from bs4 import BeautifulSoup
 TOPIC_ID = os.environ.get("DOUBAN_TOPIC_ID", "493741132")
 POLL_ID = os.environ.get("DOUBAN_POLL_ID", "10258668")
 TOPIC_URL = f"https://www.douban.com/group/topic/{TOPIC_ID}/"
+VOTE_URL = f"https://www.douban.com/group/topic/{TOPIC_ID}/vote"
 CSV_PATH = Path(__file__).resolve().parent.parent / "douban_poll_log.csv"
 DEBUG = os.environ.get("DEBUG") == "1"
 
@@ -39,9 +40,9 @@ HEADERS = {
 CST = timezone(timedelta(hours=8))
 
 
-def fetch_page(cookie: str) -> str:
-    headers = {**HEADERS, "Cookie": cookie}
-    resp = requests.get(TOPIC_URL, headers=headers, timeout=30)
+def fetch_page(cookie: str, url: str = TOPIC_URL) -> str:
+    headers = {**HEADERS, "Cookie": cookie, "Referer": TOPIC_URL}
+    resp = requests.get(url, headers=headers, timeout=30, allow_redirects=True)
     resp.raise_for_status()
     return resp.text
 
@@ -177,10 +178,11 @@ def main():
         print("ERROR: DOUBAN_COOKIE not set", file=sys.stderr)
         sys.exit(1)
 
-    html = fetch_page(cookie)
+    html = fetch_page(cookie, VOTE_URL)
     debug_path = Path("douban_debug.html")
     debug_path.write_text(html, encoding="utf-8")
-    print(f"DEBUG: saved HTML to {debug_path.resolve()}", file=sys.stderr)
+    print(f"DEBUG: saved vote page HTML to {debug_path.resolve()}", file=sys.stderr)
+    print(f"DEBUG: fetched URL: {VOTE_URL}", file=sys.stderr)
 
     if "没有访问权限" in html or "login" in html.lower()[:2000]:
         print("ERROR: cookie invalid or expired (page shows login/no-access)", file=sys.stderr)
@@ -196,10 +198,14 @@ def main():
         print(f"  elements with 'poll' in class: {len(poll_nodes)}", file=sys.stderr)
         for node in poll_nodes[:5]:
             print(f"    - <{node.name}> class={node.get('class')} id={node.get('id')}", file=sys.stderr)
-        poll_scripts = [s for s in soup.find_all("script") if s.string and ("poll" in s.string.lower() or "option" in s.string.lower())]
-        print(f"  scripts mentioning poll/option: {len(poll_scripts)}", file=sys.stderr)
-        for s in poll_scripts[:2]:
-            snippet = s.string.strip()[:500]
+        vote_nodes = soup.find_all(class_=re.compile(r"vote|option|result", re.I))
+        print(f"  elements with vote/option/result in class: {len(vote_nodes)}", file=sys.stderr)
+        for node in vote_nodes[:8]:
+            print(f"    - <{node.name}> class={node.get('class')} id={node.get('id')}", file=sys.stderr)
+        poll_scripts = [s for s in soup.find_all("script") if s.string and ("poll" in s.string.lower() or "option" in s.string.lower() or "vote" in s.string.lower())]
+        print(f"  scripts mentioning poll/option/vote: {len(poll_scripts)}", file=sys.stderr)
+        for s in poll_scripts[:3]:
+            snippet = (s.string or "").strip()[:500]
             print(f"    snippet: {snippet}", file=sys.stderr)
         print("  HTML length:", len(html), file=sys.stderr)
         sys.exit(3)
