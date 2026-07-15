@@ -47,6 +47,11 @@ const els = {
   optionLegend: document.querySelector("#optionLegend"),
   segments: document.querySelectorAll(".segment"),
   optionSegments: document.querySelectorAll("[data-opt-mode]"),
+  optDateSegments: document.querySelectorAll("[data-opt-date]"),
+  optDateControls: document.querySelector("#optDateControls"),
+  optVoteDate: document.querySelector("#optVoteDate"),
+  optDatePrevBtn: document.querySelector("#optDatePrevBtn"),
+  optDateNextBtn: document.querySelector("#optDateNextBtn"),
   rankingList: document.querySelector("#rankingList"),
   rankingStatus: document.querySelector("#rankingStatus"),
   exportRankingBtn: document.querySelector("#exportRankingBtn"),
@@ -70,6 +75,8 @@ let state = {
   selectedKey: "",
   chartMode: "participants",
   optionMode: "votes",
+  optionDateMode: "day",
+  optionVoteDate: "",
   activeOptionIds: new Set(),
   hoverSnapIndex: null,
   dailyGrowthDate: "",
@@ -420,7 +427,33 @@ function drawOptionChart() {
   if (!canvas || !legend) return;
 
   const mode = state.optionMode;
-  const voteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
+  const allVoteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
+
+  // Date filter: "day" mode shows only the selected day's snapshots, with the
+  // previous snapshot (any day) prepended as baseline so growth mode has a
+  // reference for the first point of the day. "all" mode shows everything.
+  let voteSnaps = allVoteSnaps;
+  if (state.optionDateMode === "day") {
+    const dates = [...new Set(allVoteSnaps.map(s => s.time.slice(0, 10)))].sort();
+    if (els.optVoteDate) {
+      els.optVoteDate.min = dates[0] || "";
+      els.optVoteDate.max = dates.at(-1) || "";
+    }
+    if (!state.optionVoteDate || !dates.includes(state.optionVoteDate)) {
+      state.optionVoteDate = dates.at(-1) || "";
+    }
+    if (els.optVoteDate) els.optVoteDate.value = state.optionVoteDate;
+    const daySnaps = allVoteSnaps.filter(s => s.time.slice(0, 10) === state.optionVoteDate);
+    const firstGlobalIdx = allVoteSnaps.indexOf(daySnaps[0]);
+    const baselineSnap = firstGlobalIdx > 0 ? allVoteSnaps[firstGlobalIdx - 1] : null;
+    voteSnaps = baselineSnap ? [baselineSnap, ...daySnaps] : daySnaps;
+    const dayIdx = dates.indexOf(state.optionVoteDate);
+    if (els.optDatePrevBtn) els.optDatePrevBtn.disabled = dayIdx <= 0;
+    if (els.optDateNextBtn) els.optDateNextBtn.disabled = dayIdx >= dates.length - 1;
+  }
+  if (els.optDateControls) {
+    els.optDateControls.style.display = state.optionDateMode === "day" ? "" : "none";
+  }
 
   // Width: fit panel width; overflow with a moderate per-snapshot spacing so
   // the chart scrolls horizontally when there are many snapshots.
@@ -551,9 +584,12 @@ function drawOptionChart() {
     return;
   }
 
+  const dateLabel = state.optionDateMode === "day" && state.optionVoteDate
+    ? `${state.optionVoteDate} · `
+    : "";
   status.textContent = mode === "growth"
-    ? `${voteSnaps.length} 个快照 · 显示相邻快照票数增量`
-    : `${voteSnaps.length} 个票数快照`;
+    ? `${dateLabel}${voteSnaps.length} 个快照 · 显示相邻快照票数增量`
+    : `${dateLabel}${voteSnaps.length} 个票数快照`;
 
   const xFor = i => pad.left + (voteSnaps.length === 1 ? w/2 : (w/(voteSnaps.length-1))*i);
   const hasActive = state.activeOptionIds.size > 0;
@@ -1131,6 +1167,47 @@ function bindEvents() {
       drawOptionChart();
     });
   });
+
+  els.optDateSegments.forEach(seg => {
+    seg.addEventListener("click", () => {
+      state.optionDateMode = seg.dataset.optDate;
+      els.optDateSegments.forEach(s => s.classList.toggle("is-active", s === seg));
+      state.hoverSnapIndex = null;
+      drawOptionChart();
+    });
+  });
+
+  if (els.optVoteDate) {
+    els.optVoteDate.addEventListener("change", () => {
+      state.optionVoteDate = els.optVoteDate.value;
+      state.hoverSnapIndex = null;
+      drawOptionChart();
+    });
+  }
+  if (els.optDatePrevBtn) {
+    els.optDatePrevBtn.addEventListener("click", () => {
+      const all = snapshots().filter(s => s.items.some(r => r.votes !== null));
+      const dates = [...new Set(all.map(s => s.time.slice(0, 10)))].sort();
+      const idx = dates.indexOf(state.optionVoteDate);
+      if (idx > 0) {
+        state.optionVoteDate = dates[idx - 1];
+        state.hoverSnapIndex = null;
+        drawOptionChart();
+      }
+    });
+  }
+  if (els.optDateNextBtn) {
+    els.optDateNextBtn.addEventListener("click", () => {
+      const all = snapshots().filter(s => s.items.some(r => r.votes !== null));
+      const dates = [...new Set(all.map(s => s.time.slice(0, 10)))].sort();
+      const idx = dates.indexOf(state.optionVoteDate);
+      if (idx >= 0 && idx < dates.length - 1) {
+        state.optionVoteDate = dates[idx + 1];
+        state.hoverSnapIndex = null;
+        drawOptionChart();
+      }
+    });
+  }
 
   if (els.refreshBtn) els.refreshBtn.addEventListener("click", manualRefresh);
   if (els.exportRankingBtn) els.exportRankingBtn.addEventListener("click", exportRankingImage);

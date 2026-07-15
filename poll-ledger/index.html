@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>投票记录台</title>
-  <link rel="stylesheet" href="./styles.css?v=15">
+  <link rel="stylesheet" href="./styles.css?v=16">
 </head>
 <body>
   <div class="app-shell">
@@ -80,6 +80,15 @@
                 <button class="segment is-active" type="button" data-opt-mode="votes">实时票数</button>
                 <button class="segment" type="button" data-opt-mode="growth">涨幅</button>
               </div>
+              <div class="segmented" role="group" aria-label="日期范围">
+                <button class="segment is-active" type="button" data-opt-date="day">当日</button>
+                <button class="segment" type="button" data-opt-date="all">全部</button>
+              </div>
+              <div class="daily-controls" id="optDateControls">
+                <button id="optDatePrevBtn" class="button secondary compact" type="button" aria-label="上一日">‹</button>
+                <input id="optVoteDate" type="date">
+                <button id="optDateNextBtn" class="button secondary compact" type="button" aria-label="下一日">›</button>
+              </div>
               <div class="status-line" id="optionTrendStatus"></div>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap">
                 <button id="clearHighlightBtn" class="button secondary compact" type="button">清除高亮</button>
@@ -147,6 +156,6 @@
     </main>
   </div>
 
-  <script src="./app.js?v=15"></script>
+  <script src="./app.js?v=16"></script>
 </body>
 </html>
