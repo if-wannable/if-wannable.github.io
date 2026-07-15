@@ -698,6 +698,7 @@ function drawDailyGrowthChart() {
   const dateInput = els.dailyGrowthDate;
   if (!canvas || !legend || !dateInput) return;
 
+  const HOURS = 24;
   const voteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
   const availableDates = [...new Set(voteSnaps.map(s => s.time.slice(0, 10)))].sort();
 
@@ -736,7 +737,7 @@ function drawDailyGrowthChart() {
   if (els.dailyNextBtn) els.dailyNextBtn.disabled = dayIdx >= availableDates.length - 1;
 
   // Snapshots on the selected day, plus the previous snapshot (any day) as baseline
-  // so the first point of the day shows growth since the last capture.
+  // so the first snapshot of the day shows growth since the last capture.
   const daySnaps = voteSnaps.filter(s => s.time.slice(0, 10) === state.dailyGrowthDate);
   const firstGlobalIdx = voteSnaps.indexOf(daySnaps[0]);
   const baselineSnap = firstGlobalIdx > 0 ? voteSnaps[firstGlobalIdx - 1] : null;
@@ -747,11 +748,14 @@ function drawDailyGrowthChart() {
     color: OPTION_COLORS[i % OPTION_COLORS.length]
   }));
 
-  // Build per-option growth series relative to the previous snapshot.
+  // Aggregate growth into 24 hourly buckets. For each snapshot, growth is
+  // votes - previous_snapshot.votes (baseline if first of day); attributed
+  // to the snapshot's hour. Hours with no snapshots stay at 0.
   const seriesList = [];
   const allGrowth = [];
+  const hourHasData = new Array(HOURS).fill(false);
   options.forEach(opt => {
-    const points = [];
+    const hourly = new Array(HOURS).fill(0);
     daySnaps.forEach((snap, i) => {
       const curr = snap.items.find(r => (r.option_id||r.option) === opt.id);
       const prev = i === 0
@@ -759,23 +763,28 @@ function drawDailyGrowthChart() {
         : daySnaps[i-1].items.find(r => (r.option_id||r.option) === opt.id);
       if (curr?.votes != null && prev?.votes != null) {
         const growth = curr.votes - prev.votes;
-        points.push({ snapIndex: i, value: Math.max(0, growth), rawGrowth: growth, votes: curr.votes, time: snap.time });
-        allGrowth.push(Math.max(0, growth));
+        const hour = new Date(snap.time).getHours();
+        hourly[hour] += growth;
+        hourHasData[hour] = true;
       }
     });
-    seriesList.push({ id: opt.id, name: opt.name, color: opt.color, points });
+    const points = hourly.map((value, hour) => ({
+      snapIndex: hour, value: Math.max(0, value), rawGrowth: value
+    }));
+    hourly.forEach(v => { if (v > 0) allGrowth.push(v); });
+    seriesList.push({ id: opt.id, name: opt.name, color: opt.color, points, hourly });
   });
 
-  // Legend shows growth between the last two snapshots of the day (or baseline -> last).
+  // Legend shows day total growth: last snapshot - baseline (or first of day).
   const latestDaySnap = daySnaps.at(-1);
-  const previousDaySnap = daySnaps.at(-2) || baselineSnap;
+  const baselineForLegend = baselineSnap || daySnaps[0];
   legend.innerHTML = "";
   options.forEach(option => {
     const latestRow = latestDaySnap?.items.find(r => (r.option_id||r.option) === option.id);
-    const previousRow = previousDaySnap?.items.find(r => (r.option_id||r.option) === option.id);
+    const baseRow = baselineForLegend?.items.find(r => (r.option_id||r.option) === option.id);
     const latestVotes = latestRow?.votes ?? null;
-    const previousVotes = previousRow?.votes ?? null;
-    const intervalGrowth = latestVotes !== null && previousVotes !== null ? latestVotes - previousVotes : null;
+    const baseVotes = baseRow?.votes ?? null;
+    const dayTotal = latestVotes !== null && baseVotes !== null ? latestVotes - baseVotes : null;
     const isActive = state.activeOptionIds.has(option.id);
     const item = document.createElement("div");
     item.className = "legend-item" + (isActive ? " is-highlighted" : "");
@@ -783,7 +792,7 @@ function drawDailyGrowthChart() {
     item.innerHTML = `
       <span class="legend-swatch" style="background:${option.color}"></span>
       <span class="legend-name" title="${escapeAttr(option.name)}">${escapeHtml(option.name)}</span>
-      <span class="legend-value">${intervalGrowth === null ? "-" : `${intervalGrowth >= 0 ? "+" : ""}${intervalGrowth.toLocaleString("zh-CN")}`}</span>
+      <span class="legend-value">${dayTotal === null ? "-" : `当日 ${dayTotal >= 0 ? "+" : ""}${dayTotal.toLocaleString("zh-CN")}`}</span>
     `;
     item.addEventListener("click", () => {
       if (state.activeOptionIds.has(option.id)) state.activeOptionIds.delete(option.id);
@@ -794,11 +803,10 @@ function drawDailyGrowthChart() {
     legend.append(item);
   });
 
+  // Fit to visible width; 24 points is manageable without horizontal scroll.
   const visibleW = canvas.parentElement?.clientWidth || 600;
   const narrow = visibleW < 500;
-  const spacing = 90;
-  const neededW = Math.max(visibleW, (daySnaps.length - 1) * spacing + 180);
-  const W = neededW, H = canvas.clientHeight || 340;
+  const W = visibleW, H = canvas.clientHeight || 340;
 
   const ratio = window.devicePixelRatio || 1;
   canvas.width = Math.floor(W * ratio);
@@ -843,14 +851,15 @@ function drawDailyGrowthChart() {
     return;
   }
 
-  status.textContent = `${state.dailyGrowthDate} · ${daySnaps.length} 个快照 · 基线为上一日最后快照${baselineSnap ? "" : "（无）"}`;
+  const hoursWithSnaps = hourHasData.filter(Boolean).length;
+  status.textContent = `${state.dailyGrowthDate} · ${daySnaps.length} 个快照 · ${hoursWithSnaps} 个时段有记录`;
 
-  const xFor = i => pad.left + (daySnaps.length === 1 ? w/2 : (w/(daySnaps.length-1))*i);
+  // X: 24 hours evenly distributed across the chart width.
+  const xFor = hour => pad.left + (w / (HOURS - 1)) * hour;
   const hasActive = state.activeOptionIds.size > 0;
 
   seriesList.forEach(opt => {
     const isActive = state.activeOptionIds.has(opt.id);
-    if (!opt.points.length) return;
     ctx.strokeStyle = hasActive && !isActive ? opt.color + "28" : opt.color;
     ctx.lineWidth = isActive ? 3 : 1.5;
     ctx.beginPath();
@@ -860,51 +869,54 @@ function drawDailyGrowthChart() {
     });
     ctx.stroke();
 
-    if (isActive && opt.points.length) {
+    // Dots only at hours that had snapshots, to indicate where data exists.
+    if (isActive) {
       ctx.fillStyle = opt.color;
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 1.5;
       const dotR = narrow ? 2.5 : 3.5;
-      opt.points.forEach(p => {
-        const px = xFor(p.snapIndex), py = yFor(p.value);
+      opt.points.forEach((p, hour) => {
+        if (!hourHasData[hour]) return;
+        const px = xFor(hour), py = yFor(p.value);
         ctx.beginPath();
         ctx.arc(px, py, dotR, 0, Math.PI*2);
         ctx.fill();
         ctx.stroke();
       });
 
-      const last = opt.points.at(-1);
-      const lx = xFor(last.snapIndex), ly = yFor(last.value);
-      ctx.font = `bold ${fontPx}px system-ui`;
-      ctx.textBaseline = "middle";
-      const label = opt.name.length > 12 ? opt.name.slice(0,12)+"…" : opt.name;
-      const lw = ctx.measureText(label).width;
-      const bx = Math.min(lx + 6, W - lw - 4);
-      ctx.fillStyle = opt.color + "22";
-      ctx.beginPath();
-      roundRect(ctx, bx - 4, ly - 9, lw + 8, 18, 4);
-      ctx.fill();
-      ctx.fillStyle = opt.color;
-      ctx.textAlign = "left";
-      ctx.fillText(label, bx, ly);
+      // Label at the peak hour for the active option.
+      const peak = opt.points.reduce((a, b) => b.value > a.value ? b : a, opt.points[0]);
+      if (peak.value > 0) {
+        const lx = xFor(peak.snapIndex), ly = yFor(peak.value);
+        ctx.font = `bold ${fontPx}px system-ui`;
+        ctx.textBaseline = "middle";
+        const label = opt.name.length > 12 ? opt.name.slice(0,12)+"…" : opt.name;
+        const lw = ctx.measureText(label).width;
+        const bx = Math.min(lx + 6, W - lw - 4);
+        ctx.fillStyle = opt.color + "22";
+        ctx.beginPath();
+        roundRect(ctx, bx - 4, ly - 9, lw + 8, 18, 4);
+        ctx.fill();
+        ctx.fillStyle = opt.color;
+        ctx.textAlign = "left";
+        ctx.fillText(label, bx, ly);
+      }
     }
   });
 
-  // X-axis labels: HH:MM times within the day
+  // X-axis labels: every 3 hours + 23 at the end.
   ctx.fillStyle = "#68736e"; ctx.font = fontPx + "px system-ui";
   ctx.textAlign = "center"; ctx.textBaseline = "top";
-  const labelStep = Math.max(1, Math.ceil(daySnaps.length * 110 / Math.max(W, 1)));
-  for (let i = 0; i < daySnaps.length; i += labelStep) {
-    ctx.fillText(formatHm(daySnaps[i].time), xFor(i), pad.top+h+10);
+  for (let hour = 0; hour < HOURS; hour += 3) {
+    ctx.fillText(`${hour}时`, xFor(hour), pad.top+h+10);
   }
-  if (daySnaps.length > 1 && (daySnaps.length - 1) % labelStep !== 0) {
-    ctx.fillText(formatHm(daySnaps.at(-1).time), xFor(daySnaps.length-1), pad.top+h+10);
-  }
+  if ((HOURS - 1) % 3 !== 0) ctx.fillText("23时", xFor(23), pad.top+h+10);
 
-  // Hover tooltip: dashed vertical + box with each visible option's growth at that time
-  if (state.dailyHoverIndex !== null && state.dailyHoverIndex >= 0 && state.dailyHoverIndex < daySnaps.length) {
-    const snap = daySnaps[state.dailyHoverIndex];
-    const vx = xFor(state.dailyHoverIndex);
+  // Hover tooltip: dashed vertical at hovered hour + box with each visible
+  // option's hourly growth.
+  if (state.dailyHoverIndex !== null && state.dailyHoverIndex >= 0 && state.dailyHoverIndex < HOURS) {
+    const hour = state.dailyHoverIndex;
+    const vx = xFor(hour);
     ctx.strokeStyle = "#85b79c";
     ctx.setLineDash([4, 4]);
     ctx.lineWidth = 1;
@@ -918,16 +930,14 @@ function drawDailyGrowthChart() {
     const visibleOpts = hasSelection
       ? options.filter(opt => state.activeOptionIds.has(opt.id))
       : options;
-    const lines = [formatHm(snap.time)];
+    const lines = [`${hour}时`];
     const hoverPoints = [];
     visibleOpts.forEach(opt => {
-      const r = snap.items.find(item => (item.option_id||item.option) === opt.id);
-      const prevSnap = state.dailyHoverIndex === 0 ? baselineSnap : daySnaps[state.dailyHoverIndex - 1];
-      const prevRow = prevSnap?.items.find(item => (item.option_id||item.option) === opt.id);
-      if (r && r.votes !== null && prevRow?.votes != null) {
-        const growth = r.votes - prevRow.votes;
-        lines.push(`${opt.name}: ${r.votes.toLocaleString("zh-CN")} 票 (${growth >= 0 ? "+" : ""}${growth})`);
-        hoverPoints.push({ x: vx, y: yFor(Math.max(0, growth)), color: opt.color });
+      const series = seriesList.find(s => s.id === opt.id);
+      const p = series?.points[hour];
+      if (p && p.rawGrowth !== 0) {
+        lines.push(`${opt.name}: ${p.rawGrowth >= 0 ? "+" : ""}${p.rawGrowth.toLocaleString("zh-CN")}`);
+        hoverPoints.push({ x: vx, y: yFor(p.value), color: opt.color });
       }
     });
     hoverPoints.forEach(p => {
@@ -958,13 +968,7 @@ function drawDailyGrowthChart() {
     });
   }
 
-  canvas._chartMeta = { seriesList, xFor, yFor, daySnaps, baselineSnap, pad };
-}
-
-function formatHm(v) {
-  const d = new Date(v);
-  if (!Number.isFinite(d.valueOf())) return "";
-  return new Intl.DateTimeFormat("zh-CN",{hour:"2-digit",minute:"2-digit"}).format(d);
+  canvas._chartMeta = { seriesList, xFor, yFor, hourHasData, hours: HOURS, pad };
 }
 
 
@@ -1178,12 +1182,13 @@ function bindEvents() {
 
     const findNearestSnap = mx => {
       const meta = canvas._chartMeta;
-      if (!meta || !meta.daySnaps?.length) return null;
+      if (!meta) return null;
+      const hours = meta.hours || 24;
       let nearestIdx = 0, minXDist = Infinity;
-      meta.daySnaps.forEach((_, i) => {
+      for (let i = 0; i < hours; i++) {
         const d = Math.abs(mx - meta.xFor(i));
         if (d < minXDist) { minXDist = d; nearestIdx = i; }
-      });
+      }
       return nearestIdx;
     };
 
@@ -1213,7 +1218,7 @@ function bindEvents() {
       }
 
       const chartLeft = meta.pad?.left ?? 60;
-      const chartRight = meta.xFor(meta.daySnaps.length - 1);
+      const chartRight = meta.xFor((meta.hours || 24) - 1);
       if (mx < chartLeft - 20 || mx > chartRight + 20) {
         if (state.dailyHoverIndex !== null) {
           state.dailyHoverIndex = null;
@@ -1241,6 +1246,7 @@ function bindEvents() {
       let closestId = null, minDist = Infinity;
       meta.seriesList.forEach(opt => {
         opt.points.forEach(p => {
+          if (!meta.hourHasData?.[p.snapIndex]) return;
           const px = meta.xFor(p.snapIndex), py = meta.yFor(p.value);
           const d = Math.hypot(mx - px, my - py);
           if (d < minDist) { minDist = d; closestId = opt.id; }
