@@ -357,7 +357,8 @@ h1 {
 }
 
 #trendCanvas,
-#optionVoteCanvas {
+#optionVoteCanvas,
+#dailyGrowthCanvas {
   display: block;
   background: linear-gradient(180deg, #fcfdfd, #f6f8f7);
   border: 1px solid #e8eeeb;
@@ -370,7 +371,7 @@ h1 {
 }
 
 #optionVoteCanvas {
-  height: 620px;
+  height: 500px;
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
@@ -378,6 +379,18 @@ h1 {
 }
 
 #optionVoteCanvas.is-dragging {
+  cursor: grabbing;
+}
+
+#dailyGrowthCanvas {
+  height: 500px;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-x;
+}
+
+#dailyGrowthCanvas.is-dragging {
   cursor: grabbing;
 }
 
@@ -402,6 +415,41 @@ h1 {
 
 .option-trend-panel {
   margin-top: 14px;
+}
+
+.daily-growth-panel {
+  margin-top: 14px;
+}
+
+.daily-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.daily-controls input[type="date"] {
+  width: auto;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.daily-controls input[type="date"]:focus {
+  border-color: #85b79c;
+  box-shadow: 0 0 0 3px rgba(22, 116, 71, 0.12);
+  outline: none;
+}
+
+.daily-controls input[type="date"]:disabled {
+  background: #f4f6f5;
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .sub-chart-label {
@@ -502,6 +550,16 @@ h1 {
 
 .ranking-panel {
   margin-top: 14px;
+  padding: 12px;
+}
+
+.ranking-panel h1 {
+  font-size: 15px;
+}
+
+.ranking-panel .panel-head {
+  min-height: 30px;
+  margin-bottom: 8px;
 }
 
 .ranking-list {
@@ -510,15 +568,15 @@ h1 {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .ranking-item {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 6px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
@@ -533,11 +591,12 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: #eef3ef;
   font-weight: 600;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
@@ -555,15 +614,15 @@ h1 {
   display: block;
   font-weight: 600;
   overflow-wrap: anywhere;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .ranking-bar {
-  height: 6px;
+  height: 4px;
   background: #e8eeeb;
   border-radius: 999px;
   overflow: hidden;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .ranking-bar span {
@@ -577,26 +636,27 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
+  gap: 1px;
   font-variant-numeric: tabular-nums;
 }
 
 .ranking-votes {
   font-weight: 600;
+  font-size: 13px;
 }
 
 .ranking-percent {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .ranking-delta {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  font-size: 11px;
-  margin-left: 6px;
-  min-width: 28px;
+  font-size: 10px;
+  margin-left: 5px;
+  min-width: 24px;
 }
 
 .ranking-delta.is-up { color: var(--green); }
@@ -827,6 +887,10 @@ tr:last-child td {
   }
 
   #optionVoteCanvas {
+    height: 300px;
+  }
+
+  #dailyGrowthCanvas {
     height: 300px;
   }
 

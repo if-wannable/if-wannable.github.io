@@ -52,6 +52,13 @@ const els = {
   exportRankingBtn: document.querySelector("#exportRankingBtn"),
   exportCsvBtn: document.querySelector("#exportCsvBtn"),
   clearHighlightBtn: document.querySelector("#clearHighlightBtn"),
+  dailyGrowthCanvas: document.querySelector("#dailyGrowthCanvas"),
+  dailyGrowthDate: document.querySelector("#dailyGrowthDate"),
+  dailyGrowthStatus: document.querySelector("#dailyGrowthStatus"),
+  dailyGrowthLegend: document.querySelector("#dailyGrowthLegend"),
+  dailyChartScroll: document.querySelector("#dailyChartScroll"),
+  dailyPrevBtn: document.querySelector("#dailyPrevBtn"),
+  dailyNextBtn: document.querySelector("#dailyNextBtn"),
   refreshBtn: document.querySelector("#refreshBtn"),
   refreshStatus: document.querySelector("#refreshStatus"),
   dataRows: document.querySelector("#dataRows"),
@@ -64,7 +71,9 @@ let state = {
   chartMode: "participants",
   optionMode: "votes",
   activeOptionIds: new Set(),
-  hoverSnapIndex: null
+  hoverSnapIndex: null,
+  dailyGrowthDate: "",
+  dailyHoverIndex: null
 };
 
 let dragState = null;
@@ -240,6 +249,7 @@ function render() {
   renderTable();
   drawChart();
   drawOptionChart();
+  drawDailyGrowthChart();
   save();
 }
 
@@ -463,6 +473,7 @@ function drawOptionChart() {
       if (state.activeOptionIds.has(option.id)) state.activeOptionIds.delete(option.id);
       else state.activeOptionIds.add(option.id);
       drawOptionChart();
+      drawDailyGrowthChart();
     });
     legend.append(item);
   });
@@ -678,6 +689,285 @@ function drawOptionChart() {
 }
 
 
+// ── Daily growth chart ───────────────────────────────────────────────────────
+
+function drawDailyGrowthChart() {
+  const canvas = els.dailyGrowthCanvas;
+  const legend = els.dailyGrowthLegend;
+  const status = els.dailyGrowthStatus;
+  const dateInput = els.dailyGrowthDate;
+  if (!canvas || !legend || !dateInput) return;
+
+  const voteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
+  const availableDates = [...new Set(voteSnaps.map(s => s.time.slice(0, 10)))].sort();
+
+  if (!availableDates.length) {
+    dateInput.value = "";
+    dateInput.disabled = true;
+    if (els.dailyPrevBtn) els.dailyPrevBtn.disabled = true;
+    if (els.dailyNextBtn) els.dailyNextBtn.disabled = true;
+    legend.innerHTML = "";
+    status.textContent = "尚无票数快照";
+    const W = canvas.clientWidth || 600, H = canvas.clientHeight || 340;
+    const ctx = canvas.getContext("2d");
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(W * ratio); canvas.height = Math.floor(H * ratio);
+    canvas.style.width = W + "px"; canvas.style.height = H + "px";
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#68736e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "13px system-ui";
+    ctx.fillText("等有票数快照后，这里会按日显示涨幅", W/2, H/2);
+    canvas._chartMeta = null;
+    return;
+  }
+
+  dateInput.disabled = false;
+  dateInput.min = availableDates[0];
+  dateInput.max = availableDates.at(-1);
+
+  if (!state.dailyGrowthDate || !availableDates.includes(state.dailyGrowthDate)) {
+    state.dailyGrowthDate = availableDates.at(-1);
+  }
+  dateInput.value = state.dailyGrowthDate;
+
+  const dayIdx = availableDates.indexOf(state.dailyGrowthDate);
+  if (els.dailyPrevBtn) els.dailyPrevBtn.disabled = dayIdx <= 0;
+  if (els.dailyNextBtn) els.dailyNextBtn.disabled = dayIdx >= availableDates.length - 1;
+
+  // Snapshots on the selected day, plus the previous snapshot (any day) as baseline
+  // so the first point of the day shows growth since the last capture.
+  const daySnaps = voteSnaps.filter(s => s.time.slice(0, 10) === state.dailyGrowthDate);
+  const firstGlobalIdx = voteSnaps.indexOf(daySnaps[0]);
+  const baselineSnap = firstGlobalIdx > 0 ? voteSnaps[firstGlobalIdx - 1] : null;
+
+  const options = optionList().map((row, i) => ({
+    id: row.option_id || row.option,
+    name: row.option,
+    color: OPTION_COLORS[i % OPTION_COLORS.length]
+  }));
+
+  // Build per-option growth series relative to the previous snapshot.
+  const seriesList = [];
+  const allGrowth = [];
+  options.forEach(opt => {
+    const points = [];
+    daySnaps.forEach((snap, i) => {
+      const curr = snap.items.find(r => (r.option_id||r.option) === opt.id);
+      const prev = i === 0
+        ? baselineSnap?.items.find(r => (r.option_id||r.option) === opt.id)
+        : daySnaps[i-1].items.find(r => (r.option_id||r.option) === opt.id);
+      if (curr?.votes != null && prev?.votes != null) {
+        const growth = curr.votes - prev.votes;
+        points.push({ snapIndex: i, value: Math.max(0, growth), rawGrowth: growth, votes: curr.votes, time: snap.time });
+        allGrowth.push(Math.max(0, growth));
+      }
+    });
+    seriesList.push({ id: opt.id, name: opt.name, color: opt.color, points });
+  });
+
+  // Legend shows growth between the last two snapshots of the day (or baseline -> last).
+  const latestDaySnap = daySnaps.at(-1);
+  const previousDaySnap = daySnaps.at(-2) || baselineSnap;
+  legend.innerHTML = "";
+  options.forEach(option => {
+    const latestRow = latestDaySnap?.items.find(r => (r.option_id||r.option) === option.id);
+    const previousRow = previousDaySnap?.items.find(r => (r.option_id||r.option) === option.id);
+    const latestVotes = latestRow?.votes ?? null;
+    const previousVotes = previousRow?.votes ?? null;
+    const intervalGrowth = latestVotes !== null && previousVotes !== null ? latestVotes - previousVotes : null;
+    const isActive = state.activeOptionIds.has(option.id);
+    const item = document.createElement("div");
+    item.className = "legend-item" + (isActive ? " is-highlighted" : "");
+    item.dataset.optionId = option.id;
+    item.innerHTML = `
+      <span class="legend-swatch" style="background:${option.color}"></span>
+      <span class="legend-name" title="${escapeAttr(option.name)}">${escapeHtml(option.name)}</span>
+      <span class="legend-value">${intervalGrowth === null ? "-" : `${intervalGrowth >= 0 ? "+" : ""}${intervalGrowth.toLocaleString("zh-CN")}`}</span>
+    `;
+    item.addEventListener("click", () => {
+      if (state.activeOptionIds.has(option.id)) state.activeOptionIds.delete(option.id);
+      else state.activeOptionIds.add(option.id);
+      drawDailyGrowthChart();
+      drawOptionChart();
+    });
+    legend.append(item);
+  });
+
+  const visibleW = canvas.parentElement?.clientWidth || 600;
+  const narrow = visibleW < 500;
+  const spacing = 90;
+  const neededW = Math.max(visibleW, (daySnaps.length - 1) * spacing + 180);
+  const W = neededW, H = canvas.clientHeight || 340;
+
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(W * ratio);
+  canvas.height = Math.floor(H * ratio);
+  canvas.style.width = W + "px";
+  canvas.style.height = H + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = narrow
+    ? { top: 18, right: 14, bottom: 34, left: 38 }
+    : { top: 24, right: 28, bottom: 44, left: 60 };
+  const fontPx = narrow ? 10 : 12;
+  const w = W - pad.left - pad.right, h = H - pad.top - pad.bottom;
+
+  const max = Math.max(1, ...allGrowth);
+  const yFor = v => pad.top + h - (v / max) * h;
+  const gridVals = [max, max*3/4, max/2, max/4, 0];
+
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "#d9dfdc"; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (h/4)*i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left+w, y); ctx.stroke();
+  }
+
+  ctx.fillStyle = "#68736e"; ctx.font = fontPx + "px system-ui";
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (let i = 0; i <= 4; i++) {
+    ctx.fillText(Math.round(gridVals[i]).toLocaleString("zh-CN"), pad.left-8, pad.top+(h/4)*i);
+  }
+
+  if (!daySnaps.length || allGrowth.length === 0) {
+    status.textContent = baselineSnap
+      ? `${state.dailyGrowthDate} · 当日无新增票数`
+      : `${state.dailyGrowthDate} · 当日无快照`;
+    ctx.fillStyle = "#68736e"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `${fontPx}px system-ui`;
+    ctx.fillText("当日无可见票数或快照不足", W/2, H/2);
+    canvas._chartMeta = null;
+    return;
+  }
+
+  status.textContent = `${state.dailyGrowthDate} · ${daySnaps.length} 个快照 · 基线为上一日最后快照${baselineSnap ? "" : "（无）"}`;
+
+  const xFor = i => pad.left + (daySnaps.length === 1 ? w/2 : (w/(daySnaps.length-1))*i);
+  const hasActive = state.activeOptionIds.size > 0;
+
+  seriesList.forEach(opt => {
+    const isActive = state.activeOptionIds.has(opt.id);
+    if (!opt.points.length) return;
+    ctx.strokeStyle = hasActive && !isActive ? opt.color + "28" : opt.color;
+    ctx.lineWidth = isActive ? 3 : 1.5;
+    ctx.beginPath();
+    opt.points.forEach((p, i) => {
+      const x = xFor(p.snapIndex), y = yFor(p.value);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    if (isActive && opt.points.length) {
+      ctx.fillStyle = opt.color;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5;
+      const dotR = narrow ? 2.5 : 3.5;
+      opt.points.forEach(p => {
+        const px = xFor(p.snapIndex), py = yFor(p.value);
+        ctx.beginPath();
+        ctx.arc(px, py, dotR, 0, Math.PI*2);
+        ctx.fill();
+        ctx.stroke();
+      });
+
+      const last = opt.points.at(-1);
+      const lx = xFor(last.snapIndex), ly = yFor(last.value);
+      ctx.font = `bold ${fontPx}px system-ui`;
+      ctx.textBaseline = "middle";
+      const label = opt.name.length > 12 ? opt.name.slice(0,12)+"…" : opt.name;
+      const lw = ctx.measureText(label).width;
+      const bx = Math.min(lx + 6, W - lw - 4);
+      ctx.fillStyle = opt.color + "22";
+      ctx.beginPath();
+      roundRect(ctx, bx - 4, ly - 9, lw + 8, 18, 4);
+      ctx.fill();
+      ctx.fillStyle = opt.color;
+      ctx.textAlign = "left";
+      ctx.fillText(label, bx, ly);
+    }
+  });
+
+  // X-axis labels: HH:MM times within the day
+  ctx.fillStyle = "#68736e"; ctx.font = fontPx + "px system-ui";
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  const labelStep = Math.max(1, Math.ceil(daySnaps.length * 110 / Math.max(W, 1)));
+  for (let i = 0; i < daySnaps.length; i += labelStep) {
+    ctx.fillText(formatHm(daySnaps[i].time), xFor(i), pad.top+h+10);
+  }
+  if (daySnaps.length > 1 && (daySnaps.length - 1) % labelStep !== 0) {
+    ctx.fillText(formatHm(daySnaps.at(-1).time), xFor(daySnaps.length-1), pad.top+h+10);
+  }
+
+  // Hover tooltip: dashed vertical + box with each visible option's growth at that time
+  if (state.dailyHoverIndex !== null && state.dailyHoverIndex >= 0 && state.dailyHoverIndex < daySnaps.length) {
+    const snap = daySnaps[state.dailyHoverIndex];
+    const vx = xFor(state.dailyHoverIndex);
+    ctx.strokeStyle = "#85b79c";
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(vx, pad.top);
+    ctx.lineTo(vx, pad.top + h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const hasSelection = state.activeOptionIds.size > 0;
+    const visibleOpts = hasSelection
+      ? options.filter(opt => state.activeOptionIds.has(opt.id))
+      : options;
+    const lines = [formatHm(snap.time)];
+    const hoverPoints = [];
+    visibleOpts.forEach(opt => {
+      const r = snap.items.find(item => (item.option_id||item.option) === opt.id);
+      const prevSnap = state.dailyHoverIndex === 0 ? baselineSnap : daySnaps[state.dailyHoverIndex - 1];
+      const prevRow = prevSnap?.items.find(item => (item.option_id||item.option) === opt.id);
+      if (r && r.votes !== null && prevRow?.votes != null) {
+        const growth = r.votes - prevRow.votes;
+        lines.push(`${opt.name}: ${r.votes.toLocaleString("zh-CN")} 票 (${growth >= 0 ? "+" : ""}${growth})`);
+        hoverPoints.push({ x: vx, y: yFor(Math.max(0, growth)), color: opt.color });
+      }
+    });
+    hoverPoints.forEach(p => {
+      const haloR = narrow ? 7 : 9, dotR = narrow ? 4 : 5;
+      ctx.fillStyle = p.color + "33";
+      ctx.beginPath(); ctx.arc(p.x, p.y, haloR, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = p.color; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(p.x, p.y, dotR, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    });
+    ctx.font = fontPx + "px system-ui";
+    const lineH = narrow ? 14 : 16;
+    const boxW = Math.min(340, Math.max(...lines.map(l => ctx.measureText(l).width)) + 14);
+    const boxH = lines.length * lineH + 8;
+    let boxX = vx + 8;
+    if (boxX + boxW > W - 4) boxX = vx - boxW - 8;
+    const boxY = pad.top + 4;
+    ctx.fillStyle = "rgba(255,255,255,0.96)";
+    ctx.strokeStyle = "#d9dfdc";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    roundRect(ctx, boxX, boxY, boxW, boxH, 6);
+    ctx.fill(); ctx.stroke();
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    lines.forEach((line, i) => {
+      ctx.fillStyle = "#17201c";
+      ctx.font = i === 0 ? `bold ${fontPx}px system-ui` : `${fontPx}px system-ui`;
+      ctx.fillText(line, boxX + 6, boxY + 5 + i * lineH);
+    });
+  }
+
+  canvas._chartMeta = { seriesList, xFor, yFor, daySnaps, baselineSnap, pad };
+}
+
+function formatHm(v) {
+  const d = new Date(v);
+  if (!Number.isFinite(d.valueOf())) return "";
+  return new Intl.DateTimeFormat("zh-CN",{hour:"2-digit",minute:"2-digit"}).format(d);
+}
+
+
 // ── Ranking export ─────────────────────────────────────────────────────────────
 
 function exportRankingImage() {
@@ -844,7 +1134,136 @@ function bindEvents() {
   if (els.clearHighlightBtn) els.clearHighlightBtn.addEventListener("click", () => {
     state.activeOptionIds.clear();
     drawOptionChart();
+    drawDailyGrowthChart();
   });
+
+  // Daily growth: date picker + prev/next day navigation.
+  if (els.dailyGrowthDate) {
+    els.dailyGrowthDate.addEventListener("change", () => {
+      state.dailyGrowthDate = els.dailyGrowthDate.value;
+      state.dailyHoverIndex = null;
+      drawDailyGrowthChart();
+    });
+  }
+  if (els.dailyPrevBtn) {
+    els.dailyPrevBtn.addEventListener("click", () => {
+      const voteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
+      const dates = [...new Set(voteSnaps.map(s => s.time.slice(0, 10)))].sort();
+      const idx = dates.indexOf(state.dailyGrowthDate);
+      if (idx > 0) {
+        state.dailyGrowthDate = dates[idx - 1];
+        state.dailyHoverIndex = null;
+        drawDailyGrowthChart();
+      }
+    });
+  }
+  if (els.dailyNextBtn) {
+    els.dailyNextBtn.addEventListener("click", () => {
+      const voteSnaps = snapshots().filter(s => s.items.some(r => r.votes !== null));
+      const dates = [...new Set(voteSnaps.map(s => s.time.slice(0, 10)))].sort();
+      const idx = dates.indexOf(state.dailyGrowthDate);
+      if (idx >= 0 && idx < dates.length - 1) {
+        state.dailyGrowthDate = dates[idx + 1];
+        state.dailyHoverIndex = null;
+        drawDailyGrowthChart();
+      }
+    });
+  }
+
+  // Daily growth canvas: hover for tooltip, click line to toggle highlight,
+  // drag to pan horizontally when the chart overflows its scroll-wrap.
+  if (els.dailyGrowthCanvas) {
+    const canvas = els.dailyGrowthCanvas;
+    const scrollWrap = canvas.parentElement;
+
+    const findNearestSnap = mx => {
+      const meta = canvas._chartMeta;
+      if (!meta || !meta.daySnaps?.length) return null;
+      let nearestIdx = 0, minXDist = Infinity;
+      meta.daySnaps.forEach((_, i) => {
+        const d = Math.abs(mx - meta.xFor(i));
+        if (d < minXDist) { minXDist = d; nearestIdx = i; }
+      });
+      return nearestIdx;
+    };
+
+    canvas.addEventListener("mousedown", event => {
+      if (!canvas._chartMeta) return;
+      dragState = {
+        startX: event.clientX,
+        scrollLeft: scrollWrap?.scrollLeft ?? 0,
+        moved: false
+      };
+    });
+
+    canvas.addEventListener("mousemove", event => {
+      const meta = canvas._chartMeta;
+      if (!meta) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = event.clientX - rect.left;
+
+      if (dragState) {
+        const dx = event.clientX - dragState.startX;
+        if (Math.abs(dx) > 5) {
+          dragState.moved = true;
+          canvas.classList.add("is-dragging");
+          if (scrollWrap) scrollWrap.scrollLeft = dragState.scrollLeft - dx;
+        }
+        return;
+      }
+
+      const chartLeft = meta.pad?.left ?? 60;
+      const chartRight = meta.xFor(meta.daySnaps.length - 1);
+      if (mx < chartLeft - 20 || mx > chartRight + 20) {
+        if (state.dailyHoverIndex !== null) {
+          state.dailyHoverIndex = null;
+          drawDailyGrowthChart();
+        }
+        return;
+      }
+      const nearestIdx = findNearestSnap(mx);
+      if (nearestIdx !== null && state.dailyHoverIndex !== nearestIdx) {
+        state.dailyHoverIndex = nearestIdx;
+        drawDailyGrowthChart();
+      }
+    });
+
+    canvas.addEventListener("mouseup", event => {
+      if (!dragState) return;
+      const wasMoved = dragState.moved;
+      dragState = null;
+      canvas.classList.remove("is-dragging");
+      if (wasMoved) return;
+      const meta = canvas._chartMeta;
+      if (!meta) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = event.clientX - rect.left, my = event.clientY - rect.top;
+      let closestId = null, minDist = Infinity;
+      meta.seriesList.forEach(opt => {
+        opt.points.forEach(p => {
+          const px = meta.xFor(p.snapIndex), py = meta.yFor(p.value);
+          const d = Math.hypot(mx - px, my - py);
+          if (d < minDist) { minDist = d; closestId = opt.id; }
+        });
+      });
+      if (minDist < 32 && closestId) {
+        if (state.activeOptionIds.has(closestId)) state.activeOptionIds.delete(closestId);
+        else state.activeOptionIds.add(closestId);
+        drawDailyGrowthChart();
+        drawOptionChart();
+      }
+    });
+
+    canvas.addEventListener("mouseleave", () => {
+      if (dragState) { dragState = null; canvas.classList.remove("is-dragging"); }
+      if (state.dailyHoverIndex !== null) {
+        state.dailyHoverIndex = null;
+        drawDailyGrowthChart();
+      }
+    });
+  }
+
+  window.addEventListener("resize", () => { drawChart(); drawOptionChart(); drawDailyGrowthChart(); });
 
   // Canvas interactions: click line to toggle highlight, hover for tooltip,
   // drag to pan horizontally when the chart overflows its scroll-wrap.
@@ -945,6 +1364,7 @@ function bindEvents() {
         if (state.activeOptionIds.has(id)) state.activeOptionIds.delete(id);
         else state.activeOptionIds.add(id);
         drawOptionChart();
+        drawDailyGrowthChart();
       }
     });
 

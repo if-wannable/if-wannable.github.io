@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>投票记录台</title>
-  <link rel="stylesheet" href="./styles.css?v=13">
+  <link rel="stylesheet" href="./styles.css?v=14">
 </head>
 <body>
   <div class="app-shell">
@@ -81,14 +81,32 @@
                 <button class="segment" type="button" data-opt-mode="growth">涨幅</button>
               </div>
               <div class="status-line" id="optionTrendStatus"></div>
-              <button id="clearHighlightBtn" class="button secondary compact" type="button">清除高亮</button>
-              <button id="exportCsvBtn" class="button secondary compact" type="button">导出 CSV</button>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap">
+                <button id="clearHighlightBtn" class="button secondary compact" type="button">清除高亮</button>
+                <button id="exportCsvBtn" class="button secondary compact" type="button">导出 CSV</button>
+              </div>
             </div>
           </div>
           <div class="chart-scroll-wrap" id="optionChartScroll">
             <canvas id="optionVoteCanvas" height="340" aria-label="选项票数折线图"></canvas>
           </div>
           <div class="option-legend" id="optionLegend" aria-label="选项图例"></div>
+        </div>
+
+        <div class="chart-panel daily-growth-panel">
+          <div class="panel-head">
+            <h1>分日时段涨幅</h1>
+            <div class="daily-controls">
+              <button id="dailyPrevBtn" class="button secondary compact" type="button" aria-label="上一日">‹</button>
+              <input id="dailyGrowthDate" type="date">
+              <button id="dailyNextBtn" class="button secondary compact" type="button" aria-label="下一日">›</button>
+              <span class="status-line" id="dailyGrowthStatus"></span>
+            </div>
+          </div>
+          <div class="chart-scroll-wrap" id="dailyChartScroll">
+            <canvas id="dailyGrowthCanvas" height="340" aria-label="分日时段涨幅折线图"></canvas>
+          </div>
+          <div class="option-legend" id="dailyGrowthLegend" aria-label="选项图例"></div>
         </div>
 
         <div class="chart-panel ranking-panel">
@@ -129,6 +147,6 @@
     </main>
   </div>
 
-  <script src="./app.js?v=13"></script>
+  <script src="./app.js?v=14"></script>
 </body>
 </html>
