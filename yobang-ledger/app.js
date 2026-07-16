@@ -1,19 +1,52 @@
 "use strict";
 
 // =============================================================================
-// 配置：创建 Gist 后把这里的替换为你的 Gist ID（形如 abc123def456）
+// 配置：通过 CORS 代理直接拉取 yobang 页面，解析内嵌 JSON 得到当前各维度分数。
+// 最近 24 小时的快照存在浏览器 localStorage 里用于画趋势图。
+// 不依赖 Gist / GitHub Actions。
 // =============================================================================
-const GIST_CONFIG = {
-  user: "if-wannable",
-  gistId: "REPLACE_WITH_YOUR_GIST_ID",
-};
 
 const UNI_ID = "530004147";
+const YOBANG_URL = `https://yobang.tencentmusic.com/chart/uni-chart/detail/?uniId=${UNI_ID}&issue=&chartType=`;
+const STORAGE_KEY = "yobang-ledger-v1";
+const MAX_SNAPSHOTS = 288; // 24h * 60min / 5min
+const REFRESH_MS = 5 * 60 * 1000;
+
+// 多个 CORS 代理，依次尝试
+const PROXIES = [
+  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+  (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+  (u) => `https://thingproxy.freeboard.io/fetch/${u}`,
+];
+
+const DIMENSION_KEYWORDS = {
+  play_count: "播放量", playCount: "播放量", playnum: "播放量", playScoreNum: "播放量",
+  like_count: "点赞", likeCount: "点赞", likes: "点赞", likeScoreNum: "点赞",
+  share_count: "分享", shareCount: "分享", shares: "分享", shareScoreNum: "分享",
+  comment_count: "评论", commentCount: "评论", comments: "评论", commentScoreNum: "评论",
+  favorite_count: "收藏", favoriteCount: "收藏", favorites: "收藏",
+  collect_count: "收藏", collectCount: "收藏", collectScoreNum: "收藏",
+  score: "得分", total_score: "总分", totalScore: "总分", totalScoreNum: "总分",
+  play_score: "播放得分", playScore: "播放得分",
+  like_score: "点赞得分", likeScore: "点赞得分",
+  share_score: "分享得分", shareScore: "分享得分",
+  comment_score: "评论得分", commentScore: "评论得分",
+  favorite_score: "收藏得分", favoriteScore: "收藏得分",
+  collect_score: "收藏得分", collectScore: "收藏得分",
+};
 
 const DIMENSION_COLORS = [
   "#167447", "#2c6f99", "#a97619", "#c9553d",
   "#5b6abf", "#0f8a8a", "#b54e7a", "#6f7f28",
   "#8d5ab5", "#7a5c28",
+];
+
+const EXTRACTORS = [
+  { name: "__NEXT_DATA__",     re: /<script[^>]+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/, kind: "json", group: 1 },
+  { name: "__INITIAL_STATE__", re: /window\.__INITIAL_STATE__\s*=\s*(\{[\s\S]*?\})\s*;/,        kind: "json", group: 1 },
+  { name: "__APOLLO_STATE__",  re: /window\.__APOLLO_STATE__\s*=\s*(\{[\s\S]*?\})\s*;/,         kind: "json", group: 1 },
+  { name: "window_generic",    re: /window\.([A-Z_]+)\s*=\s*(\{[\s\S]{200,}?\})\s*;/,            kind: "json_group" },
 ];
 
 const els = {
@@ -35,112 +68,130 @@ const els = {
 };
 
 const state = {
-  latest: null,
   snapshots: [],
-  availableDays: [],
-  selectedDay: "",
+  latest: null,
   error: null,
-  manifest: null,
+  isLoading: false,
 };
 
 let refreshTimer = null;
 
 // =============================================================================
-// Gist 读取（CDN 优先，失败时降级到 api.github.com）
+// 拉取 + 解析
 // =============================================================================
-function gistRawUrl(filename) {
-  return `https://gist.githubusercontent.com/${GIST_CONFIG.user}/${GIST_CONFIG.gistId}/raw/${filename}?_=${Date.now()}`;
+async function fetchHtml() {
+  let lastErr;
+  for (let i = 0; i < PROXIES.length; i += 1) {
+    const url = PROXIES[i](YOBANG_URL);
+    try {
+      const r = await fetch(url, { cache: "no-cache" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const html = await r.text();
+      if (!html || html.length < 500) throw new Error("响应过短");
+      return { html, proxyIndex: i };
+    } catch (e) {
+      lastErr = new Error(`代理 #${i + 1}: ${e.message}`);
+    }
+  }
+  throw lastErr || new Error("所有代理失败");
 }
 
-function gistApiUrl(filename) {
-  return `https://api.github.com/gists/${GIST_CONFIG.gistId}`;
+function extractState(html) {
+  for (const ex of EXTRACTORS) {
+    const m = ex.re.exec(html);
+    if (!m) continue;
+    try {
+      if (ex.kind === "json") {
+        return JSON.parse(m[ex.group]);
+      }
+      if (ex.kind === "json_group") {
+        return { [m[1]]: JSON.parse(m[2]) };
+      }
+    } catch (e) {
+      // try next extractor
+    }
+  }
+  throw new Error("未找到内嵌 JSON（页面可能由 JS 渲染）");
 }
 
-async function fetchJson(url) {
-  const r = await fetch(url, { cache: "no-cache" });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json();
+function walkForScores(obj) {
+  const found = new Map();
+  function visit(node) {
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item);
+    } else if (node && typeof node === "object") {
+      for (const [k, v] of Object.entries(node)) {
+        if (k in DIMENSION_KEYWORDS && typeof v === "number" && !Number.isNaN(v)) {
+          if (!found.has(k)) {
+            found.set(k, { key: k, label: DIMENSION_KEYWORDS[k], value: v, unit: "" });
+          }
+        }
+        visit(v);
+      }
+    }
+  }
+  visit(obj);
+  return Array.from(found.values());
 }
 
-async function fetchText(url) {
-  const r = await fetch(url, { cache: "no-cache" });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.text();
-}
-
-async function fetchGistFile(filename, asJson) {
+// =============================================================================
+// localStorage 持久化
+// =============================================================================
+function loadSnapshots() {
   try {
-    return asJson
-      ? await fetchJson(gistRawUrl(filename))
-      : await fetchText(gistRawUrl(filename));
-  } catch (e) {
-    // 降级到 api.github.com
-    const data = await fetchJson(gistApiUrl());
-    const file = (data.files || {})[filename];
-    if (!file) throw new Error(`Gist 中找不到 ${filename}`);
-    const content = file.content || "";
-    return asJson ? JSON.parse(content) : content;
+    const arr = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+function saveSnapshots(snaps) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(snaps.slice(-MAX_SNAPSHOTS)));
+  } catch {
+    // 容量满或无痕模式，忽略
   }
 }
 
 // =============================================================================
-// 主加载流程
+// 主刷新流程
 // =============================================================================
-async function load() {
+async function refresh() {
+  if (state.isLoading) return;
+  state.isLoading = true;
+  setSync("ok", "获取中…");
   try {
+    const { html, proxyIndex } = await fetchHtml();
+    const stateObj = extractState(html);
+    const dimensions = walkForScores(stateObj);
+    const now = new Date();
+    const iso = now.toISOString();
+    const snap = {
+      captured_at: iso,
+      fetched_at: iso,
+      uni_id: UNI_ID,
+      ok: true,
+      dimensions,
+      proxy_used: proxyIndex,
+      raw_excerpt: safeStringify(stateObj).slice(0, 500),
+      schema_version: 1,
+    };
+    state.latest = snap;
+    state.snapshots = [...state.snapshots, snap].slice(-MAX_SNAPSHOTS);
+    saveSnapshots(state.snapshots);
     state.error = null;
-    state.manifest = await fetchGistFile("manifest.json", true);
-    state.availableDays = listKnownDays(state.manifest);
-
-    state.latest = await fetchGistFile("latest.json", true);
-    const latestDay = (state.latest.captured_at || "").slice(0, 10);
-    if (!state.selectedDay) state.selectedDay = latestDay || todayStr();
-
-    if (!state.availableDays.includes(state.selectedDay)) {
-      state.availableDays = [state.selectedDay, ...state.availableDays.filter((d) => d !== state.selectedDay)];
-    }
-
-    const text = await fetchGistFile(`${state.selectedDay}.jsonl`, false);
-    state.snapshots = parseJsonl(text);
-
+    setSync("ok", `同步于 ${now.toLocaleTimeString("zh-CN", { hour12: false })} · ${dimensions.length} 维度 · 代理 #${proxyIndex + 1}`);
     render();
-    setSync("ok", `同步于 ${nowTime()}`);
   } catch (e) {
     state.error = e.message;
+    setSync("err", `获取失败：${e.message}`);
     render();
-    setSync("err", `同步失败：${e.message}`);
+  } finally {
+    state.isLoading = false;
   }
 }
 
-function listKnownDays(manifest) {
-  if (!manifest) return [];
-  const days = [];
-  if (manifest.current_file) {
-    days.push(manifest.current_file.replace(/\.jsonl$/, ""));
-  }
-  return days;
-}
-
-function parseJsonl(text) {
-  return text
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      try { return JSON.parse(line); } catch { return null; }
-    })
-    .filter(Boolean);
-}
-
-function todayStr() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function nowTime() {
-  return new Date().toLocaleTimeString("zh-CN", { hour12: false });
+function safeStringify(obj) {
+  try { return JSON.stringify(obj); } catch { return String(obj); }
 }
 
 // =============================================================================
@@ -159,9 +210,9 @@ function renderMetricGrid() {
   if (dims.length === 0) {
     els.metricGrid.innerHTML = `
       <div class="metric">
-        <span class="metric-label">暂无维度</span>
-        <strong>—</strong>
-        <span class="metric-foot">${state.error || "等待 Gist 首次写入"}</span>
+        <span class="metric-label">${state.error ? "获取失败" : "暂无维度"}</span>
+        <strong>-</strong>
+        <span class="metric-foot">${escapeHtml(state.error || "等待首次获取")}</span>
       </div>`;
     return;
   }
@@ -181,8 +232,8 @@ function computeDelta(key) {
   if (state.snapshots.length < 2) return "";
   const latest = state.snapshots.at(-1);
   const prev = state.snapshots.at(-2);
-  const a = latest.dimensions.find((d) => d.key === key);
-  const b = prev.dimensions.find((d) => d.key === key);
+  const a = (latest.dimensions || []).find((d) => d.key === key);
+  const b = (prev.dimensions || []).find((d) => d.key === key);
   if (!a || !b || typeof a.value !== "number" || typeof b.value !== "number") return "";
   const diff = a.value - b.value;
   if (diff === 0) return " · 持平";
@@ -191,38 +242,27 @@ function computeDelta(key) {
 }
 
 function renderDayList() {
-  if (state.availableDays.length === 0) {
+  if (state.snapshots.length === 0) {
     els.dayList.innerHTML = "";
     return;
   }
-  els.dayList.innerHTML = state.availableDays
+  const counts = new Map();
+  for (const s of state.snapshots) {
+    const day = (s.captured_at || "").slice(0, 10);
+    if (!day) continue;
+    counts.set(day, (counts.get(day) || 0) + 1);
+  }
+  const days = Array.from(counts.keys()).sort().reverse();
+  els.dayList.innerHTML = days
     .map((day) => {
-      const isActive = day === state.selectedDay;
-      const count = day === state.selectedDay ? state.snapshots.length : "";
+      const count = counts.get(day);
       return `
-        <div class="tracker-item ${isActive ? "is-active" : ""}" data-day="${day}">
+        <div class="tracker-item" data-day="${day}">
           <strong>${day}</strong>
-          <span>${count !== "" ? `${count} 条快照` : "点击载入"}</span>
+          <span>${count} 条快照</span>
         </div>`;
     })
     .join("");
-  els.dayList.querySelectorAll(".tracker-item").forEach((el) => {
-    el.addEventListener("click", () => switchDay(el.dataset.day));
-  });
-}
-
-async function switchDay(day) {
-  if (day === state.selectedDay) return;
-  state.selectedDay = day;
-  setSync("ok", `载入 ${day}…`);
-  try {
-    const text = await fetchGistFile(`${day}.jsonl`, false);
-    state.snapshots = parseJsonl(text);
-    render();
-    setSync("ok", `已载入 ${day} · ${nowTime()}`);
-  } catch (e) {
-    setSync("err", `载入失败：${e.message}`);
-  }
 }
 
 function renderLegend() {
@@ -231,11 +271,11 @@ function renderLegend() {
     els.dimensionLegend.innerHTML = "";
     return;
   }
-  const latest = state.snapshots.at(-1) || state.latest;
+  const latest = state.latest || state.snapshots.at(-1);
   els.dimensionLegend.innerHTML = dims.map((dim, i) => {
     const color = DIMENSION_COLORS[i % DIMENSION_COLORS.length];
-    const match = latest && latest.dimensions.find((d) => d.key === dim.key);
-    const value = match ? formatNumber(match.value) : "—";
+    const match = latest && (latest.dimensions || []).find((d) => d.key === dim.key);
+    const value = match ? formatNumber(match.value) : "-";
     return `
       <div class="legend-item">
         <span class="legend-swatch" style="background:${color}"></span>
@@ -261,7 +301,7 @@ function collectDimensions() {
 }
 
 // =============================================================================
-// Canvas 趋势图（原生 2D Context，多维度折线）
+// Canvas 趋势图
 // =============================================================================
 function drawTrendChart() {
   const canvas = els.trendCanvas;
@@ -284,7 +324,7 @@ function drawTrendChart() {
   const snaps = state.snapshots;
   const dims = collectDimensions();
   if (snaps.length === 0 || dims.length === 0) {
-    drawEmptyState(ctx, w, h, state.error ? `错误：${state.error}` : "暂无记录");
+    drawEmptyState(ctx, w, h, state.error ? `错误：${state.error}` : "等待首次获取");
     els.trendStatus.textContent = snaps.length === 0 ? "尚无快照" : `${snaps.length} 条 · ${dims.length} 个维度`;
     return;
   }
@@ -408,7 +448,7 @@ function renderTable() {
   els.dataRows.innerHTML = rows.map((snap) => {
     const cells = dims.map((d) => {
       const m = (snap.dimensions || []).find((x) => x.key === d.key);
-      return `<td>${m ? formatNumber(m.value) : "—"}</td>`;
+      return `<td>${m ? formatNumber(m.value) : "-"}</td>`;
     }).join("");
     return `<tr><td>${escapeHtml(snap.captured_at || snap.fetched_at || "")}</td>${cells}</tr>`;
   }).join("");
@@ -419,7 +459,7 @@ function renderTable() {
 // 工具
 // =============================================================================
 function formatNumber(n) {
-  if (n == null) return "—";
+  if (n == null) return "-";
   if (typeof n !== "number") return String(n);
   if (Number.isInteger(n)) return n.toLocaleString("zh-CN");
   return n.toLocaleString("zh-CN", { maximumFractionDigits: 2 });
@@ -453,15 +493,18 @@ function setView(name) {
 // =============================================================================
 els.tabs.forEach((t) => t.addEventListener("click", () => setView(t.dataset.view)));
 els.refreshBtn.addEventListener("click", () => {
-  setSync("ok", "刷新中…");
-  load();
+  setSync("ok", "手动刷新中…");
+  refresh();
 });
-
 window.addEventListener("resize", () => drawTrendChart());
 
-if (GIST_CONFIG.gistId === "REPLACE_WITH_YOUR_GIST_ID") {
-  setSync("err", "未配置 Gist ID（见 app.js 顶部 GIST_CONFIG）");
+state.snapshots = loadSnapshots();
+state.latest = state.snapshots.at(-1) || null;
+if (state.latest) {
+  setSync("ok", `本地缓存 ${state.snapshots.length} 条 · ${new Date(state.latest.captured_at).toLocaleTimeString("zh-CN", { hour12: false })}`);
 } else {
-  load();
-  refreshTimer = setInterval(load, 5 * 60 * 1000);
+  setSync("ok", "等待首次获取…");
 }
+render();
+refresh();
+refreshTimer = setInterval(refresh, REFRESH_MS);
