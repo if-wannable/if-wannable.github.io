@@ -49,7 +49,8 @@ function storageKey(id) { return `${STORAGE_KEY}:${id}`; }
 function loadSnapshots() {
   try {
     const raw = localStorage.getItem(storageKey(state.songId));
-    state.snapshots = raw ? (JSON.parse(raw).snapshots || []) : [];
+    const data = raw ? (JSON.parse(raw).snapshots || []) : [];
+    state.snapshots = data.sort((a, b) => new Date(a.at) - new Date(b.at));
   } catch { state.snapshots = []; }
 }
 
@@ -417,17 +418,22 @@ function drawTrendCanvas(highlightIdx = null) {
     ctx.setLineDash([]);
   }
 
-  // X-axis labels
+  // X-axis labels — deduplicated, min 50px gap between same-label ticks
   ctx.fillStyle = '#8a9a91'; ctx.font = '11px system-ui';
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  const step = Math.max(1, Math.floor((snaps.length - 1) / 8));
-  const labeled = new Set();
-  for (let i = 0; i < snaps.length; i += step) {
-    ctx.fillText(snapDisplayTime(snaps[i]), xOf(i), pad.top + ch + 10);
-    labeled.add(i);
-  }
-  if (!labeled.has(snaps.length - 1)) {
-    ctx.fillText(snapDisplayTime(snaps[snaps.length - 1]), xOf(snaps.length - 1), pad.top + ch + 10);
+  const MIN_LABEL_GAP = 50;
+  let lastLabel = null;
+  let lastLabelX = -Infinity;
+  for (let i = 0; i < snaps.length; i++) {
+    const label = snapDisplayTime(snaps[i]);
+    const x = xOf(i);
+    if (label !== lastLabel && x - lastLabelX >= MIN_LABEL_GAP) {
+      ctx.fillText(label, x, pad.top + ch + 10);
+      ctx.strokeStyle = '#c4ccc8'; ctx.lineWidth = 1; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(x, pad.top + ch); ctx.lineTo(x, pad.top + ch + 4); ctx.stroke();
+      lastLabel = label;
+      lastLabelX = x;
+    }
   }
 
   // Legend with delta hint
