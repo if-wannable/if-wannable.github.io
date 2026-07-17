@@ -56,7 +56,7 @@ function loadSnapshots() {
 
 function saveSnapshot(issue) {
   const snap = {
-    at:             new Date().toISOString(),
+    at:             canonicalAt(),
     chartsIssue:    issue.chartsIssue,
     uniIndex:       issue.uniIndex,
     curRank:        issue.curRank,
@@ -66,12 +66,14 @@ function saveSnapshot(issue) {
     })),
   };
   state.snapshots = state.snapshots.filter(s => s.chartsIssue === issue.chartsIssue);
-  const last = state.snapshots.at(-1);
-  if (last && last.uniIndex === snap.uniIndex &&
-      JSON.stringify(last.dims.map(d => d.index)) === JSON.stringify(snap.dims.map(d => d.index))) {
-    return;
-  }
-  state.snapshots.push(snap);
+  // One snapshot per 10-min slot (keyed by hour * 10 + floor(min/10))
+  const d = new Date(snap.at);
+  const slot = d.getHours() * 10 + Math.floor(d.getMinutes() / 10);
+  const idx = state.snapshots.findIndex(s => {
+    const sd = new Date(s.at);
+    return sd.getHours() * 10 + Math.floor(sd.getMinutes() / 10) === slot;
+  });
+  if (idx >= 0) { state.snapshots[idx] = snap; } else { state.snapshots.push(snap); }
   if (state.snapshots.length > 300) state.snapshots = state.snapshots.slice(-300);
   try { localStorage.setItem(storageKey(state.songId), JSON.stringify({ snapshots: state.snapshots })); } catch {}
 }
@@ -101,6 +103,13 @@ function subtractTenMin(nextUpdateTime) {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
+// Normalize to the :05/:15/:25/... mark of the current 10-min block
+function canonicalAt() {
+  const d = new Date();
+  d.setMinutes(Math.floor(d.getMinutes() / 10) * 10 + 5, 0, 0);
+  return d.toISOString();
+}
+
 // X-axis label: actual fetch time
 function snapDisplayTime(snap) {
   return fmtTime(snap.at);
@@ -115,8 +124,11 @@ function metricCard(label, value, foot, color) {
 }
 
 function filteredSnaps() {
-  if (!state.selectedDay) return state.snapshots;
-  return state.snapshots.filter(s => snapDay(s.at) === state.selectedDay);
+  let snaps = state.snapshots;
+  if (state.selectedDay) snaps = snaps.filter(s => snapDay(s.at) === state.selectedDay);
+  // Only keep :05/:15/:25/:35/:45/:55 aligned snapshots
+  snaps = snaps.filter(s => new Date(s.at).getMinutes() % 10 === 5);
+  return snaps;
 }
 
 function computeYBounds(snaps, mode) {
@@ -435,12 +447,10 @@ function drawTrendCanvas(highlightIdx = null) {
     ctx.setLineDash([]);
   }
 
-  // X-axis labels — only at *:05/*:15/*:25/*:35/*:45/*:55 snapshots
+  // X-axis labels — all snaps here are already :05-aligned via canonicalAt()
   ctx.fillStyle = '#8a9a91'; ctx.font = '11px system-ui';
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   for (let i = 0; i < snaps.length; i++) {
-    const m = new Date(snaps[i].at).getMinutes();
-    if (m % 10 !== 5) continue;
     const x = xOf(i);
     ctx.fillText(snapDisplayTime(snaps[i]), x, pad.top + ch + 10);
     ctx.strokeStyle = '#c4ccc8'; ctx.lineWidth = 1; ctx.setLineDash([]);
