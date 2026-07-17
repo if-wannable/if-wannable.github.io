@@ -180,8 +180,8 @@ function renderDayFilter() {
   if (days.length <= 1) { els.dayFilter.innerHTML = ''; return; }
 
   els.dayFilter.innerHTML = [
-    `<button class="day-btn${!state.selectedDay ? ' active' : ''}" data-day="">全部</button>`,
-    ...days.map(d => `<button class="day-btn${state.selectedDay === d ? ' active' : ''}" data-day="${d}">${d.slice(5)}</button>`),
+    `<button class="day-btn${!state.selectedDay ? ' is-active' : ''}" data-day="">全部</button>`,
+    ...days.map(d => `<button class="day-btn${state.selectedDay === d ? ' is-active' : ''}" data-day="${d}">${d.slice(5)}</button>`),
   ].join('');
 
   els.dayFilter.querySelectorAll('.day-btn').forEach(btn => {
@@ -198,7 +198,7 @@ function renderChartControls() {
   if (!els.chartModeBar) return;
   const modes = [['score', '维度分'], ['rank', '排名'], ['uni', '由你指数']];
   els.chartModeBar.innerHTML = modes.map(([m, label]) =>
-    `<button class="mode-btn${state.chartMode === m ? ' active' : ''}" data-mode="${m}">${label}</button>`
+    `<button class="mode-btn${state.chartMode === m ? ' is-active' : ''}" data-mode="${m}">${label}</button>`
   ).join('');
   els.chartModeBar.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {

@@ -7,9 +7,8 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app-layout">
-    <!-- Sidebar -->
-    <aside class="sidebar">
+  <div class="app-shell">
+    <aside class="rail">
       <div class="sidebar-header">
         <div class="sidebar-title">由你榜记录台</div>
         <div id="songInfo" class="song-info"></div>
@@ -17,45 +16,40 @@
       <div id="issueList" class="issue-list"></div>
     </aside>
 
-    <!-- Main -->
-    <main class="main">
-      <!-- Top bar -->
-      <div class="top-actions">
+    <div class="workspace">
+      <div class="top-actions" style="margin-bottom:14px">
         <span id="lastSync" class="last-sync">等待数据…</span>
-        <button id="refreshBtn" class="btn">刷新</button>
+        <button id="refreshBtn" class="button">刷新</button>
       </div>
 
-      <!-- Metric grid -->
       <div id="metricGrid" class="metric-grid"></div>
 
-      <!-- Trend chart -->
-      <div class="chart-section">
-        <div class="chart-header">
-          <span class="section-title">分数趋势</span>
+      <div class="chart-panel" style="margin-bottom:16px">
+        <div class="panel-head">
+          <h1>分数趋势</h1>
           <div id="chartModeBar" class="mode-bar"></div>
         </div>
         <div id="dayFilter" class="day-filter-bar"></div>
-        <div id="trendStatus" class="trend-status"></div>
-        <div id="chartScroll" class="chart-scroll">
+        <div id="trendStatus" class="status-line"></div>
+        <div id="chartScroll">
           <canvas id="trendCanvas"></canvas>
         </div>
         <div id="dimensionLegend" class="dimension-legend"></div>
       </div>
 
-      <!-- Data table -->
-      <div class="table-section">
-        <div class="table-header">
-          <span class="section-title">快照记录</span>
-          <span id="rowCount" class="row-count"></span>
+      <div class="data-panel">
+        <div class="panel-head">
+          <h1>快照记录</h1>
+          <span id="rowCount" class="status-line"></span>
         </div>
         <div class="table-wrap">
-          <table class="data-table">
+          <table>
             <thead id="tableHead"></thead>
             <tbody id="dataRows"></tbody>
           </table>
         </div>
       </div>
-    </main>
+    </div>
   </div>
 
   <script src="app.js"></script>
