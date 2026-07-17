@@ -638,20 +638,24 @@ function toggleAutoFetch() {
 
 // ── Song search ───────────────────────────────────────────────────────────────
 
-const QQ_SEARCH_URL = 'https://u.y.qq.com/cgi-bin/musicu.fcg';
 const YOBANG_SEARCH_URL = 'https://yobang.tencentmusic.com/unichartsapi/v1/songs/search';
 
-async function searchQQMusic(query) {
-  const payload = JSON.stringify({
-    req_1: {
-      method: 'DoSearchForQQMusicDesktop',
-      module: 'music.search.SearchCgiService',
-      param: { num_per_page: 8, page_num: 1, query, search_type: 0 },
-    },
+function jsonpFetch(urlTemplate) {
+  return new Promise((resolve, reject) => {
+    const cb = '_qqcb' + Date.now();
+    const url = urlTemplate.replace('__CB__', cb);
+    window[cb] = (data) => { delete window[cb]; s.remove(); resolve(data); };
+    const s = document.createElement('script');
+    s.onerror = () => { delete window[cb]; s.remove(); reject(new Error('JSONP failed')); };
+    document.head.appendChild(s);
+    s.src = url;
   });
-  const r = await fetch(`${QQ_SEARCH_URL}?data=${encodeURIComponent(payload)}`);
-  const json = await r.json();
-  return json.req_1?.data?.body?.song?.list || [];
+}
+
+async function searchQQMusic(query) {
+  const url = `https://c.y.qq.com/soso/fcgi-bin/client_search_cp?w=${encodeURIComponent(query)}&format=jsonp&jsonpCallback=__CB__&n=8&p=1`;
+  const data = await jsonpFetch(url);
+  return data?.data?.song?.list || [];
 }
 
 async function resolveUniId(songName) {
@@ -682,13 +686,16 @@ function renderSearchResults(results) {
     el.style.display = 'block';
     return;
   }
-  el.innerHTML = results.map((s, i) =>
-    `<div class="search-item" data-idx="${i}" data-name="${s.title}" data-singer="${s.singer?.[0]?.name || ''}">
-      <strong>${s.title}</strong>
-      <span class="si-singer">${s.singer?.[0]?.name || ''}</span>
-      <span class="si-album">${s.album?.name || ''}</span>
-    </div>`
-  ).join('');
+  el.innerHTML = results.map((s, i) => {
+    const name = s.songname || s.title || '';
+    const singer = (s.singer || [])[0]?.name || '';
+    const album = s.albumname || s.album?.name || '';
+    return `<div class="search-item" data-idx="${i}" data-name="${name.replace(/"/g,'&quot;')}">
+      <strong>${name}</strong>
+      <span class="si-singer">${singer}</span>
+      <span class="si-album">${album}</span>
+    </div>`;
+  }).join('');
   el.style.display = 'block';
 
   el.querySelectorAll('.search-item[data-idx]').forEach(item => {
