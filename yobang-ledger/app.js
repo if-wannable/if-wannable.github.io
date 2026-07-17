@@ -96,9 +96,8 @@ function subtractTenMin(nextUpdateTime) {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
-// X-axis label: nextUpdateTime - 10 min, fallback to snap.at
+// X-axis label: actual fetch time
 function snapDisplayTime(snap) {
-  if (snap.nextUpdateTime) return subtractTenMin(snap.nextUpdateTime);
   return fmtTime(snap.at);
 }
 
@@ -418,20 +417,17 @@ function drawTrendCanvas(highlightIdx = null) {
     ctx.setLineDash([]);
   }
 
-  // X-axis labels — deduplicated, min 50px gap between same-label ticks
+  // X-axis labels — actual fetch time, min 52px gap
   ctx.fillStyle = '#8a9a91'; ctx.font = '11px system-ui';
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  const MIN_LABEL_GAP = 50;
-  let lastLabel = null;
+  const MIN_LABEL_GAP = 52;
   let lastLabelX = -Infinity;
   for (let i = 0; i < snaps.length; i++) {
-    const label = snapDisplayTime(snaps[i]);
     const x = xOf(i);
-    if (label !== lastLabel && x - lastLabelX >= MIN_LABEL_GAP) {
-      ctx.fillText(label, x, pad.top + ch + 10);
+    if (x - lastLabelX >= MIN_LABEL_GAP) {
+      ctx.fillText(snapDisplayTime(snaps[i]), x, pad.top + ch + 10);
       ctx.strokeStyle = '#c4ccc8'; ctx.lineWidth = 1; ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(x, pad.top + ch); ctx.lineTo(x, pad.top + ch + 4); ctx.stroke();
-      lastLabel = label;
       lastLabelX = x;
     }
   }
@@ -574,14 +570,54 @@ function loadSong(id) {
   fetchAndRender();
 }
 
+// ── Auto-fetch scheduler (fire at :05, :15, :25, :35, :45, :55) ──────────────
+
+let _autoTimer = null;
+let _autoInterval = null;
+
+function msToNextX5() {
+  const now = new Date();
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+  const ms = now.getMilliseconds();
+  const mMod = m % 10;
+  const minsUntil = mMod < 5 ? (5 - mMod) : (15 - mMod);
+  return Math.max(0, (minsUntil * 60 - s) * 1000 - ms);
+}
+
+function updateAutoBtn(on) {
+  const btn = document.getElementById('autoFetchBtn');
+  if (!btn) return;
+  btn.textContent = on ? '定时抓取 ●' : '定时抓取 ○';
+  btn.style.color = on ? 'var(--green)' : '';
+  btn.style.borderColor = on ? 'var(--green)' : '';
+}
+
+function toggleAutoFetch() {
+  if (_autoTimer !== null || _autoInterval !== null) {
+    clearTimeout(_autoTimer);
+    clearInterval(_autoInterval);
+    _autoTimer = null; _autoInterval = null;
+    updateAutoBtn(false);
+    return;
+  }
+  const delay = msToNextX5();
+  updateAutoBtn(true);
+  _autoTimer = setTimeout(() => {
+    _autoTimer = null;
+    fetchAndRender();
+    _autoInterval = setInterval(fetchAndRender, 10 * 60 * 1000);
+  }, delay);
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 els.tabs.forEach(t => t.addEventListener('click', () => setView(t.dataset.view)));
 els.refreshBtn.addEventListener('click', () => fetchAndRender());
 els.loadBtn.addEventListener('click', () => loadSong(els.songIdInput.value));
 els.songIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadSong(els.songIdInput.value); });
+document.getElementById('autoFetchBtn')?.addEventListener('click', toggleAutoFetch);
 
 loadSnapshots();
 setView('dashboard');
 fetchAndRender();
-setInterval(fetchAndRender, 5 * 60 * 1000);
