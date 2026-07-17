@@ -417,19 +417,16 @@ function drawTrendCanvas(highlightIdx = null) {
     ctx.setLineDash([]);
   }
 
-  // X-axis labels — actual fetch time, min 52px gap
+  // X-axis labels — only at *:05/*:15/*:25/*:35/*:45/*:55 snapshots
   ctx.fillStyle = '#8a9a91'; ctx.font = '11px system-ui';
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  const MIN_LABEL_GAP = 52;
-  let lastLabelX = -Infinity;
   for (let i = 0; i < snaps.length; i++) {
+    const m = new Date(snaps[i].at).getMinutes();
+    if (m % 10 !== 5) continue;
     const x = xOf(i);
-    if (x - lastLabelX >= MIN_LABEL_GAP) {
-      ctx.fillText(snapDisplayTime(snaps[i]), x, pad.top + ch + 10);
-      ctx.strokeStyle = '#c4ccc8'; ctx.lineWidth = 1; ctx.setLineDash([]);
-      ctx.beginPath(); ctx.moveTo(x, pad.top + ch); ctx.lineTo(x, pad.top + ch + 4); ctx.stroke();
-      lastLabelX = x;
-    }
+    ctx.fillText(snapDisplayTime(snaps[i]), x, pad.top + ch + 10);
+    ctx.strokeStyle = '#c4ccc8'; ctx.lineWidth = 1; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x, pad.top + ch); ctx.lineTo(x, pad.top + ch + 4); ctx.stroke();
   }
 
   // Legend with delta hint
