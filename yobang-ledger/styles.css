@@ -703,3 +703,60 @@ tr.is-stale td {
   vertical-align: middle;
 }
 
+/* ── Search ── */
+.search-box {
+  margin-bottom: 12px;
+}
+
+.search-results {
+  margin-top: 6px;
+  display: grid;
+  gap: 4px;
+}
+
+.search-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.search-item:hover {
+  border-color: var(--green);
+  background: #eaf3ee;
+}
+
+.search-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.search-item-singer {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.search-hint {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 6px 2px;
+  line-height: 1.5;
+}
+
+.back-btn {
+  cursor: pointer;
+  color: var(--green);
+}
+
+.back-btn:hover {
+  text-decoration: underline;
+}
+
+.search-err {
+  color: var(--coral);
+}
+
