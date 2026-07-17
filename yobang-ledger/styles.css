@@ -383,6 +383,35 @@ tr.is-stale td {
 .sync-ok { color: var(--green); }
 .sync-err { color: var(--coral); }
 
+.day-filter-bar {
+  display: flex;
+  gap: 6px;
+  padding: 10px 0 8px;
+  flex-wrap: wrap;
+}
+
+.day-btn {
+  padding: 4px 13px;
+  border-radius: 99px;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.day-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.day-btn.is-active {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
 @media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 1fr;
