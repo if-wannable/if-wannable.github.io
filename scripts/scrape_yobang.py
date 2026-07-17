@@ -47,14 +47,14 @@ def get(url, **kwargs):
 
 def fetch_charts_detail() -> dict:
     data = get(f'{YOBANG_BASE}/{SONG_ID}/charts_detail')
-    if data.get('code') != 0:
+    if str(data.get('code')) != '0':
         raise RuntimeError(f'charts_detail error: {data}')
     return data['data']
 
 
 def fetch_info() -> dict:
     data = get(f'{YOBANG_BASE}/{SONG_ID}/info')
-    if data.get('code') != 0:
+    if str(data.get('code')) != '0':
         raise RuntimeError(f'info error: {data}')
     return data['data']
 
