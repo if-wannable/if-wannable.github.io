@@ -81,6 +81,29 @@ function saveSnapshot(issue) {
   try { localStorage.setItem(storageKey(state.songId), JSON.stringify({ snapshots: state.snapshots })); } catch {}
 }
 
+async function mergeDataJson() {
+  try {
+    const r = await fetch('./data.json?_=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const data = await r.json();
+    if (!data.snapshots || !data.current_issue) return;
+    const issue = data.current_issue;
+    const snaps = data.snapshots[issue];
+    if (!snaps || !snaps.length) return;
+    snaps.forEach(s => {
+      const snap = { ...s, chartsIssue: issue };
+      const d = new Date(snap.at);
+      const slot = d.getHours() * 10 + Math.floor(d.getMinutes() / 10);
+      const exists = state.snapshots.some(ex => {
+        const ed = new Date(ex.at);
+        return ed.getHours() * 10 + Math.floor(ed.getMinutes() / 10) === slot;
+      });
+      if (!exists) state.snapshots.push(snap);
+    });
+    state.snapshots.sort((a, b) => new Date(a.at) - new Date(b.at));
+  } catch {}
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function visibleDims(issue) {
@@ -174,6 +197,7 @@ function niceGridTicks(yMin, yMax, count = 5) {
 async function fetchAndRender(save = false) {
   els.lastSync.textContent = '获取中…';
   try {
+    await mergeDataJson();
     const r = await fetch(`${API_BASE}/${state.songId}/charts_detail?_=${Date.now()}`, { cache: 'no-store' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const json = await r.json();
@@ -545,8 +569,8 @@ function drawGrowthCanvas() {
   if (!barData.length) { canvas.style.display = 'none'; return; }
 
   const D = dims.length;
-  const BAR_W = Math.max(8, Math.min(16, 80 / D));
-  const SLOT_W = D * BAR_W + 20;
+  const BAR_W = Math.max(14, Math.min(28, 120 / D));
+  const SLOT_W = D * BAR_W + 28;
   const ratio = window.devicePixelRatio || 1;
   const W = Math.max(hours.length * SLOT_W + 80, els.growthScroll?.clientWidth || 500);
   const H = 200;
@@ -603,18 +627,14 @@ function drawGrowthCanvas() {
         ctx.fillRect(bx + 1, zeroY, BAR_W - 2, bh);
       }
 
-      // Rotated value label above/below bar
+      // Horizontal value label above/below bar
       if (Math.abs(growth) > 0.001) {
-        ctx.save();
-        ctx.translate(bx + BAR_W / 2, isPos ? zeroY - bh - 3 : zeroY + bh + 3);
-        ctx.rotate(-Math.PI / 2);
         ctx.fillStyle = col;
         ctx.font = '9px system-ui';
-        ctx.textAlign = isPos ? 'left' : 'right';
-        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = isPos ? 'bottom' : 'top';
         const sign = isPos ? '+' : '';
-        ctx.fillText(`${sign}${growth.toFixed(2)}`, 0, 0);
-        ctx.restore();
+        ctx.fillText(`${sign}${growth.toFixed(2)}`, bx + BAR_W / 2, isPos ? zeroY - bh - 2 : zeroY + bh + 2);
       }
     });
 
@@ -624,16 +644,19 @@ function drawGrowthCanvas() {
     ctx.fillText(bar.label, slotCx, H - PAD.bottom + 6);
   });
 
-  // Dimension legend
+  // Dimension legend - centered compact
+  ctx.font = '10px system-ui';
   const legendY = H - PAD.bottom + 20;
-  const legendItemW = innerW / D;
+  const SQ = 7, LGAP = 4, LSEP = 10;
+  const itemWidths = dims.map(dim => SQ + LGAP + ctx.measureText(dim.name).width);
+  const totalLegW = itemWidths.reduce((s, w) => s + w, 0) + LSEP * (D - 1);
+  let lx = (W - totalLegW) / 2;
   dims.forEach((dim, di) => {
-    const lx = PAD.left + di * legendItemW;
     ctx.fillStyle = DIMENSION_COLORS[di % DIMENSION_COLORS.length];
-    ctx.fillRect(lx, legendY, 8, 8);
-    ctx.fillStyle = '#8a9a91'; ctx.font = '10px system-ui';
-    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText(dim.name, lx + 11, legendY);
+    ctx.fillRect(lx, legendY, SQ, SQ);
+    ctx.fillStyle = '#8a9a91'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(dim.name, lx + SQ + LGAP, legendY);
+    lx += itemWidths[di] + LSEP;
   });
 }
 
