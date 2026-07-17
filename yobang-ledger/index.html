@@ -13,20 +13,22 @@
         <div class="sidebar-title">由你榜记录台</div>
         <div id="songInfo" class="song-info"></div>
       </div>
-      <div class="search-box">
-        <div class="url-row">
-          <input id="searchInput" type="text" placeholder="搜索歌曲名或输入 uniId…" style="flex:1;min-width:0">
-          <button id="searchBtn" class="button" style="min-height:36px;padding:0 10px">搜</button>
-        </div>
-        <div id="searchResults" class="search-results"></div>
-      </div>
-      <div id="issueList" class="issue-list"></div>
+<div id="issueList" class="issue-list"></div>
     </aside>
 
     <div class="workspace">
-      <div class="top-actions" style="margin-bottom:14px">
-        <span id="lastSync" class="last-sync">等待数据…</span>
-        <button id="refreshBtn" class="button">刷新</button>
+      <div class="topbar" style="margin-bottom:14px">
+        <div class="topic-meta">
+          <span class="field-label">歌曲 uniId</span>
+          <div class="url-row">
+            <input id="songIdInput" type="text" placeholder="530004147" value="530004147" style="width:140px">
+            <button id="loadBtn" class="button">载入</button>
+          </div>
+        </div>
+        <div class="top-actions">
+          <span id="lastSync" class="last-sync">等待数据…</span>
+          <button id="refreshBtn" class="button">刷新</button>
+        </div>
       </div>
 
       <div id="metricGrid" class="metric-grid"></div>

@@ -1,5 +1,4 @@
 const DATA_URL = './data.json';
-const API_BASE = 'https://yobang.tencentmusic.com/unichartsapi/v1/songs';
 const DIMENSION_COLORS = ['#167447', '#2c6f99', '#a97619', '#c9553d', '#5b6abf'];
 const MIN_PX_PER_SNAP = 52;
 
@@ -27,18 +26,17 @@ const els = {
   issueList:       document.getElementById('issueList'),
   dayFilter:       document.getElementById('dayFilter'),
   chartModeBar:    document.getElementById('chartModeBar'),
-  searchInput:     document.getElementById('searchInput'),
-  searchBtn:       document.getElementById('searchBtn'),
-  searchResults:   document.getElementById('searchResults'),
+  songIdInput:     document.getElementById('songIdInput'),
+  loadBtn:         document.getElementById('loadBtn'),
 };
+
+const DEFAULT_SONG_ID = '530004147';
 
 let state = {
   data:          null,
-  trackedData:   null,  // original data.json content
   selectedIssue: null,
   selectedDay:   null,
   chartMode:     'score',
-  isLive:        false, // true when viewing a searched (non-tracked) song
 };
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -47,20 +45,16 @@ async function fetchData() {
   try {
     const r = await fetch(`${DATA_URL}?_=${Date.now()}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const data = await r.json();
-    state.trackedData = data;
-    if (!state.isLive) {
-      state.data = data;
-      const issues = allIssues();
-      if (state.selectedIssue) {
-        state.selectedIssue = issues.find(i => i.chartsIssue === state.selectedIssue.chartsIssue) || issues[0] || null;
-      } else {
-        state.selectedIssue = issues[0] || null;
-      }
-      render();
+    state.data = await r.json();
+    const issues = allIssues();
+    if (state.selectedIssue) {
+      state.selectedIssue = issues.find(i => i.chartsIssue === state.selectedIssue.chartsIssue) || issues[0] || null;
+    } else {
+      state.selectedIssue = issues[0] || null;
     }
-    const t = data.updated_at
-      ? new Date(data.updated_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    render();
+    const t = state.data.updated_at
+      ? new Date(state.data.updated_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
       : '--';
     if (els.lastSync) els.lastSync.textContent = `上次更新 ${t}`;
   } catch (e) {
@@ -69,74 +63,27 @@ async function fetchData() {
   }
 }
 
-// ── Search & live load ────────────────────────────────────────────────────────
+async function loadSongById(uniId) {
+  uniId = String(uniId).trim();
+  if (!uniId) return;
+  if (uniId === DEFAULT_SONG_ID) { await fetchData(); return; }
 
-async function searchSongs(query) {
-  query = query.trim();
-  if (!query) return;
-
-  if (/^\d+$/.test(query)) {
-    await loadLiveSong(query);
-    return;
-  }
-
-  if (els.searchResults) els.searchResults.innerHTML = '<div class="search-hint">搜索中…</div>';
-
-  const endpoints = [
-    `${API_BASE}/search?keyword=${encodeURIComponent(query)}&pageSize=10&pageNum=1`,
-    `https://yobang.tencentmusic.com/unichartsapi/v1/search?keyword=${encodeURIComponent(query)}&pageSize=10`,
-  ];
-
-  let results = [];
-  for (const url of endpoints) {
-    try {
-      const res = await fetch(url);
-      const d = await res.json();
-      const list = d?.data?.list || d?.data?.songs || d?.data?.content || [];
-      if (list.length) { results = list; break; }
-    } catch (_) {}
-  }
-
-  if (!results.length) {
-    if (els.searchResults) els.searchResults.innerHTML =
-      '<div class="search-hint">未找到结果，请直接输入歌曲 uniId（纯数字）后按搜</div>';
-    return;
-  }
-
-  if (els.searchResults) {
-    els.searchResults.innerHTML = results.map(s => {
-      const uniId = s.uniId || s.id || s.songId || '';
-      const name = s.trackName || s.name || s.songName || '';
-      const singer = s.singerName || s.singer || '';
-      return `<div class="search-item" data-uni="${uniId}">
-        <div class="search-item-name">${name}</div>
-        <div class="search-item-singer">${singer}</div>
-      </div>`;
-    }).join('');
-    els.searchResults.querySelectorAll('.search-item').forEach(el => {
-      el.addEventListener('click', () => loadLiveSong(el.dataset.uni));
-    });
-  }
-}
-
-async function loadLiveSong(uniId) {
-  if (els.searchResults) els.searchResults.innerHTML = '<div class="search-hint">加载中…</div>';
+  if (els.lastSync) els.lastSync.textContent = '加载中…';
+  const API = 'https://yobang.tencentmusic.com/unichartsapi/v1/songs';
   try {
-    const [detailRes, infoRes] = await Promise.all([
-      fetch(`${API_BASE}/${uniId}/charts_detail`),
-      fetch(`${API_BASE}/${uniId}/info`),
+    const [dr, ir] = await Promise.all([
+      fetch(`${API}/${uniId}/charts_detail`),
+      fetch(`${API}/${uniId}/info`),
     ]);
-    const detail = await detailRes.json();
-    const info = await infoRes.json();
-    if (detail.code !== 0) throw new Error(detail.message || `code ${detail.code}`);
+    const detail = await dr.json();
+    const info = await ir.json();
+    if (Number(detail.code) !== 0 || !detail.data) throw new Error(detail.message || `code ${detail.code}`);
 
     const issues = detail.data?.chartsIssues || [];
     const current = issues.find(i => i.dynamic) || issues[0] || null;
-    const history = issues.filter(i => !i.dynamic);
     const infoData = info.data || {};
-
     state.data = {
-      song_id: String(uniId),
+      song_id: uniId,
       updated_at: new Date().toISOString(),
       info: {
         track_name: infoData.trackName || '',
@@ -147,33 +94,16 @@ async function loadLiveSong(uniId) {
       current_issue: current?.chartsIssue || null,
       current: current || null,
       snapshots: {},
-      history,
+      history: issues.filter(i => !i.dynamic),
     };
-    state.isLive = true;
     state.selectedIssue = current || issues[0] || null;
     state.selectedDay = null;
-
-    if (els.searchResults) {
-      els.searchResults.innerHTML = '<div class="search-hint back-btn" id="backToTracked">← 返回追踪歌曲</div>';
-      document.getElementById('backToTracked')?.addEventListener('click', backToTracked);
-    }
     render();
+    if (els.lastSync) els.lastSync.textContent = `实时数据 · ${infoData.trackName || uniId}`;
   } catch (e) {
-    if (els.searchResults) els.searchResults.innerHTML =
-      `<div class="search-hint search-err">加载失败: ${e.message}</div>`;
+    if (els.lastSync) els.lastSync.textContent = `加载失败: ${e.message}`;
+    console.error(e);
   }
-}
-
-function backToTracked() {
-  state.isLive = false;
-  state.data = state.trackedData;
-  state.selectedIssue = null;
-  state.selectedDay = null;
-  if (els.searchResults) els.searchResults.innerHTML = '';
-  if (els.searchInput) els.searchInput.value = '';
-  const issues = allIssues();
-  state.selectedIssue = issues[0] || null;
-  render();
 }
 
 function allIssues() {
@@ -514,8 +444,8 @@ function renderTable() {
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 els.refreshBtn?.addEventListener('click', fetchData);
-els.searchBtn?.addEventListener('click', () => searchSongs(els.searchInput?.value || ''));
-els.searchInput?.addEventListener('keydown', e => { if (e.key === 'Enter') searchSongs(els.searchInput.value); });
+els.loadBtn?.addEventListener('click', () => loadSongById(els.songIdInput?.value || DEFAULT_SONG_ID));
+els.songIdInput?.addEventListener('keydown', e => { if (e.key === 'Enter') loadSongById(els.songIdInput.value); });
 
 fetchData();
 setInterval(fetchData, 10 * 60 * 1000);
