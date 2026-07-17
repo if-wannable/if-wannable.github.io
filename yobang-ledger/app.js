@@ -472,7 +472,7 @@ function drawTrendCanvas(highlightIdx = null) {
     }
     return `<div class="legend-item">
       <div class="legend-swatch" style="background:${DIMENSION_COLORS[di % DIMENSION_COLORS.length]}"></div>
-      <span class="legend-name">${dim.name} (${dim.percentage}%)</span>
+      <span class="legend-name">${dim.name}</span>
       <span class="legend-value">${curVal}${deltaStr}</span>
     </div>`;
   }).join('');
