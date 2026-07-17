@@ -66,6 +66,11 @@ function saveSnapshot(issue) {
     })),
   };
   state.snapshots = state.snapshots.filter(s => s.chartsIssue === issue.chartsIssue);
+  const last = state.snapshots.at(-1);
+  if (last && last.uniIndex === snap.uniIndex &&
+      JSON.stringify(last.dims.map(d => d.index)) === JSON.stringify(snap.dims.map(d => d.index))) {
+    return;
+  }
   state.snapshots.push(snap);
   if (state.snapshots.length > 300) state.snapshots = state.snapshots.slice(-300);
   try { localStorage.setItem(storageKey(state.songId), JSON.stringify({ snapshots: state.snapshots })); } catch {}
@@ -314,13 +319,26 @@ function drawTrendCanvas(highlightIdx = null) {
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
+  // Historical (non-dynamic) issue — no trend needed
+  if (state.selectedIssue && !state.selectedIssue.dynamic) {
+    ctx.fillStyle = '#8a9a91';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('历史榜期不展示趋势', W / 2, H / 2);
+    els.trendStatus.textContent = '历史期';
+    els.dimensionLegend.innerHTML = '';
+    _chartXOf = null;
+    return;
+  }
+
   // No data
   if (!snaps.length || !snaps[0]?.dims?.length) {
     ctx.fillStyle = '#8a9a91';
     ctx.font = '14px system-ui';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('暂无快照，5 分钟后自动记录第一条', W / 2, H / 2);
+    ctx.fillText('暂无快照，开启定时抓取后自动记录', W / 2, H / 2);
     els.trendStatus.textContent = '等待快照';
     els.dimensionLegend.innerHTML = '';
     _chartXOf = null;
