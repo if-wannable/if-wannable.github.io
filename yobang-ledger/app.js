@@ -1,6 +1,5 @@
 const API_BASE = 'https://yobang.tencentmusic.com/unichartsapi/v1/songs';
 const STORAGE_KEY = 'yobang-ledger-v4';
-const QQ_AUTH_KEY = 'yobang-qq-auth';
 const DEFAULT_ID = '530004147';
 const MIN_PX_PER_SNAP = 52;
 
@@ -41,8 +40,6 @@ let state = {
   snapshots:     [],
   selectedDay:   null,
   chartMode:     'score',
-  qqTrackId:     null,
-  favCount:      null,
 };
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -79,82 +76,6 @@ function saveSnapshot(issue) {
   if (idx >= 0) { state.snapshots[idx] = snap; } else { state.snapshots.push(snap); }
   if (state.snapshots.length > 300) state.snapshots = state.snapshots.slice(-300);
   try { localStorage.setItem(storageKey(state.songId), JSON.stringify({ snapshots: state.snapshots })); } catch {}
-}
-
-// ── QQ Auth ───────────────────────────────────────────────────────────────────
-
-function loadQQAuth() {
-  try { return JSON.parse(localStorage.getItem(QQ_AUTH_KEY)) || {}; } catch { return {}; }
-}
-function saveQQAuth(uin, pSkey) {
-  localStorage.setItem(QQ_AUTH_KEY, JSON.stringify({ uin, pSkey }));
-}
-function clearQQAuth() {
-  localStorage.removeItem(QQ_AUTH_KEY);
-}
-function hasQQAuth() {
-  const a = loadQQAuth();
-  return !!(a.uin && a.pSkey);
-}
-function computeGTK(skey) {
-  let hash = 5381;
-  for (let i = 0; i < skey.length; i++) hash += (hash << 5) + skey.charCodeAt(i);
-  return hash & 0x7FFFFFFF;
-}
-function fmtNum(n) {
-  if (n == null) return '—';
-  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
-  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
-  return String(n);
-}
-
-// ── JSONP ─────────────────────────────────────────────────────────────────────
-
-function jsonp(urlTemplate, timeout = 6000) {
-  return new Promise((resolve, reject) => {
-    const cb = `_jcb_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const script = document.createElement('script');
-    const timer = setTimeout(() => {
-      delete window[cb]; script.remove(); reject(new Error('timeout'));
-    }, timeout);
-    window[cb] = (data) => {
-      clearTimeout(timer); delete window[cb]; script.remove(); resolve(data);
-    };
-    script.src = urlTemplate.replace('__CB__', cb);
-    document.head.appendChild(script);
-  });
-}
-
-async function fetchSongInfo() {
-  try {
-    const r = await fetch(`${API_BASE}/${state.songId}/info?_=${Date.now()}`, { cache: 'no-store' });
-    if (!r.ok) return;
-    const json = await r.json();
-    if (json.code === '0' && json.data?.qyTrackId) {
-      state.qqTrackId = String(json.data.qyTrackId);
-    }
-  } catch {}
-}
-
-async function fetchFavCount() {
-  if (!state.qqTrackId || !hasQQAuth()) { state.favCount = null; return; }
-  try {
-    const { uin, pSkey } = loadQQAuth();
-    const gtk = computeGTK(pSkey);
-    const data = encodeURIComponent(JSON.stringify({
-      fav: {
-        module: 'music.musicasset.SongFavRead',
-        method: 'GetSongFavCntBatch',
-        param: { song_id: [parseInt(state.qqTrackId, 10)], song_type: 0 },
-      },
-    }));
-    const url = `https://u.y.qq.com/cgi-bin/musicu.fcg?callback=__CB__&g_tk=${gtk}&uin=${uin}&loginUin=${uin}&hostUin=0&format=json&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq.json&needNewCode=0&data=${data}`;
-    const res = await jsonp(url);
-    const cnt = res?.fav?.data?.song_fav_num_list?.[0]?.fav_num;
-    state.favCount = cnt != null ? Number(cnt) : null;
-  } catch {
-    state.favCount = null;
-  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -263,9 +184,6 @@ async function fetchAndRender(save = false) {
       ? (state.history.find(h => h.chartsIssue === sel.chartsIssue) || state.current)
       : state.current;
 
-    if (!state.qqTrackId) await fetchSongInfo();
-    if (hasQQAuth()) await fetchFavCount();
-
     if (save && state.current) saveSnapshot(state.current);
     render();
 
@@ -308,7 +226,6 @@ function renderMetricGrid() {
     metricCard('当前排名', `#${d.curRank}`, `第 ${d.chartsIssue} 期`, '#a97619'),
     metricCard('由你指数', d.uniIndex, `${d.chartsIssueStartTime} — ${d.chartsIssueEndTime}`, '#167447'),
     metricCard('更新区间', `${updateHM} — ${nextHM}`, updateDate, '#2c6f99'),
-    ...(state.favCount != null ? [metricCard('收藏数', fmtNum(state.favCount), 'QQ音乐', '#c9553d')] : []),
   ];
   const summaryRow = summaryCards.join('');
 
@@ -565,19 +482,9 @@ function drawTrendCanvas(highlightIdx = null) {
 
 function drawSmooth(ctx, pts) {
   if (!pts.length) return;
-  if (pts.length === 1) { ctx.moveTo(pts[0].x, pts[0].y); return; }
-  if (pts.length === 2) { ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); return; }
   ctx.moveTo(pts[0].x, pts[0].y);
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] || pts[i];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[i + 2] || pts[i + 1];
-    const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
-    const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
-    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+  for (let i = 1; i < pts.length; i++) {
+    ctx.lineTo(pts[i].x, pts[i].y);
   }
 }
 
@@ -730,51 +637,6 @@ els.refreshBtn.addEventListener('click', () => fetchAndRender());
 els.loadBtn.addEventListener('click', () => loadSong(els.songIdInput.value));
 els.songIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadSong(els.songIdInput.value); });
 document.getElementById('autoFetchBtn')?.addEventListener('click', toggleAutoFetch);
-
-// ── QQ Auth panel ─────────────────────────────────────────────────────────────
-
-const qqAuthToggle  = document.getElementById('qqAuthToggle');
-const qqAuthPanel   = document.getElementById('qqAuthPanel');
-const qqUinInput    = document.getElementById('qqUinInput');
-const qqPSkeyInput  = document.getElementById('qqPSkeyInput');
-const qqAuthStatus  = document.getElementById('qqAuthStatus');
-
-function updateQQAuthUI() {
-  const auth = loadQQAuth();
-  const ok = !!(auth.uin && auth.pSkey);
-  if (qqUinInput)   qqUinInput.value   = auth.uin   || '';
-  if (qqPSkeyInput) qqPSkeyInput.value = auth.pSkey || '';
-  if (qqAuthStatus) qqAuthStatus.textContent = ok ? `已保存 · uin ${auth.uin}` : '未设置';
-  if (qqAuthToggle) {
-    qqAuthToggle.style.color       = ok ? 'var(--green)' : '';
-    qqAuthToggle.style.borderColor = ok ? 'var(--green)' : '';
-  }
-}
-
-qqAuthToggle?.addEventListener('click', () => {
-  const hidden = qqAuthPanel.style.display === 'none';
-  qqAuthPanel.style.display = hidden ? 'block' : 'none';
-  if (hidden) updateQQAuthUI();
-});
-
-document.getElementById('qqSaveBtn')?.addEventListener('click', () => {
-  const uin   = qqUinInput.value.trim();
-  const pSkey = qqPSkeyInput.value.trim();
-  if (!uin || !pSkey) { if (qqAuthStatus) qqAuthStatus.textContent = '请填写完整'; return; }
-  saveQQAuth(uin, pSkey);
-  updateQQAuthUI();
-  qqAuthPanel.style.display = 'none';
-  fetchFavCount().then(() => renderMetricGrid());
-});
-
-document.getElementById('qqClearBtn')?.addEventListener('click', () => {
-  clearQQAuth();
-  state.favCount = null;
-  updateQQAuthUI();
-  renderMetricGrid();
-});
-
-updateQQAuthUI();
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
