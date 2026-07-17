@@ -61,10 +61,12 @@ def fetch_info() -> dict:
 
 def fetch_comment_total(qy_track_id) -> int | None:
     try:
-        data = get(QQ_COMMENT_URL,
-                   params={'cid': '205360772', 'song_id': qy_track_id},
-                   headers={**HEADERS, 'Referer': 'https://y.qq.com/'})
-        return data.get('hot_comment', {}).get('commenttotal')
+        r = requests.get(QQ_COMMENT_URL,
+                         headers={**HEADERS, 'Referer': 'https://y.qq.com/'},
+                         params={'cid': '205360772', 'song_id': qy_track_id},
+                         timeout=20)
+        r.raise_for_status()
+        return r.json().get('hot_comment', {}).get('commenttotal')
     except Exception as e:
         print(f'WARN: comment fetch failed: {e}', file=sys.stderr)
         return None
@@ -141,7 +143,7 @@ def main():
                     'index': d.get('index'),
                 }
                 for d in (current_issue.get('classifyIndices') or [])
-                if (d.get('index') or 0) > 0
+                if float(d.get('index') or 0) > 0
             ],
             'comment_total': comment_total,
         }
