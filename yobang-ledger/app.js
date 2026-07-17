@@ -1,6 +1,10 @@
-const DATA_URL = './data.json';
-const DIMENSION_COLORS = ['#167447', '#2c6f99', '#a97619', '#c9553d', '#5b6abf'];
+const API_BASE = 'https://yobang.tencentmusic.com/unichartsapi/v1/songs';
+const STORAGE_KEY = 'yobang-ledger-v4';
+const QQ_AUTH_KEY = 'yobang-qq-auth';
+const DEFAULT_ID = '530004147';
 const MIN_PX_PER_SNAP = 52;
+
+const DIMENSION_COLORS = ['#167447', '#2c6f99', '#a97619', '#c9553d', '#5b6abf'];
 
 const tooltip = document.createElement('div');
 tooltip.style.cssText = [
@@ -12,7 +16,7 @@ tooltip.style.cssText = [
 document.body.appendChild(tooltip);
 
 const els = {
-  songInfo:        document.getElementById('songInfo'),
+  tabs:            document.querySelectorAll('.tab'),
   metricGrid:      document.getElementById('metricGrid'),
   trendCanvas:     document.getElementById('trendCanvas'),
   chartScroll:     document.getElementById('chartScroll'),
@@ -24,428 +28,757 @@ const els = {
   lastSync:        document.getElementById('lastSync'),
   refreshBtn:      document.getElementById('refreshBtn'),
   issueList:       document.getElementById('issueList'),
-  dayFilter:       document.getElementById('dayFilter'),
-  chartModeBar:    document.getElementById('chartModeBar'),
   songIdInput:     document.getElementById('songIdInput'),
   loadBtn:         document.getElementById('loadBtn'),
+  dayFilter:       document.getElementById('dayFilter'),
 };
-
-const DEFAULT_SONG_ID = '530004147';
 
 let state = {
-  data:          null,
+  songId:        DEFAULT_ID,
+  current:       null,
+  history:       [],
   selectedIssue: null,
+  snapshots:     [],
   selectedDay:   null,
   chartMode:     'score',
+  qqTrackId:     null,
+  favCount:      null,
 };
 
-// ── Data ──────────────────────────────────────────────────────────────────────
+// ── Storage ───────────────────────────────────────────────────────────────────
 
-async function fetchData() {
+function storageKey(id) { return `${STORAGE_KEY}:${id}`; }
+
+function loadSnapshots() {
   try {
-    const r = await fetch(`${DATA_URL}?_=${Date.now()}`);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    state.data = await r.json();
-    const issues = allIssues();
-    if (state.selectedIssue) {
-      state.selectedIssue = issues.find(i => i.chartsIssue === state.selectedIssue.chartsIssue) || issues[0] || null;
-    } else {
-      state.selectedIssue = issues[0] || null;
-    }
-    render();
-    const t = state.data.updated_at
-      ? new Date(state.data.updated_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-      : '--';
-    if (els.lastSync) els.lastSync.textContent = `上次更新 ${t}`;
-  } catch (e) {
-    if (els.lastSync) els.lastSync.textContent = `获取失败: ${e.message}`;
-    console.error(e);
-  }
+    const raw = localStorage.getItem(storageKey(state.songId));
+    const data = raw ? (JSON.parse(raw).snapshots || []) : [];
+    state.snapshots = data.sort((a, b) => new Date(a.at) - new Date(b.at));
+  } catch { state.snapshots = []; }
 }
 
-async function loadSongById(uniId) {
-  uniId = String(uniId).trim();
-  if (!uniId) return;
-  if (uniId === DEFAULT_SONG_ID) { await fetchData(); return; }
+function saveSnapshot(issue) {
+  const snap = {
+    at:             canonicalAt(),
+    chartsIssue:    issue.chartsIssue,
+    uniIndex:       issue.uniIndex,
+    curRank:        issue.curRank,
+    nextUpdateTime: issue.nextUpdateTime || null,
+    dims: visibleDims(issue).map(d => ({
+      name: d.name, code: d.code, percentage: d.percentage, index: d.index,
+    })),
+  };
+  state.snapshots = state.snapshots.filter(s => s.chartsIssue === issue.chartsIssue);
+  // One snapshot per 10-min slot (keyed by hour * 10 + floor(min/10))
+  const d = new Date(snap.at);
+  const slot = d.getHours() * 10 + Math.floor(d.getMinutes() / 10);
+  const idx = state.snapshots.findIndex(s => {
+    const sd = new Date(s.at);
+    return sd.getHours() * 10 + Math.floor(sd.getMinutes() / 10) === slot;
+  });
+  if (idx >= 0) { state.snapshots[idx] = snap; } else { state.snapshots.push(snap); }
+  if (state.snapshots.length > 300) state.snapshots = state.snapshots.slice(-300);
+  try { localStorage.setItem(storageKey(state.songId), JSON.stringify({ snapshots: state.snapshots })); } catch {}
+}
 
-  if (els.lastSync) els.lastSync.textContent = '加载中…';
-  const API = 'https://yobang.tencentmusic.com/unichartsapi/v1/songs';
-  try {
-    const [dr, ir] = await Promise.all([
-      fetch(`${API}/${uniId}/charts_detail`),
-      fetch(`${API}/${uniId}/info`),
-    ]);
-    const detail = await dr.json();
-    const info = await ir.json();
-    if (Number(detail.code) !== 0 || !detail.data) throw new Error(detail.message || `code ${detail.code}`);
+// ── QQ Auth ───────────────────────────────────────────────────────────────────
 
-    const issues = detail.data?.chartsIssues || [];
-    const current = issues.find(i => i.dynamic) || issues[0] || null;
-    const infoData = info.data || {};
-    state.data = {
-      song_id: uniId,
-      updated_at: new Date().toISOString(),
-      info: {
-        track_name: infoData.trackName || '',
-        singer_name: infoData.singerName || '',
-        cover_image: infoData.coverImage || '',
-        qy_track_id: infoData.qyTrackId || null,
-      },
-      current_issue: current?.chartsIssue || null,
-      current: current || null,
-      snapshots: {},
-      history: issues.filter(i => !i.dynamic),
+function loadQQAuth() {
+  try { return JSON.parse(localStorage.getItem(QQ_AUTH_KEY)) || {}; } catch { return {}; }
+}
+function saveQQAuth(uin, pSkey) {
+  localStorage.setItem(QQ_AUTH_KEY, JSON.stringify({ uin, pSkey }));
+}
+function clearQQAuth() {
+  localStorage.removeItem(QQ_AUTH_KEY);
+}
+function hasQQAuth() {
+  const a = loadQQAuth();
+  return !!(a.uin && a.pSkey);
+}
+function computeGTK(skey) {
+  let hash = 5381;
+  for (let i = 0; i < skey.length; i++) hash += (hash << 5) + skey.charCodeAt(i);
+  return hash & 0x7FFFFFFF;
+}
+function fmtNum(n) {
+  if (n == null) return '—';
+  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
+  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+  return String(n);
+}
+
+// ── JSONP ─────────────────────────────────────────────────────────────────────
+
+function jsonp(urlTemplate, timeout = 6000) {
+  return new Promise((resolve, reject) => {
+    const cb = `_jcb_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      delete window[cb]; script.remove(); reject(new Error('timeout'));
+    }, timeout);
+    window[cb] = (data) => {
+      clearTimeout(timer); delete window[cb]; script.remove(); resolve(data);
     };
-    state.selectedIssue = current || issues[0] || null;
-    state.selectedDay = null;
-    render();
-    if (els.lastSync) els.lastSync.textContent = `实时数据 · ${infoData.trackName || uniId}`;
-  } catch (e) {
-    if (els.lastSync) els.lastSync.textContent = `加载失败: ${e.message}`;
-    console.error(e);
+    script.src = urlTemplate.replace('__CB__', cb);
+    document.head.appendChild(script);
+  });
+}
+
+async function fetchSongInfo() {
+  try {
+    const r = await fetch(`${API_BASE}/${state.songId}/info?_=${Date.now()}`, { cache: 'no-store' });
+    if (!r.ok) return;
+    const json = await r.json();
+    if (json.code === '0' && json.data?.qyTrackId) {
+      state.qqTrackId = String(json.data.qyTrackId);
+    }
+  } catch {}
+}
+
+async function fetchFavCount() {
+  if (!state.qqTrackId || !hasQQAuth()) { state.favCount = null; return; }
+  try {
+    const { uin, pSkey } = loadQQAuth();
+    const gtk = computeGTK(pSkey);
+    const data = encodeURIComponent(JSON.stringify({
+      fav: {
+        module: 'music.musicasset.SongFavRead',
+        method: 'GetSongFavCntBatch',
+        param: { song_id: [parseInt(state.qqTrackId, 10)], song_type: 0 },
+      },
+    }));
+    const url = `https://u.y.qq.com/cgi-bin/musicu.fcg?callback=__CB__&g_tk=${gtk}&uin=${uin}&loginUin=${uin}&hostUin=0&format=json&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq.json&needNewCode=0&data=${data}`;
+    const res = await jsonp(url);
+    const cnt = res?.fav?.data?.song_fav_num_list?.[0]?.fav_num;
+    state.favCount = cnt != null ? Number(cnt) : null;
+  } catch {
+    state.favCount = null;
   }
 }
 
-function allIssues() {
-  if (!state.data) return [];
-  const out = [];
-  if (state.data.current) out.push(state.data.current);
-  if (state.data.history) out.push(...state.data.history);
-  return out;
-}
-
-function isCurrentIssue(issue) {
-  return issue?.chartsIssue === state.data?.current_issue;
-}
-
-function currentSnaps() {
-  if (!state.data || !state.selectedIssue) return [];
-  const snaps = state.data.snapshots?.[state.selectedIssue.chartsIssue] || [];
-  if (!state.selectedDay) return snaps;
-  return snaps.filter(s => s.at.startsWith(state.selectedDay));
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function visibleDims(issue) {
-  return (issue?.classifyIndices || []).filter(d => (d.index || 0) > 0);
+  return issue.classifyIndices.filter(d => parseFloat(d.index) > 0);
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
+function fmtTime(iso) {
+  return new Date(iso).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function snapDay(iso) {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+// "2026-07-17 11:10:00" → "11:00" (minus 10 min)
+function subtractTenMin(nextUpdateTime) {
+  if (!nextUpdateTime) return '—';
+  const parts = String(nextUpdateTime).split(' ');
+  const timePart = parts[parts.length - 1];
+  const [h, m] = timePart.split(':').map(Number);
+  const total = ((h * 60 + m - 10) % 1440 + 1440) % 1440;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+// Normalize to the :05/:15/:25/... mark of the current 10-min block
+function canonicalAt() {
+  const d = new Date();
+  d.setMinutes(Math.floor(d.getMinutes() / 10) * 10 + 5, 0, 0);
+  return d.toISOString();
+}
+
+// X-axis label: actual fetch time
+function snapDisplayTime(snap) {
+  return fmtTime(snap.at);
+}
+
+function metricCard(label, value, foot, color) {
+  return `<div class="metric" style="border-top:3px solid ${color}">
+    <span class="metric-label">${label}</span>
+    <strong>${value}</strong>
+    <span class="metric-foot">${foot}</span>
+  </div>`;
+}
+
+function filteredSnaps() {
+  let snaps = state.snapshots;
+  if (state.selectedDay) snaps = snaps.filter(s => snapDay(s.at) === state.selectedDay);
+  // Only keep :05/:15/:25/:35/:45/:55 aligned snapshots
+  snaps = snaps.filter(s => new Date(s.at).getMinutes() % 10 === 5);
+  return snaps;
+}
+
+function computeYBounds(snaps, mode) {
+  if (!snaps.length) return { yMin: 0, yMax: 100 };
+  let vals = [];
+  if (mode === 'score') {
+    snaps.forEach(s => s.dims.forEach(d => vals.push(parseFloat(d.index || 0))));
+  } else {
+    for (let i = 1; i < snaps.length; i++) {
+      snaps[i].dims.forEach((d, di) => {
+        vals.push(parseFloat(d.index || 0) - parseFloat(snaps[i - 1].dims[di]?.index || 0));
+      });
+    }
+    if (!vals.length) vals = [0];
+  }
+  let mn = Math.min(...vals);
+  let mx = Math.max(...vals);
+  if (mode === 'delta') { mn = Math.min(mn, 0); mx = Math.max(mx, 0); }
+  const range = mx - mn || 1;
+  const pad = range * 0.2;
+  return { yMin: mn - pad, yMax: mx + pad };
+}
+
+function niceGridTicks(yMin, yMax, count = 5) {
+  const range = yMax - yMin || 1;
+  const rawStep = range / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(Math.abs(rawStep) || 1)));
+  const n = rawStep / mag;
+  const step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag;
+  const start = Math.floor(yMin / step) * step;
+  const ticks = [];
+  for (let v = start; v <= yMax + step * 0.01; v = parseFloat((v + step).toPrecision(10))) {
+    if (v >= yMin - step * 0.01) ticks.push(parseFloat(v.toPrecision(10)));
+  }
+  return ticks;
+}
+
+// ── API ───────────────────────────────────────────────────────────────────────
+
+async function fetchAndRender(save = false) {
+  els.lastSync.textContent = '获取中…';
+  try {
+    const r = await fetch(`${API_BASE}/${state.songId}/charts_detail?_=${Date.now()}`, { cache: 'no-store' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const json = await r.json();
+    if (json.code !== '0') throw new Error(json.msg || '接口返回错误');
+
+    state.history = json.data || [];
+    state.current = state.history.find(d => d.dynamic) || state.history[0] || null;
+
+    const sel = state.selectedIssue;
+    state.selectedIssue = sel
+      ? (state.history.find(h => h.chartsIssue === sel.chartsIssue) || state.current)
+      : state.current;
+
+    if (!state.qqTrackId) await fetchSongInfo();
+    if (hasQQAuth()) await fetchFavCount();
+
+    if (save && state.current) saveSnapshot(state.current);
+    render();
+
+    const t = new Date().toLocaleTimeString('zh-CN');
+    els.lastSync.textContent = state.current
+      ? `同步于 ${t} · 第 ${state.current.chartsIssue} 期`
+      : `同步于 ${t}`;
+  } catch (e) {
+    els.lastSync.textContent = `获取失败：${e.message}`;
+    els.trendStatus.textContent = e.message;
+  }
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
 
 function render() {
-  renderSongInfo();
   renderMetricGrid();
   renderIssueList();
-  renderDayFilter();
   renderChartControls();
   drawTrendCanvas();
   renderTable();
 }
 
-function renderSongInfo() {
-  if (!els.songInfo || !state.data?.info) return;
-  const { track_name, singer_name } = state.data.info;
-  els.songInfo.textContent = [track_name, singer_name].filter(Boolean).join(' · ');
-}
-
 function renderMetricGrid() {
-  if (!els.metricGrid || !state.selectedIssue) return;
-  const issue = state.selectedIssue;
-  const isCurrent = isCurrentIssue(issue);
-  const commentTotal = isCurrent ? state.data?.current?.comment_total : null;
-
-  let interval = '--';
-  const ut = issue.updateTime, nut = issue.nextUpdateTime;
-  if (ut && nut) {
-    const toMs = v => (typeof v === 'number' && v > 1e12) ? v : v * 1000;
-    const fmt = v => new Date(toMs(v)).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    interval = `${fmt(ut)} – ${fmt(nut)}`;
+  const d = state.selectedIssue;
+  if (!d) {
+    els.metricGrid.style.cssText = '';
+    els.metricGrid.innerHTML = '<div class="metric"><span class="metric-label">暂无数据</span><strong>—</strong></div>';
+    return;
   }
 
-  const dims = visibleDims(issue);
-  const dimCards = dims.map((d, i) => `
-    <div class="metric-card">
-      <div class="metric-label" style="color:${DIMENSION_COLORS[i % DIMENSION_COLORS.length]}">${d.name}</div>
-      <div class="metric-value">${d.index ?? '--'}</div>
-    </div>`).join('');
+  const dims = visibleDims(d);
+  const updateHM = subtractTenMin(d.nextUpdateTime);
+  const nextHM = d.nextUpdateTime ? d.nextUpdateTime.split(' ').slice(-1)[0] : (d.dynamic ? '—' : '结算');
+  const updateDate = d.nextUpdateTime
+    ? String(d.nextUpdateTime).split(' ')[0].slice(5).replace('-', '/')
+    : '—';
 
+  const summaryCards = [
+    metricCard('当前排名', `#${d.curRank}`, `第 ${d.chartsIssue} 期`, '#a97619'),
+    metricCard('由你指数', d.uniIndex, `${d.chartsIssueStartTime} — ${d.chartsIssueEndTime}`, '#167447'),
+    metricCard('更新区间', `${updateHM} — ${nextHM}`, updateDate, '#2c6f99'),
+    ...(state.favCount != null ? [metricCard('收藏数', fmtNum(state.favCount), 'QQ音乐', '#c9553d')] : []),
+  ];
+  const summaryRow = summaryCards.join('');
+
+  const dimRow = dims.map((dim, i) =>
+    metricCard(
+      dim.name,
+      dim.index,
+      dim.subdivisions.join(' · '),
+      DIMENSION_COLORS[i % DIMENSION_COLORS.length]
+    )
+  ).join('');
+
+  els.metricGrid.style.cssText = 'display:flex;flex-direction:column;gap:12px;margin-bottom:14px';
   els.metricGrid.innerHTML = `
-    <div class="metric-card">
-      <div class="metric-label">当前排名</div>
-      <div class="metric-value">${issue.curRank ?? '--'}</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">由你指数</div>
-      <div class="metric-value">${issue.uniIndex ?? '--'}</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-label">更新区间</div>
-      <div class="metric-value metric-value--small">${interval}</div>
-    </div>
-    ${commentTotal != null ? `<div class="metric-card">
-      <div class="metric-label">热评数</div>
-      <div class="metric-value">${commentTotal}</div>
-    </div>` : ''}
-    ${dimCards}`;
+    <div style="display:grid;grid-template-columns:repeat(${summaryCards.length},minmax(0,1fr));gap:12px">${summaryRow}</div>
+    ${dims.length ? `<div style="display:grid;grid-template-columns:repeat(${dims.length},minmax(0,1fr));gap:12px">${dimRow}</div>` : ''}
+  `;
 }
 
 function renderIssueList() {
-  if (!els.issueList) return;
-  const issues = allIssues();
-  if (!issues.length) {
-    els.issueList.innerHTML = '<div class="issue-empty">暂无期数数据</div>';
-    return;
-  }
-  els.issueList.innerHTML = issues.map(issue => {
-    const active = issue.chartsIssue === state.selectedIssue?.chartsIssue ? ' active' : '';
-    const badge = issue.dynamic ? '<span class="issue-badge">进行中</span>' : '';
-    return `<div class="issue-item${active}" data-issue="${issue.chartsIssue}">
-      <div class="issue-no">${issue.chartsIssue} ${badge}</div>
-      <div class="issue-rank">#${issue.curRank ?? '--'} · ${issue.uniIndex ?? '--'}</div>
+  const selected = state.selectedIssue?.chartsIssue;
+  els.issueList.innerHTML = state.history.map((issue, idx) => {
+    const isActive = issue.chartsIssue === selected;
+    return `<div class="tracker-item" data-idx="${idx}" style="cursor:pointer;${isActive ? 'border-color:var(--green);background:#edf4f0;' : ''}">
+      <strong>${issue.chartsIssue} 期${issue.dynamic ? ' ●' : ''}</strong>
+      <span>${issue.chartsIssueStartTime} — ${issue.chartsIssueEndTime}</span>
+      <span>排名 #${issue.curRank} · 指数 ${issue.uniIndex}</span>
     </div>`;
-  }).join('');
+  }).join('') || '<div class="tracker-item"><span>暂无数据</span></div>';
 
-  els.issueList.querySelectorAll('.issue-item').forEach(el => {
+  els.issueList.querySelectorAll('[data-idx]').forEach(el => {
     el.addEventListener('click', () => {
-      state.selectedIssue = allIssues().find(i => i.chartsIssue === el.dataset.issue) || null;
-      state.selectedDay = null;
-      render();
-    });
-  });
-}
-
-function renderDayFilter() {
-  if (!els.dayFilter) return;
-  if (!state.selectedIssue || !isCurrentIssue(state.selectedIssue)) {
-    els.dayFilter.innerHTML = '';
-    return;
-  }
-  const snaps = state.data?.snapshots?.[state.selectedIssue.chartsIssue] || [];
-  const days = [...new Set(snaps.map(s => s.at.slice(0, 10)))].sort();
-  if (days.length <= 1) { els.dayFilter.innerHTML = ''; return; }
-
-  els.dayFilter.innerHTML = [
-    `<button class="day-btn${!state.selectedDay ? ' is-active' : ''}" data-day="">全部</button>`,
-    ...days.map(d => `<button class="day-btn${state.selectedDay === d ? ' is-active' : ''}" data-day="${d}">${d.slice(5)}</button>`),
-  ].join('');
-
-  els.dayFilter.querySelectorAll('.day-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.selectedDay = btn.dataset.day || null;
-      renderDayFilter();
+      state.selectedIssue = state.history[+el.dataset.idx];
+      renderMetricGrid();
+      renderIssueList();
       drawTrendCanvas();
-      renderTable();
     });
   });
 }
 
 function renderChartControls() {
-  if (!els.chartModeBar) return;
-  const modes = [['score', '维度分'], ['rank', '排名'], ['uni', '由你指数']];
-  els.chartModeBar.innerHTML = modes.map(([m, label]) =>
-    `<button class="mode-btn${state.chartMode === m ? ' is-active' : ''}" data-mode="${m}">${label}</button>`
-  ).join('');
-  els.chartModeBar.querySelectorAll('.mode-btn').forEach(btn => {
+  const snaps = state.snapshots;
+  const days = snaps.length ? [...new Set(snaps.map(s => snapDay(s.at)))] : [];
+  if (state.selectedDay && !days.includes(state.selectedDay)) state.selectedDay = null;
+
+  const modeHtml = `<div class="mode-bar">
+    <button class="mode-btn${state.chartMode === 'score' ? ' is-active' : ''}" data-mode="score">实时分数</button>
+    <button class="mode-btn${state.chartMode === 'delta' ? ' is-active' : ''}" data-mode="delta">区间涨幅</button>
+  </div>`;
+
+  const dayHtml = days.length > 1 ? `<div class="day-filter-bar">
+    <button class="day-btn${!state.selectedDay ? ' is-active' : ''}" data-day="">全部</button>
+    ${days.map(d => `<button class="day-btn${state.selectedDay === d ? ' is-active' : ''}" data-day="${d}">${d}</button>`).join('')}
+  </div>` : '';
+
+  els.dayFilter.innerHTML = `<div class="chart-controls">${modeHtml}${dayHtml}</div>`;
+
+  els.dayFilter.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       state.chartMode = btn.dataset.mode;
       renderChartControls();
       drawTrendCanvas();
     });
   });
+  els.dayFilter.querySelectorAll('.day-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.selectedDay = btn.dataset.day || null;
+      renderChartControls();
+      drawTrendCanvas();
+    });
+  });
 }
 
-// ── Canvas ────────────────────────────────────────────────────────────────────
+// ── Chart ─────────────────────────────────────────────────────────────────────
 
-function drawTrendCanvas() {
+let _chartSnaps = [];
+let _chartXOf = null;
+
+function drawTrendCanvas(highlightIdx = null) {
   const canvas = els.trendCanvas;
-  if (!canvas) return;
-
-  if (!state.selectedIssue || !isCurrentIssue(state.selectedIssue)) {
-    const ctx = canvas.getContext('2d');
-    canvas.width = els.chartScroll?.offsetWidth || 400;
-    canvas.height = 200;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (els.trendStatus) els.trendStatus.textContent = '往期数据无趋势图';
-    if (els.dimensionLegend) els.dimensionLegend.innerHTML = '';
-    return;
-  }
-
-  const snaps = currentSnaps();
-  if (!snaps.length) {
-    if (els.trendStatus) els.trendStatus.textContent = '暂无快照数据';
-    if (els.dimensionLegend) els.dimensionLegend.innerHTML = '';
-    return;
-  }
-  if (els.trendStatus) els.trendStatus.textContent = '';
-
-  const mode = state.chartMode;
-  const dims = visibleDims(state.selectedIssue);
-
-  let series = [];
-  if (mode === 'score') {
-    series = dims.map((d, i) => ({
-      label: d.name,
-      color: DIMENSION_COLORS[i % DIMENSION_COLORS.length],
-      values: snaps.map(s => {
-        const sd = (s.dims || []).find(x => x.code === d.code);
-        return sd ? parseFloat(sd.index) : null;
-      }),
-    }));
-  } else if (mode === 'rank') {
-    series = [{ label: '排名', color: '#167447', values: snaps.map(s => s.curRank ? -s.curRank : null) }];
-  } else {
-    series = [{ label: '由你指数', color: '#2c6f99', values: snaps.map(s => parseFloat(s.uniIndex) || null) }];
-  }
-
-  const labels = snaps.map(s => {
-    const d = new Date(s.at);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  });
-
-  const W = Math.max(snaps.length * MIN_PX_PER_SNAP, els.chartScroll?.offsetWidth || 400);
-  const H = 220;
-  canvas.width = W;
-  canvas.height = H;
-  if (els.chartScroll) els.chartScroll.scrollLeft = els.chartScroll.scrollWidth;
-
-  const PAD = { top: 24, right: 24, bottom: 40, left: 44 };
-  const innerW = W - PAD.left - PAD.right;
-  const innerH = H - PAD.top - PAD.bottom;
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, W, H);
+  const ratio = window.devicePixelRatio || 1;
 
-  const allVals = series.flatMap(s => s.values).filter(v => v != null);
-  if (!allVals.length) return;
-  let yMin = Math.min(...allVals), yMax = Math.max(...allVals);
-  if (yMin === yMax) { yMin -= 1; yMax += 1; }
-  const yPad = (yMax - yMin) * 0.1;
-  yMin -= yPad; yMax += yPad;
+  const snaps = filteredSnaps();
+  _chartSnaps = snaps;
 
-  const xOf = i => PAD.left + (snaps.length <= 1 ? innerW / 2 : (i / (snaps.length - 1)) * innerW);
-  const yOf = v => PAD.top + (1 - (v - yMin) / (yMax - yMin)) * innerH;
+  const containerW = (els.chartScroll ? els.chartScroll.clientWidth : 0) || 980;
+  const H = 360;
+  const W = Math.max(containerW, snaps.length > 1 ? snaps.length * MIN_PX_PER_SNAP + 90 : containerW);
 
-  // Grid
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-  ctx.lineWidth = 1;
-  for (let k = 0; k <= 4; k++) {
-    const y = PAD.top + (k / 4) * innerH;
-    ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(W - PAD.right, y); ctx.stroke();
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  canvas.width  = Math.round(W * ratio);
+  canvas.height = Math.round(H * ratio);
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+  const pad = { top: 28, right: 28, bottom: 52, left: 62 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+
+  // Background
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#f8faf9');
+  bg.addColorStop(1, '#ffffff');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Historical (non-dynamic) issue — no trend needed
+  if (state.selectedIssue && !state.selectedIssue.dynamic) {
+    ctx.fillStyle = '#8a9a91';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('历史榜期不展示趋势', W / 2, H / 2);
+    els.trendStatus.textContent = '历史期';
+    els.dimensionLegend.innerHTML = '';
+    _chartXOf = null;
+    return;
   }
 
-  // Y labels
-  ctx.fillStyle = 'rgba(200,220,210,0.5)';
-  ctx.font = '10px sans-serif';
-  ctx.textAlign = 'right';
-  for (let k = 0; k <= 4; k++) {
-    const v = yMax - (k / 4) * (yMax - yMin);
-    const label = mode === 'rank' ? String(Math.round(-v)) : v.toFixed(1);
-    ctx.fillText(label, PAD.left - 6, PAD.top + (k / 4) * innerH + 4);
+  // No data
+  if (!snaps.length || !snaps[0]?.dims?.length) {
+    ctx.fillStyle = '#8a9a91';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('暂无快照，开启定时抓取后自动记录', W / 2, H / 2);
+    els.trendStatus.textContent = '等待快照';
+    els.dimensionLegend.innerHTML = '';
+    _chartXOf = null;
+    return;
   }
 
-  // X labels
-  ctx.textAlign = 'center';
-  const step = Math.max(1, Math.ceil(snaps.length / Math.floor(innerW / 44)));
-  for (let i = 0; i < snaps.length; i += step) {
-    ctx.fillText(labels[i], xOf(i), H - PAD.bottom + 14);
-  }
+  const isDelta = state.chartMode === 'delta';
+  const { yMin, yMax } = computeYBounds(snaps, state.chartMode);
+  const yRange = yMax - yMin || 1;
 
-  // Series lines (Catmull-Rom → Bezier)
-  series.forEach(s => {
-    const pts = s.values.map((v, i) => v != null ? [xOf(i), yOf(v)] : null).filter(Boolean);
-    if (pts.length < 2) return;
-    ctx.strokeStyle = s.color;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0 = pts[Math.max(0, i - 1)];
-      const p1 = pts[i];
-      const p2 = pts[i + 1];
-      const p3 = pts[Math.min(pts.length - 1, i + 2)];
-      ctx.bezierCurveTo(
-        p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6,
-        p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6,
-        p2[0], p2[1],
-      );
-    }
-    ctx.stroke();
-    ctx.fillStyle = s.color;
-    pts.forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill(); });
+  const xOf = (i) => pad.left + (snaps.length === 1 ? cw / 2 : (cw / (snaps.length - 1)) * i);
+  const yOf = (val) => pad.top + ch - ((val - yMin) / yRange) * ch;
+  _chartXOf = xOf;
+
+  // Grid ticks
+  const ticks = niceGridTicks(yMin, yMax, 5);
+  ticks.forEach((tick, ti) => {
+    const y = yOf(tick);
+    if (y < pad.top - 4 || y > pad.top + ch + 4) return;
+    const isZeroLine = isDelta && Math.abs(tick) < 1e-9;
+    ctx.strokeStyle = isZeroLine ? 'rgba(22,116,71,0.45)' : (ti === 0 ? '#c4ccc8' : '#e2e9e5');
+    ctx.lineWidth = isZeroLine ? 1.5 : 1;
+    ctx.setLineDash(isZeroLine ? [5, 3] : (ti === 0 ? [] : [4, 5]));
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = isZeroLine ? '#167447' : '#8a9a91';
+    ctx.font = `${isZeroLine ? 'bold ' : ''}11px system-ui`;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    const label = isDelta
+      ? (tick >= 0 ? '+' : '') + tick.toFixed(2)
+      : String(Math.round(tick * 10) / 10);
+    ctx.fillText(label, pad.left - 8, y);
   });
 
-  // Legend
-  if (els.dimensionLegend) {
-    els.dimensionLegend.innerHTML = series.map(s =>
-      `<span class="legend-dot" style="background:${s.color}"></span><span class="legend-label">${s.label}</span>`
-    ).join('');
+  // Left axis line
+  ctx.strokeStyle = '#c4ccc8'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, pad.top + ch); ctx.stroke();
+
+  const dimCount = snaps[0].dims.length;
+
+  for (let di = 0; di < dimCount; di++) {
+    const color = DIMENSION_COLORS[di % DIMENSION_COLORS.length];
+
+    const pts = snaps.map((snap, si) => {
+      const val = isDelta
+        ? (si === 0 ? 0 : parseFloat(snap.dims[di]?.index || 0) - parseFloat(snaps[si - 1].dims[di]?.index || 0))
+        : parseFloat(snap.dims[di]?.index || 0);
+      return { x: xOf(si), y: yOf(val) };
+    });
+
+    // Gradient area fill (score mode only)
+    if (!isDelta) {
+      const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+      grad.addColorStop(0, color + '2e');
+      grad.addColorStop(1, color + '00');
+      ctx.beginPath();
+      drawSmooth(ctx, pts);
+      ctx.lineTo(pts.at(-1).x, pad.top + ch);
+      ctx.lineTo(pts[0].x, pad.top + ch);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // Line stroke
+    ctx.beginPath();
+    drawSmooth(ctx, pts);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.setLineDash([]);
+    ctx.stroke();
+
+    // Dots
+    pts.forEach((pt, si) => {
+      const isHover = highlightIdx === si;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, isHover ? 5.5 : 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = isHover ? 2.5 : 1.5;
+      ctx.stroke();
+    });
   }
 
-  // Click tooltip
-  canvas._clickHandler && canvas.removeEventListener('click', canvas._clickHandler);
-  canvas._clickHandler = (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
-    if (snaps.length <= 1) return;
-    let closest = 0, minDist = Infinity;
-    for (let i = 0; i < snaps.length; i++) {
-      const dist = Math.abs(xOf(i) - mx);
-      if (dist < minDist) { minDist = dist; closest = i; }
+  // Crosshair
+  if (highlightIdx !== null && highlightIdx >= 0 && highlightIdx < snaps.length) {
+    const x = xOf(highlightIdx);
+    ctx.strokeStyle = 'rgba(90,110,100,0.30)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 5]);
+    ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, pad.top + ch); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // X-axis labels — all snaps here are already :05-aligned via canonicalAt()
+  ctx.fillStyle = '#8a9a91'; ctx.font = '11px system-ui';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let i = 0; i < snaps.length; i++) {
+    const x = xOf(i);
+    ctx.fillText(snapDisplayTime(snaps[i]), x, pad.top + ch + 10);
+    ctx.strokeStyle = '#c4ccc8'; ctx.lineWidth = 1; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x, pad.top + ch); ctx.lineTo(x, pad.top + ch + 4); ctx.stroke();
+  }
+
+  // Legend with delta hint
+  const latest = snaps.at(-1);
+  els.dimensionLegend.innerHTML = snaps[0].dims.map((dim, di) => {
+    const curVal = latest.dims[di]?.index ?? '—';
+    let deltaStr = '';
+    if (snaps.length >= 2) {
+      const diff = parseFloat(curVal || 0) - parseFloat(snaps.at(-2).dims[di]?.index || 0);
+      if (diff !== 0) {
+        const sign = diff > 0 ? '+' : '';
+        deltaStr = ` <small style="color:${diff > 0 ? '#167447' : '#c9553d'}">${sign}${diff.toFixed(2)}</small>`;
+      }
     }
-    const snap = snaps[closest];
-    const dt = new Date(snap.at);
-    const timeStr = `${String(dt.getMonth() + 1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
-    const lines = [
-      `🕐 ${timeStr}`,
-      `排名: #${snap.curRank ?? '--'}`,
-      `由你指数: ${snap.uniIndex ?? '--'}`,
-    ];
-    if (mode === 'score' && snap.dims) {
-      snap.dims.forEach(d => lines.push(`${d.name}: ${d.index}`));
-    }
-    if (snap.comment_total != null) lines.push(`热评数: ${snap.comment_total}`);
-    tooltip.innerHTML = lines.join('<br>');
-    tooltip.style.display = 'block';
-    tooltip.style.left = Math.min(e.clientX + 12, window.innerWidth - 180) + 'px';
-    tooltip.style.top = Math.min(e.clientY - 10, window.innerHeight - 160) + 'px';
-  };
-  canvas.addEventListener('click', canvas._clickHandler);
-  document.addEventListener('click', (e) => { if (e.target !== canvas) tooltip.style.display = 'none'; }, { once: false });
+    return `<div class="legend-item">
+      <div class="legend-swatch" style="background:${DIMENSION_COLORS[di % DIMENSION_COLORS.length]}"></div>
+      <span class="legend-name">${dim.name}</span>
+      <span class="legend-value">${curVal}${deltaStr}</span>
+    </div>`;
+  }).join('');
+  els.trendStatus.textContent = `${snaps.length} 个快照`;
 }
+
+function drawSmooth(ctx, pts) {
+  if (!pts.length) return;
+  if (pts.length === 1) { ctx.moveTo(pts[0].x, pts[0].y); return; }
+  if (pts.length === 2) { ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); return; }
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || pts[i + 1];
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+  }
+}
+
+// ── Canvas hover ──────────────────────────────────────────────────────────────
+
+els.trendCanvas.addEventListener('mousemove', (e) => {
+  const snaps = _chartSnaps;
+  if (!snaps.length || !_chartXOf) return;
+
+  const rect = els.trendCanvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+
+  let nearest = 0, minDist = Infinity;
+  snaps.forEach((_, i) => {
+    const dist = Math.abs(_chartXOf(i) - mx);
+    if (dist < minDist) { minDist = dist; nearest = i; }
+  });
+
+  drawTrendCanvas(nearest);
+
+  const snap = snaps[nearest];
+  const isDelta = state.chartMode === 'delta';
+  const timeStr = snapDisplayTime(snap);
+  const dateStr = new Date(snap.at).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+
+  const dimsHtml = snap.dims.map((dim, di) => {
+    const c = DIMENSION_COLORS[di % DIMENSION_COLORS.length];
+    let valStr;
+    if (isDelta) {
+      if (nearest === 0) {
+        valStr = '—';
+      } else {
+        const diff = parseFloat(dim.index || 0) - parseFloat(snaps[nearest - 1].dims[di]?.index || 0);
+        valStr = (diff >= 0 ? '+' : '') + diff.toFixed(2);
+      }
+    } else {
+      valStr = dim.index;
+    }
+    return `<div><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin-right:5px;vertical-align:middle"></span>${dim.name} <strong>${valStr}</strong></div>`;
+  }).join('');
+
+  tooltip.innerHTML = `
+    <div style="font-weight:600;margin-bottom:5px;color:#a8ccb8">${dateStr} ${timeStr}</div>
+    <div style="margin-bottom:6px;color:#c0d4c8">排名 <strong style="color:#fff">#${snap.curRank}</strong> &nbsp; 指数 <strong style="color:#fff">${snap.uniIndex}</strong></div>
+    ${dimsHtml}
+  `;
+  tooltip.style.display = 'block';
+
+  const tx = e.clientX + 16;
+  const ty = e.clientY - 10;
+  const tw = tooltip.offsetWidth;
+  tooltip.style.left = (tx + tw > window.innerWidth ? e.clientX - tw - 10 : tx) + 'px';
+  tooltip.style.top  = Math.max(4, ty) + 'px';
+});
+
+els.trendCanvas.addEventListener('mouseleave', () => {
+  tooltip.style.display = 'none';
+  drawTrendCanvas();
+});
 
 // ── Table ─────────────────────────────────────────────────────────────────────
 
 function renderTable() {
-  if (!els.tableHead || !els.dataRows) return;
-  const snaps = currentSnaps();
-  const dims = state.selectedIssue ? visibleDims(state.selectedIssue) : [];
-
-  els.tableHead.innerHTML = `<tr><th>时间</th><th>排名</th><th>由你指数</th>${
-    dims.map(d => `<th>${d.name}</th>`).join('')
-  }<th>热评数</th></tr>`;
-
+  const snaps = [...state.snapshots].reverse();
   if (!snaps.length) {
-    els.dataRows.innerHTML = '<tr><td colspan="99" style="text-align:center;opacity:.5">暂无数据</td></tr>';
-    if (els.rowCount) els.rowCount.textContent = '0 条';
+    els.dataRows.innerHTML = '<tr><td colspan="99">暂无快照</td></tr>';
+    els.rowCount.textContent = '0 行';
     return;
   }
+  const dims = snaps[0].dims || [];
+  els.tableHead.innerHTML = '<th>时间</th><th>排名</th><th>由你指数</th>' + dims.map(d => `<th>${d.name}</th>`).join('');
+  els.dataRows.innerHTML = snaps.map(s => `
+    <tr>
+      <td>${new Date(s.at).toLocaleString('zh-CN')}</td>
+      <td>#${s.curRank}</td>
+      <td>${s.uniIndex}</td>
+      ${(s.dims || []).map(d => `<td>${d.index}</td>`).join('')}
+    </tr>`).join('');
+  els.rowCount.textContent = `${state.snapshots.length} 行`;
+}
 
-  els.dataRows.innerHTML = [...snaps].reverse().map(s => {
-    const dt = new Date(s.at);
-    const timeStr = `${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
-    const dimCells = dims.map(d => {
-      const sd = (s.dims || []).find(x => x.code === d.code);
-      return `<td>${sd?.index ?? '--'}</td>`;
-    }).join('');
-    return `<tr><td>${timeStr}</td><td>#${s.curRank ?? '--'}</td><td>${s.uniIndex ?? '--'}</td>${dimCells}<td>${s.comment_total ?? '--'}</td></tr>`;
-  }).join('');
+// ── Tab ───────────────────────────────────────────────────────────────────────
 
-  if (els.rowCount) els.rowCount.textContent = `${snaps.length} 条`;
+function setView(name) {
+  els.tabs.forEach(t => t.classList.toggle('is-active', t.dataset.view === name));
+  document.querySelectorAll('.view').forEach(v =>
+    v.classList.toggle('is-visible', v.id === name + 'View'));
+}
+
+// ── Song switching ────────────────────────────────────────────────────────────
+
+function loadSong(id) {
+  let trimmed = id.trim();
+  // Support pasting a full yobang URL — extract uniId param
+  const urlMatch = trimmed.match(/[?&]uniId=(\d+)/);
+  if (urlMatch) trimmed = urlMatch[1];
+  if (!trimmed || trimmed === state.songId) { fetchAndRender(); return; }
+  state.songId = trimmed;
+  state.current = null; state.history = []; state.selectedIssue = null;
+  state.selectedDay = null; state.chartMode = 'score';
+  loadSnapshots();
+  render();
+  fetchAndRender();
+}
+
+// ── Auto-fetch scheduler (fire at :05, :15, :25, :35, :45, :55) ──────────────
+
+let _autoTimer = null;
+let _autoInterval = null;
+
+function msToNextX5() {
+  const now = new Date();
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+  const ms = now.getMilliseconds();
+  const mMod = m % 10;
+  const minsUntil = mMod < 5 ? (5 - mMod) : (15 - mMod);
+  return Math.max(0, (minsUntil * 60 - s) * 1000 - ms);
+}
+
+function updateAutoBtn(on) {
+  const btn = document.getElementById('autoFetchBtn');
+  if (!btn) return;
+  btn.textContent = on ? '定时抓取 ●' : '定时抓取 ○';
+  btn.style.color = on ? 'var(--green)' : '';
+  btn.style.borderColor = on ? 'var(--green)' : '';
+}
+
+function toggleAutoFetch() {
+  if (_autoTimer !== null || _autoInterval !== null) {
+    clearTimeout(_autoTimer);
+    clearInterval(_autoInterval);
+    _autoTimer = null; _autoInterval = null;
+    updateAutoBtn(false);
+    return;
+  }
+  const delay = msToNextX5();
+  updateAutoBtn(true);
+  _autoTimer = setTimeout(() => {
+    _autoTimer = null;
+    fetchAndRender(true);
+    _autoInterval = setInterval(() => fetchAndRender(true), 10 * 60 * 1000);
+  }, delay);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
-els.refreshBtn?.addEventListener('click', fetchData);
-els.loadBtn?.addEventListener('click', () => loadSongById(els.songIdInput?.value || DEFAULT_SONG_ID));
-els.songIdInput?.addEventListener('keydown', e => { if (e.key === 'Enter') loadSongById(els.songIdInput.value); });
+els.tabs.forEach(t => t.addEventListener('click', () => setView(t.dataset.view)));
+els.refreshBtn.addEventListener('click', () => fetchAndRender());
+els.loadBtn.addEventListener('click', () => loadSong(els.songIdInput.value));
+els.songIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadSong(els.songIdInput.value); });
+document.getElementById('autoFetchBtn')?.addEventListener('click', toggleAutoFetch);
 
-fetchData();
-setInterval(fetchData, 10 * 60 * 1000);
+// ── QQ Auth panel ─────────────────────────────────────────────────────────────
+
+const qqAuthToggle  = document.getElementById('qqAuthToggle');
+const qqAuthPanel   = document.getElementById('qqAuthPanel');
+const qqUinInput    = document.getElementById('qqUinInput');
+const qqPSkeyInput  = document.getElementById('qqPSkeyInput');
+const qqAuthStatus  = document.getElementById('qqAuthStatus');
+
+function updateQQAuthUI() {
+  const auth = loadQQAuth();
+  const ok = !!(auth.uin && auth.pSkey);
+  if (qqUinInput)   qqUinInput.value   = auth.uin   || '';
+  if (qqPSkeyInput) qqPSkeyInput.value = auth.pSkey || '';
+  if (qqAuthStatus) qqAuthStatus.textContent = ok ? `已保存 · uin ${auth.uin}` : '未设置';
+  if (qqAuthToggle) {
+    qqAuthToggle.style.color       = ok ? 'var(--green)' : '';
+    qqAuthToggle.style.borderColor = ok ? 'var(--green)' : '';
+  }
+}
+
+qqAuthToggle?.addEventListener('click', () => {
+  const hidden = qqAuthPanel.style.display === 'none';
+  qqAuthPanel.style.display = hidden ? 'block' : 'none';
+  if (hidden) updateQQAuthUI();
+});
+
+document.getElementById('qqSaveBtn')?.addEventListener('click', () => {
+  const uin   = qqUinInput.value.trim();
+  const pSkey = qqPSkeyInput.value.trim();
+  if (!uin || !pSkey) { if (qqAuthStatus) qqAuthStatus.textContent = '请填写完整'; return; }
+  saveQQAuth(uin, pSkey);
+  updateQQAuthUI();
+  qqAuthPanel.style.display = 'none';
+  fetchFavCount().then(() => renderMetricGrid());
+});
+
+document.getElementById('qqClearBtn')?.addEventListener('click', () => {
+  clearQQAuth();
+  state.favCount = null;
+  updateQQAuthUI();
+  renderMetricGrid();
+});
+
+updateQQAuthUI();
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+loadSnapshots();
+setView('dashboard');
+fetchAndRender();
+toggleAutoFetch();
