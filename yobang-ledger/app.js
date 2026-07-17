@@ -32,6 +32,7 @@ const els = {
   dayFilter:       document.getElementById('dayFilter'),
   growthCanvas:    document.getElementById('growthCanvas'),
   growthScroll:    document.getElementById('growthScroll'),
+  growthPanel:     document.getElementById('growthPanel'),
 };
 
 let state = {
@@ -306,6 +307,8 @@ function renderChartControls() {
 
 let _chartSnaps = [];
 let _chartXOf = null;
+let _growthData = [];
+let _growthLayout = null;
 
 function drawTrendCanvas(highlightIdx = null) {
   const canvas = els.trendCanvas;
@@ -503,10 +506,11 @@ function drawGrowthCanvas() {
   const snaps = filteredSnaps();
 
   if (!snaps.length || !state.selectedIssue?.dynamic) {
-    canvas.style.display = 'none';
-    if (els.growthScroll) els.growthScroll.style.display = 'none';
+    if (els.growthPanel) els.growthPanel.style.display = 'none';
+    _growthData = []; _growthLayout = null;
     return;
   }
+  if (els.growthPanel) els.growthPanel.style.display = '';
 
   const dims = snaps[0]?.dims || [];
   if (!dims.length) { canvas.style.display = 'none'; return; }
@@ -558,7 +562,7 @@ function drawGrowthCanvas() {
   bg.addColorStop(0, '#f8faf9'); bg.addColorStop(1, '#ffffff');
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-  const PAD = { top: 24, right: 20, bottom: 44, left: 52 };
+  const PAD = { top: 40, right: 20, bottom: 44, left: 52 };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
   const zeroY = PAD.top + innerH / 2;
@@ -580,6 +584,9 @@ function drawGrowthCanvas() {
 
   const slotW = innerW / hours.length;
 
+  _growthData = barData;
+  _growthLayout = { PAD, slotW, D, BAR_W, innerH, zeroY, maxAbs, dims, W, H };
+
   barData.forEach((bar, hi) => {
     const slotCx = PAD.left + (hi + 0.5) * slotW;
     const groupStartX = slotCx - (D * BAR_W) / 2;
@@ -594,6 +601,20 @@ function drawGrowthCanvas() {
         ctx.fillRect(bx + 1, zeroY - bh, BAR_W - 2, bh);
       } else {
         ctx.fillRect(bx + 1, zeroY, BAR_W - 2, bh);
+      }
+
+      // Rotated value label above/below bar
+      if (Math.abs(growth) > 0.001) {
+        ctx.save();
+        ctx.translate(bx + BAR_W / 2, isPos ? zeroY - bh - 3 : zeroY + bh + 3);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = col;
+        ctx.font = '9px system-ui';
+        ctx.textAlign = isPos ? 'left' : 'right';
+        ctx.textBaseline = 'middle';
+        const sign = isPos ? '+' : '';
+        ctx.fillText(`${sign}${growth.toFixed(2)}`, 0, 0);
+        ctx.restore();
       }
     });
 
@@ -615,6 +636,42 @@ function drawGrowthCanvas() {
     ctx.fillText(dim.name, lx + 11, legendY);
   });
 }
+
+// ── Growth canvas hover ───────────────────────────────────────────────────────
+
+els.growthCanvas?.addEventListener('mousemove', (e) => {
+  if (!_growthData.length || !_growthLayout) return;
+  const { PAD, slotW, D, BAR_W, dims, zeroY, innerH, maxAbs } = _growthLayout;
+
+  const rect = els.growthCanvas.getBoundingClientRect();
+  const scaleX = (els.growthCanvas.width / (window.devicePixelRatio || 1)) / rect.width;
+  const mx = (e.clientX - rect.left) * scaleX;
+
+  const hi = Math.floor((mx - PAD.left) / slotW);
+  if (hi < 0 || hi >= _growthData.length) { tooltip.style.display = 'none'; return; }
+
+  const bar = _growthData[hi];
+  const groupStartX = PAD.left + (hi + 0.5) * slotW - (D * BAR_W) / 2;
+  const di = Math.min(D - 1, Math.max(0, Math.floor((mx - groupStartX) / BAR_W)));
+
+  const growth = bar.dimGrowths[di];
+  const sign = growth >= 0 ? '+' : '';
+  const col = DIMENSION_COLORS[di % DIMENSION_COLORS.length];
+  const dimsHtml = bar.dimGrowths.map((g, idx) => {
+    const c = DIMENSION_COLORS[idx % DIMENSION_COLORS.length];
+    const s = g >= 0 ? '+' : '';
+    return `<div><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin-right:5px;vertical-align:middle"></span>${dims[idx]?.name} <strong style="color:${g >= 0 ? '#7ed8a8' : '#f4a090'}">${s}${g.toFixed(2)}</strong></div>`;
+  }).join('');
+
+  tooltip.innerHTML = `<div style="font-weight:600;margin-bottom:5px;color:#a8ccb8">${bar.label} 涨幅</div>${dimsHtml}`;
+  tooltip.style.display = 'block';
+  const tx = e.clientX + 16;
+  const tw = tooltip.offsetWidth;
+  tooltip.style.left = (tx + tw > window.innerWidth ? e.clientX - tw - 10 : tx) + 'px';
+  tooltip.style.top = Math.max(4, e.clientY - 10) + 'px';
+});
+
+els.growthCanvas?.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
 
 // ── Canvas hover ──────────────────────────────────────────────────────────────
 
