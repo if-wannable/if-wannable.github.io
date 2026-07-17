@@ -1,112 +1,63 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>由你榜记录台</title>
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="rail">
-      <div class="brand">
-        <div class="brand-mark" aria-hidden="true">榜</div>
-        <div>
-          <div class="brand-title">由你榜记录台</div>
-          <div class="brand-subtitle">Uni Chart Recorder</div>
-        </div>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">由你榜记录台</div>
+        <div id="songInfo" class="song-info"></div>
       </div>
-
-      <nav class="tabs" aria-label="视图">
-        <button class="tab is-active" type="button" data-view="dashboard">
-          <span aria-hidden="true">⌁</span>
-          <span>总览</span>
-        </button>
-        <button class="tab" type="button" data-view="data">
-          <span aria-hidden="true">▦</span>
-          <span>数据</span>
-        </button>
-      </nav>
-
-      <div class="tracker-list" id="issueList" aria-label="历史榜期"></div>
+      <div id="issueList" class="issue-list"></div>
     </aside>
 
-    <main class="workspace">
-      <header class="topbar">
-        <div class="topic-meta">
-          <label class="field-label" for="songIdInput">歌曲 uniId</label>
-          <div class="url-row">
-            <input id="songIdInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="530004147" value="530004147">
-            <button id="loadBtn" class="button" type="button">载入</button>
-          </div>
-        </div>
-        <div class="top-actions">
-          <span id="lastSync" class="metric-foot">等待首次获取…</span>
-          <button id="refreshBtn" class="button secondary" type="button">刷新</button>
-          <button id="autoFetchBtn" class="button secondary" type="button">定时抓取 ○</button>
-          <button id="qqAuthToggle" class="button secondary" type="button">QQ收藏</button>
-        </div>
-      </header>
-
-      <div id="qqAuthPanel" class="qq-auth-panel" style="display:none">
-        <div class="qq-auth-fields">
-          <div>
-            <label class="field-label" for="qqUinInput">QQ号 (uin)</label>
-            <input id="qqUinInput" type="text" autocomplete="off" spellcheck="false" placeholder="123456789">
-          </div>
-          <div>
-            <label class="field-label" for="qqPSkeyInput">p_skey</label>
-            <input id="qqPSkeyInput" type="password" autocomplete="off" placeholder="从 y.qq.com Cookie 中复制">
-          </div>
-          <div class="qq-auth-actions">
-            <button id="qqSaveBtn" class="button" type="button">保存</button>
-            <button id="qqClearBtn" class="button secondary" type="button">清除</button>
-            <span id="qqAuthStatus" class="metric-foot"></span>
-          </div>
-        </div>
+    <!-- Main -->
+    <main class="main">
+      <!-- Top bar -->
+      <div class="top-actions">
+        <span id="lastSync" class="last-sync">等待数据…</span>
+        <button id="refreshBtn" class="btn">刷新</button>
       </div>
 
-      <section id="dashboardView" class="view is-visible" aria-label="总览">
-        <div class="metric-grid" id="metricGrid">
-          <div class="metric">
-            <span class="metric-label">读取中</span>
-            <strong>…</strong>
-            <span class="metric-foot">等待首次获取</span>
-          </div>
-        </div>
+      <!-- Metric grid -->
+      <div id="metricGrid" class="metric-grid"></div>
 
-        <div class="chart-panel">
-          <div class="panel-head">
-            <h1>各维度分数趋势</h1>
-            <div class="status-line" id="trendStatus">读取中…</div>
-          </div>
-          <div id="dayFilter"></div>
-          <div id="chartScroll">
-            <canvas id="trendCanvas" aria-label="趋势图"></canvas>
-          </div>
-          <div class="option-legend" id="dimensionLegend" aria-label="维度图例"></div>
+      <!-- Trend chart -->
+      <div class="chart-section">
+        <div class="chart-header">
+          <span class="section-title">分数趋势</span>
+          <div id="chartModeBar" class="mode-bar"></div>
         </div>
-      </section>
+        <div id="dayFilter" class="day-filter-bar"></div>
+        <div id="trendStatus" class="trend-status"></div>
+        <div id="chartScroll" class="chart-scroll">
+          <canvas id="trendCanvas"></canvas>
+        </div>
+        <div id="dimensionLegend" class="dimension-legend"></div>
+      </div>
 
-      <section id="dataView" class="view" aria-label="数据">
-        <div class="data-panel">
-          <div class="panel-head">
-            <h1>快照日志</h1>
-            <div class="status-line" id="rowCount">0 行</div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr id="tableHead"><th>时间</th></tr>
-              </thead>
-              <tbody id="dataRows"></tbody>
-            </table>
-          </div>
+      <!-- Data table -->
+      <div class="table-section">
+        <div class="table-header">
+          <span class="section-title">快照记录</span>
+          <span id="rowCount" class="row-count"></span>
         </div>
-      </section>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead id="tableHead"></thead>
+            <tbody id="dataRows"></tbody>
+          </table>
+        </div>
+      </div>
     </main>
   </div>
 
-  <script src="./app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
