@@ -1,6 +1,7 @@
 const API_BASE = 'https://yobang.tencentmusic.com/unichartsapi/v1/songs';
 const STORAGE_KEY = 'yobang-ledger-v3';
 const DEFAULT_ID = '530004147';
+const MIN_PX_PER_SNAP = 52;
 
 const DIMENSION_COLORS = ['#167447', '#2c6f99', '#a97619', '#c9553d', '#5b6abf'];
 
@@ -17,6 +18,7 @@ const els = {
   tabs:            document.querySelectorAll('.tab'),
   metricGrid:      document.getElementById('metricGrid'),
   trendCanvas:     document.getElementById('trendCanvas'),
+  chartScroll:     document.getElementById('chartScroll'),
   dimensionLegend: document.getElementById('dimensionLegend'),
   trendStatus:     document.getElementById('trendStatus'),
   tableHead:       document.getElementById('tableHead'),
@@ -37,6 +39,7 @@ let state = {
   selectedIssue: null,
   snapshots:     [],
   selectedDay:   null,
+  chartMode:     'score',
 };
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -52,10 +55,11 @@ function loadSnapshots() {
 
 function saveSnapshot(issue) {
   const snap = {
-    at:          new Date().toISOString(),
-    chartsIssue: issue.chartsIssue,
-    uniIndex:    issue.uniIndex,
-    curRank:     issue.curRank,
+    at:             new Date().toISOString(),
+    chartsIssue:    issue.chartsIssue,
+    uniIndex:       issue.uniIndex,
+    curRank:        issue.curRank,
+    nextUpdateTime: issue.nextUpdateTime || null,
     dims: visibleDims(issue).map(d => ({
       name: d.name, code: d.code, percentage: d.percentage, index: d.index,
     })),
@@ -81,6 +85,22 @@ function snapDay(iso) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+// "2026-07-17 11:10:00" → "11:00" (minus 10 min)
+function subtractTenMin(nextUpdateTime) {
+  if (!nextUpdateTime) return '—';
+  const parts = String(nextUpdateTime).split(' ');
+  const timePart = parts[parts.length - 1];
+  const [h, m] = timePart.split(':').map(Number);
+  const total = ((h * 60 + m - 10) % 1440 + 1440) % 1440;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+// X-axis label: nextUpdateTime - 10 min, fallback to snap.at
+function snapDisplayTime(snap) {
+  if (snap.nextUpdateTime) return subtractTenMin(snap.nextUpdateTime);
+  return fmtTime(snap.at);
+}
+
 function metricCard(label, value, foot, color) {
   return `<div class="metric" style="border-top:3px solid ${color}">
     <span class="metric-label">${label}</span>
@@ -92,6 +112,41 @@ function metricCard(label, value, foot, color) {
 function filteredSnaps() {
   if (!state.selectedDay) return state.snapshots;
   return state.snapshots.filter(s => snapDay(s.at) === state.selectedDay);
+}
+
+function computeYBounds(snaps, mode) {
+  if (!snaps.length) return { yMin: 0, yMax: 100 };
+  let vals = [];
+  if (mode === 'score') {
+    snaps.forEach(s => s.dims.forEach(d => vals.push(parseFloat(d.index || 0))));
+  } else {
+    for (let i = 1; i < snaps.length; i++) {
+      snaps[i].dims.forEach((d, di) => {
+        vals.push(parseFloat(d.index || 0) - parseFloat(snaps[i - 1].dims[di]?.index || 0));
+      });
+    }
+    if (!vals.length) vals = [0];
+  }
+  let mn = Math.min(...vals);
+  let mx = Math.max(...vals);
+  if (mode === 'delta') { mn = Math.min(mn, 0); mx = Math.max(mx, 0); }
+  const range = mx - mn || 1;
+  const pad = range * 0.2;
+  return { yMin: mn - pad, yMax: mx + pad };
+}
+
+function niceGridTicks(yMin, yMax, count = 5) {
+  const range = yMax - yMin || 1;
+  const rawStep = range / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(Math.abs(rawStep) || 1)));
+  const n = rawStep / mag;
+  const step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag;
+  const start = Math.floor(yMin / step) * step;
+  const ticks = [];
+  for (let v = start; v <= yMax + step * 0.01; v = parseFloat((v + step).toPrecision(10))) {
+    if (v >= yMin - step * 0.01) ticks.push(parseFloat(v.toPrecision(10)));
+  }
+  return ticks;
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────
@@ -130,7 +185,7 @@ async function fetchAndRender() {
 function render() {
   renderMetricGrid();
   renderIssueList();
-  renderDayFilter();
+  renderChartControls();
   drawTrendCanvas();
   renderTable();
 }
@@ -144,19 +199,16 @@ function renderMetricGrid() {
   }
 
   const dims = visibleDims(d);
-
-  const updateHM = d.updateTime
-    ? new Date(d.updateTime).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-    : '—';
-  const updateDate = d.updateTime
-    ? new Date(d.updateTime).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
-    : '';
+  const updateHM = subtractTenMin(d.nextUpdateTime);
   const nextHM = d.nextUpdateTime ? d.nextUpdateTime.split(' ').slice(-1)[0] : (d.dynamic ? '—' : '结算');
+  const updateDate = d.nextUpdateTime
+    ? String(d.nextUpdateTime).split(' ')[0].slice(5).replace('-', '/')
+    : '—';
 
   const summaryRow = [
     metricCard('当前排名', `#${d.curRank}`, `第 ${d.chartsIssue} 期`, '#a97619'),
     metricCard('由你指数', d.uniIndex, `${d.chartsIssueStartTime} — ${d.chartsIssueEndTime}`, '#167447'),
-    metricCard('更新区间', `${updateHM} — ${nextHM}`, updateDate || '—', '#2c6f99'),
+    metricCard('更新区间', `${updateHM} — ${nextHM}`, updateDate, '#2c6f99'),
   ].join('');
 
   const dimRow = dims.map((dim, i) =>
@@ -195,24 +247,34 @@ function renderIssueList() {
   });
 }
 
-function renderDayFilter() {
+function renderChartControls() {
   const snaps = state.snapshots;
-  if (!snaps.length) { els.dayFilter.innerHTML = ''; return; }
-
-  const days = [...new Set(snaps.map(s => snapDay(s.at)))];
-  if (days.length <= 1) { els.dayFilter.innerHTML = ''; return; }
-
+  const days = snaps.length ? [...new Set(snaps.map(s => snapDay(s.at)))] : [];
   if (state.selectedDay && !days.includes(state.selectedDay)) state.selectedDay = null;
 
-  els.dayFilter.innerHTML = `<div class="day-filter-bar">
-    <button class="day-btn${!state.selectedDay ? ' is-active' : ''}" data-day="">全部</button>
-    ${days.map(d => `<button class="day-btn${state.selectedDay === d ? ' is-active' : ''}" data-day="${d}">${d}</button>`).join('')}
+  const modeHtml = `<div class="mode-bar">
+    <button class="mode-btn${state.chartMode === 'score' ? ' is-active' : ''}" data-mode="score">实时分数</button>
+    <button class="mode-btn${state.chartMode === 'delta' ? ' is-active' : ''}" data-mode="delta">区间涨幅</button>
   </div>`;
 
+  const dayHtml = days.length > 1 ? `<div class="day-filter-bar">
+    <button class="day-btn${!state.selectedDay ? ' is-active' : ''}" data-day="">全部</button>
+    ${days.map(d => `<button class="day-btn${state.selectedDay === d ? ' is-active' : ''}" data-day="${d}">${d}</button>`).join('')}
+  </div>` : '';
+
+  els.dayFilter.innerHTML = `<div class="chart-controls">${modeHtml}${dayHtml}</div>`;
+
+  els.dayFilter.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.chartMode = btn.dataset.mode;
+      renderChartControls();
+      drawTrendCanvas();
+    });
+  });
   els.dayFilter.querySelectorAll('.day-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       state.selectedDay = btn.dataset.day || null;
-      renderDayFilter();
+      renderChartControls();
       drawTrendCanvas();
     });
   });
@@ -227,15 +289,21 @@ function drawTrendCanvas(highlightIdx = null) {
   const canvas = els.trendCanvas;
   const ctx = canvas.getContext('2d');
   const ratio = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth || 980;
-  const H = canvas.clientHeight || 360;
-  canvas.width  = Math.floor(W * ratio);
-  canvas.height = Math.floor(H * ratio);
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
   const snaps = filteredSnaps();
   _chartSnaps = snaps;
-  const pad = { top: 28, right: 28, bottom: 52, left: 58 };
+
+  const containerW = (els.chartScroll ? els.chartScroll.clientWidth : 0) || 980;
+  const H = 360;
+  const W = Math.max(containerW, snaps.length > 1 ? snaps.length * MIN_PX_PER_SNAP + 90 : containerW);
+
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  canvas.width  = Math.round(W * ratio);
+  canvas.height = Math.round(H * ratio);
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+  const pad = { top: 28, right: 28, bottom: 52, left: 62 };
   const cw = W - pad.left - pad.right;
   const ch = H - pad.top - pad.bottom;
 
@@ -246,28 +314,12 @@ function drawTrendCanvas(highlightIdx = null) {
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
-  // Grid
-  const gridSteps = 5;
-  for (let i = 0; i <= gridSteps; i++) {
-    const y = pad.top + (ch / gridSteps) * i;
-    const val = Math.round(100 - (100 / gridSteps) * i);
-    ctx.strokeStyle = i === 0 ? '#c4ccc8' : '#e2e9e5';
-    ctx.lineWidth = i === 0 ? 1.5 : 1;
-    ctx.setLineDash(i === 0 ? [] : [4, 5]);
-    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = '#8a9a91'; ctx.font = '11px system-ui';
-    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-    ctx.fillText(String(val), pad.left - 8, y);
-  }
-
-  // Left axis
-  ctx.strokeStyle = '#c4ccc8'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
-  ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, pad.top + ch); ctx.stroke();
-
+  // No data
   if (!snaps.length || !snaps[0]?.dims?.length) {
-    ctx.fillStyle = '#8a9a91'; ctx.font = '14px system-ui';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#8a9a91';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     ctx.fillText('暂无快照，5 分钟后自动记录第一条', W / 2, H / 2);
     els.trendStatus.textContent = '等待快照';
     els.dimensionLegend.innerHTML = '';
@@ -275,28 +327,63 @@ function drawTrendCanvas(highlightIdx = null) {
     return;
   }
 
+  const isDelta = state.chartMode === 'delta';
+  const { yMin, yMax } = computeYBounds(snaps, state.chartMode);
+  const yRange = yMax - yMin || 1;
+
   const xOf = (i) => pad.left + (snaps.length === 1 ? cw / 2 : (cw / (snaps.length - 1)) * i);
-  const yOf = (val) => pad.top + ch - (Math.min(100, Math.max(0, parseFloat(val || '0'))) / 100) * ch;
+  const yOf = (val) => pad.top + ch - ((val - yMin) / yRange) * ch;
   _chartXOf = xOf;
+
+  // Grid ticks
+  const ticks = niceGridTicks(yMin, yMax, 5);
+  ticks.forEach((tick, ti) => {
+    const y = yOf(tick);
+    if (y < pad.top - 4 || y > pad.top + ch + 4) return;
+    const isZeroLine = isDelta && Math.abs(tick) < 1e-9;
+    ctx.strokeStyle = isZeroLine ? 'rgba(22,116,71,0.45)' : (ti === 0 ? '#c4ccc8' : '#e2e9e5');
+    ctx.lineWidth = isZeroLine ? 1.5 : 1;
+    ctx.setLineDash(isZeroLine ? [5, 3] : (ti === 0 ? [] : [4, 5]));
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = isZeroLine ? '#167447' : '#8a9a91';
+    ctx.font = `${isZeroLine ? 'bold ' : ''}11px system-ui`;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    const label = isDelta
+      ? (tick >= 0 ? '+' : '') + tick.toFixed(2)
+      : String(Math.round(tick * 10) / 10);
+    ctx.fillText(label, pad.left - 8, y);
+  });
+
+  // Left axis line
+  ctx.strokeStyle = '#c4ccc8'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, pad.top + ch); ctx.stroke();
 
   const dimCount = snaps[0].dims.length;
 
-  // Gradient area + lines
   for (let di = 0; di < dimCount; di++) {
     const color = DIMENSION_COLORS[di % DIMENSION_COLORS.length];
-    const pts = snaps.map((snap, si) => ({ x: xOf(si), y: yOf(snap.dims[di]?.index) }));
 
-    // Gradient fill
-    const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
-    grad.addColorStop(0, color + '2e');
-    grad.addColorStop(1, color + '00');
-    ctx.beginPath();
-    drawSmooth(ctx, pts);
-    ctx.lineTo(pts.at(-1).x, pad.top + ch);
-    ctx.lineTo(pts[0].x, pad.top + ch);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
+    const pts = snaps.map((snap, si) => {
+      const val = isDelta
+        ? (si === 0 ? 0 : parseFloat(snap.dims[di]?.index || 0) - parseFloat(snaps[si - 1].dims[di]?.index || 0))
+        : parseFloat(snap.dims[di]?.index || 0);
+      return { x: xOf(si), y: yOf(val) };
+    });
+
+    // Gradient area fill (score mode only)
+    if (!isDelta) {
+      const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+      grad.addColorStop(0, color + '2e');
+      grad.addColorStop(1, color + '00');
+      ctx.beginPath();
+      drawSmooth(ctx, pts);
+      ctx.lineTo(pts.at(-1).x, pad.top + ch);
+      ctx.lineTo(pts[0].x, pad.top + ch);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
 
     // Line stroke
     ctx.beginPath();
@@ -330,34 +417,42 @@ function drawTrendCanvas(highlightIdx = null) {
     ctx.setLineDash([]);
   }
 
-  // X-axis time labels
+  // X-axis labels
   ctx.fillStyle = '#8a9a91'; ctx.font = '11px system-ui';
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  const step = Math.max(1, Math.floor((snaps.length - 1) / 5));
+  const step = Math.max(1, Math.floor((snaps.length - 1) / 8));
   const labeled = new Set();
   for (let i = 0; i < snaps.length; i += step) {
-    ctx.fillText(fmtTime(snaps[i].at), xOf(i), pad.top + ch + 10);
+    ctx.fillText(snapDisplayTime(snaps[i]), xOf(i), pad.top + ch + 10);
     labeled.add(i);
   }
-  const last = snaps.length - 1;
-  if (!labeled.has(last)) {
-    ctx.fillText(fmtTime(snaps[last].at), xOf(last), pad.top + ch + 10);
+  if (!labeled.has(snaps.length - 1)) {
+    ctx.fillText(snapDisplayTime(snaps[snaps.length - 1]), xOf(snaps.length - 1), pad.top + ch + 10);
   }
 
-  // Legend
+  // Legend with delta hint
   const latest = snaps.at(-1);
-  els.dimensionLegend.innerHTML = snaps[0].dims.map((dim, di) => `
-    <div class="legend-item">
+  els.dimensionLegend.innerHTML = snaps[0].dims.map((dim, di) => {
+    const curVal = latest.dims[di]?.index ?? '—';
+    let deltaStr = '';
+    if (snaps.length >= 2) {
+      const diff = parseFloat(curVal || 0) - parseFloat(snaps.at(-2).dims[di]?.index || 0);
+      if (diff !== 0) {
+        const sign = diff > 0 ? '+' : '';
+        deltaStr = ` <small style="color:${diff > 0 ? '#167447' : '#c9553d'}">${sign}${diff.toFixed(2)}</small>`;
+      }
+    }
+    return `<div class="legend-item">
       <div class="legend-swatch" style="background:${DIMENSION_COLORS[di % DIMENSION_COLORS.length]}"></div>
       <span class="legend-name">${dim.name} (${dim.percentage}%)</span>
-      <span class="legend-value">${latest.dims[di]?.index ?? '—'}</span>
-    </div>`).join('');
+      <span class="legend-value">${curVal}${deltaStr}</span>
+    </div>`;
+  }).join('');
   els.trendStatus.textContent = `${snaps.length} 个快照`;
 }
 
-// Catmull-Rom to bezier
 function drawSmooth(ctx, pts) {
-  if (pts.length === 0) return;
+  if (!pts.length) return;
   if (pts.length === 1) { ctx.moveTo(pts[0].x, pts[0].y); return; }
   if (pts.length === 2) { ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); return; }
   ctx.moveTo(pts[0].x, pts[0].y);
@@ -381,7 +476,7 @@ els.trendCanvas.addEventListener('mousemove', (e) => {
   if (!snaps.length || !_chartXOf) return;
 
   const rect = els.trendCanvas.getBoundingClientRect();
-  const mx = (e.clientX - rect.left) * (els.trendCanvas.width / rect.width) / (window.devicePixelRatio || 1);
+  const mx = e.clientX - rect.left;
 
   let nearest = 0, minDist = Infinity;
   snaps.forEach((_, i) => {
@@ -392,14 +487,28 @@ els.trendCanvas.addEventListener('mousemove', (e) => {
   drawTrendCanvas(nearest);
 
   const snap = snaps[nearest];
-  const timeStr = new Date(snap.at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const isDelta = state.chartMode === 'delta';
+  const timeStr = snapDisplayTime(snap);
+  const dateStr = new Date(snap.at).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+
   const dimsHtml = snap.dims.map((dim, di) => {
     const c = DIMENSION_COLORS[di % DIMENSION_COLORS.length];
-    return `<div><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin-right:5px;vertical-align:middle"></span>${dim.name} <strong>${dim.index}</strong></div>`;
+    let valStr;
+    if (isDelta) {
+      if (nearest === 0) {
+        valStr = '—';
+      } else {
+        const diff = parseFloat(dim.index || 0) - parseFloat(snaps[nearest - 1].dims[di]?.index || 0);
+        valStr = (diff >= 0 ? '+' : '') + diff.toFixed(2);
+      }
+    } else {
+      valStr = dim.index;
+    }
+    return `<div><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin-right:5px;vertical-align:middle"></span>${dim.name} <strong>${valStr}</strong></div>`;
   }).join('');
 
   tooltip.innerHTML = `
-    <div style="font-weight:600;margin-bottom:5px;color:#a8ccb8">${timeStr}</div>
+    <div style="font-weight:600;margin-bottom:5px;color:#a8ccb8">${dateStr} ${timeStr}</div>
     <div style="margin-bottom:6px;color:#c0d4c8">排名 <strong style="color:#fff">#${snap.curRank}</strong> &nbsp; 指数 <strong style="color:#fff">${snap.uniIndex}</strong></div>
     ${dimsHtml}
   `;
@@ -452,7 +561,8 @@ function loadSong(id) {
   const trimmed = id.trim();
   if (!trimmed || trimmed === state.songId) { fetchAndRender(); return; }
   state.songId = trimmed;
-  state.current = null; state.history = []; state.selectedIssue = null; state.selectedDay = null;
+  state.current = null; state.history = []; state.selectedIssue = null;
+  state.selectedDay = null; state.chartMode = 'score';
   loadSnapshots();
   render();
   fetchAndRender();
