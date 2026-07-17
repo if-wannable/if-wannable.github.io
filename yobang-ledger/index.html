@@ -33,12 +33,17 @@
 
     <main class="workspace">
       <header class="topbar">
-        <div class="topic-meta">
+        <div class="topic-meta" style="position:relative">
           <label class="field-label" for="songIdInput">歌曲 uniId</label>
           <div class="url-row">
             <input id="songIdInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="530004147" value="530004147">
             <button id="loadBtn" class="button" type="button">载入</button>
           </div>
+          <div class="url-row" style="margin-top:6px">
+            <input id="searchInput" type="text" autocomplete="off" spellcheck="false" placeholder="搜索歌曲名…">
+            <button id="searchBtn" class="button secondary" type="button">搜索</button>
+          </div>
+          <div id="searchResults"></div>
         </div>
         <div class="top-actions">
           <span id="lastSync" class="metric-foot">等待首次获取…</span>

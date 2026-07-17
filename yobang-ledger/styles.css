@@ -530,3 +530,63 @@ tr.is-stale td {
     height: 280px;
   }
 }
+
+#searchResults {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.12);
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.search-item {
+  padding: 9px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f3f1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.search-item:last-child {
+  border-bottom: 0;
+}
+
+.search-item:hover {
+  background: #f2f8f4;
+}
+
+.search-item strong {
+  color: var(--ink);
+}
+
+.search-item .si-singer {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.search-item .si-album {
+  color: #b0c4b8;
+  font-size: 11px;
+}
+
+.search-msg {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: default;
+}
+
+.search-msg a {
+  color: var(--green);
+}

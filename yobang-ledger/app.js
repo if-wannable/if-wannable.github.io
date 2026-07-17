@@ -636,6 +636,95 @@ function toggleAutoFetch() {
   }, delay);
 }
 
+// ── Song search ───────────────────────────────────────────────────────────────
+
+const QQ_SEARCH_URL = 'https://u.y.qq.com/cgi-bin/musicu.fcg';
+const YOBANG_SEARCH_URL = 'https://yobang.tencentmusic.com/unichartsapi/v1/songs/search';
+
+async function searchQQMusic(query) {
+  const payload = JSON.stringify({
+    req_1: {
+      method: 'DoSearchForQQMusicDesktop',
+      module: 'music.search.SearchCgiService',
+      param: { num_per_page: 8, page_num: 1, query, search_type: 0 },
+    },
+  });
+  const r = await fetch(`${QQ_SEARCH_URL}?data=${encodeURIComponent(payload)}`);
+  const json = await r.json();
+  return json.req_1?.data?.body?.song?.list || [];
+}
+
+async function resolveUniId(songName) {
+  try {
+    const r = await fetch(
+      `${YOBANG_SEARCH_URL}?keyword=${encodeURIComponent(songName)}&source=009&pageNo=1&pageSize=10`,
+      { credentials: 'include' }
+    );
+    const json = await r.json();
+    const content = json.data?.content;
+    if (Array.isArray(content) && content.length > 0) {
+      return content[0].uniId || content[0].uniTrackId || null;
+    }
+  } catch {}
+  return null;
+}
+
+function closeSearchResults() {
+  const el = document.getElementById('searchResults');
+  if (el) el.style.display = 'none';
+}
+
+function renderSearchResults(results) {
+  const el = document.getElementById('searchResults');
+  if (!el) return;
+  if (!results.length) {
+    el.innerHTML = '<div class="search-msg">未找到相关歌曲</div>';
+    el.style.display = 'block';
+    return;
+  }
+  el.innerHTML = results.map((s, i) =>
+    `<div class="search-item" data-idx="${i}" data-name="${s.title}" data-singer="${s.singer?.[0]?.name || ''}">
+      <strong>${s.title}</strong>
+      <span class="si-singer">${s.singer?.[0]?.name || ''}</span>
+      <span class="si-album">${s.album?.name || ''}</span>
+    </div>`
+  ).join('');
+  el.style.display = 'block';
+
+  el.querySelectorAll('.search-item[data-idx]').forEach(item => {
+    item.addEventListener('click', async () => {
+      const name = item.dataset.name;
+      el.innerHTML = `<div class="search-msg">正在查找「${name}」的由你榜 uniId…</div>`;
+      const uniId = await resolveUniId(name);
+      if (uniId) {
+        closeSearchResults();
+        els.songIdInput.value = uniId;
+        loadSong(String(uniId));
+      } else {
+        el.innerHTML = `<div class="search-msg">
+          无法自动获取 uniId，请前往
+          <a href="https://yobang.tencentmusic.com/" target="_blank" rel="noopener">由你榜官网</a>
+          搜索「${name}」，复制 URL 中的 uniId 后手动载入
+        </div>`;
+      }
+    });
+  });
+}
+
+async function doSearch() {
+  const input = document.getElementById('searchInput');
+  const q = input?.value.trim();
+  if (!q) return;
+  const el = document.getElementById('searchResults');
+  if (el) { el.innerHTML = '<div class="search-msg">搜索中…</div>'; el.style.display = 'block'; }
+  try {
+    const results = await searchQQMusic(q);
+    renderSearchResults(results);
+  } catch (e) {
+    if (el) el.innerHTML = `<div class="search-msg">搜索失败：${e.message}</div>`;
+  }
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 els.tabs.forEach(t => t.addEventListener('click', () => setView(t.dataset.view)));
@@ -643,6 +732,11 @@ els.refreshBtn.addEventListener('click', () => fetchAndRender());
 els.loadBtn.addEventListener('click', () => loadSong(els.songIdInput.value));
 els.songIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadSong(els.songIdInput.value); });
 document.getElementById('autoFetchBtn')?.addEventListener('click', toggleAutoFetch);
+document.getElementById('searchBtn')?.addEventListener('click', doSearch);
+document.getElementById('searchInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+document.addEventListener('click', e => {
+  if (!e.target.closest('.topic-meta')) closeSearchResults();
+});
 
 loadSnapshots();
 setView('dashboard');
