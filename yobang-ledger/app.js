@@ -1,5 +1,6 @@
 const API_BASE = 'https://yobang.tencentmusic.com/unichartsapi/v1/songs';
 const STORAGE_KEY = 'yobang-ledger-v4';
+const QQ_AUTH_KEY = 'yobang-qq-auth';
 const DEFAULT_ID = '530004147';
 const MIN_PX_PER_SNAP = 52;
 
@@ -40,6 +41,8 @@ let state = {
   snapshots:     [],
   selectedDay:   null,
   chartMode:     'score',
+  qqTrackId:     null,
+  favCount:      null,
 };
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -76,6 +79,82 @@ function saveSnapshot(issue) {
   if (idx >= 0) { state.snapshots[idx] = snap; } else { state.snapshots.push(snap); }
   if (state.snapshots.length > 300) state.snapshots = state.snapshots.slice(-300);
   try { localStorage.setItem(storageKey(state.songId), JSON.stringify({ snapshots: state.snapshots })); } catch {}
+}
+
+// ── QQ Auth ───────────────────────────────────────────────────────────────────
+
+function loadQQAuth() {
+  try { return JSON.parse(localStorage.getItem(QQ_AUTH_KEY)) || {}; } catch { return {}; }
+}
+function saveQQAuth(uin, pSkey) {
+  localStorage.setItem(QQ_AUTH_KEY, JSON.stringify({ uin, pSkey }));
+}
+function clearQQAuth() {
+  localStorage.removeItem(QQ_AUTH_KEY);
+}
+function hasQQAuth() {
+  const a = loadQQAuth();
+  return !!(a.uin && a.pSkey);
+}
+function computeGTK(skey) {
+  let hash = 5381;
+  for (let i = 0; i < skey.length; i++) hash += (hash << 5) + skey.charCodeAt(i);
+  return hash & 0x7FFFFFFF;
+}
+function fmtNum(n) {
+  if (n == null) return '—';
+  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
+  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+  return String(n);
+}
+
+// ── JSONP ─────────────────────────────────────────────────────────────────────
+
+function jsonp(urlTemplate, timeout = 6000) {
+  return new Promise((resolve, reject) => {
+    const cb = `_jcb_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      delete window[cb]; script.remove(); reject(new Error('timeout'));
+    }, timeout);
+    window[cb] = (data) => {
+      clearTimeout(timer); delete window[cb]; script.remove(); resolve(data);
+    };
+    script.src = urlTemplate.replace('__CB__', cb);
+    document.head.appendChild(script);
+  });
+}
+
+async function fetchSongInfo() {
+  try {
+    const r = await fetch(`${API_BASE}/${state.songId}/info?_=${Date.now()}`, { cache: 'no-store' });
+    if (!r.ok) return;
+    const json = await r.json();
+    if (json.code === '0' && json.data?.qyTrackId) {
+      state.qqTrackId = String(json.data.qyTrackId);
+    }
+  } catch {}
+}
+
+async function fetchFavCount() {
+  if (!state.qqTrackId || !hasQQAuth()) { state.favCount = null; return; }
+  try {
+    const { uin, pSkey } = loadQQAuth();
+    const gtk = computeGTK(pSkey);
+    const data = encodeURIComponent(JSON.stringify({
+      fav: {
+        module: 'music.musicasset.SongFavRead',
+        method: 'GetSongFavCntBatch',
+        param: { song_id: [parseInt(state.qqTrackId, 10)], song_type: 0 },
+      },
+    }));
+    const url = `https://u.y.qq.com/cgi-bin/musicu.fcg?callback=__CB__&g_tk=${gtk}&uin=${uin}&loginUin=${uin}&hostUin=0&format=json&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq.json&needNewCode=0&data=${data}`;
+    const res = await jsonp(url);
+    const cnt = res?.fav?.data?.song_fav_num_list?.[0]?.fav_num;
+    state.favCount = cnt != null ? Number(cnt) : null;
+  } catch {
+    state.favCount = null;
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -184,6 +263,9 @@ async function fetchAndRender(save = false) {
       ? (state.history.find(h => h.chartsIssue === sel.chartsIssue) || state.current)
       : state.current;
 
+    if (!state.qqTrackId) await fetchSongInfo();
+    if (hasQQAuth()) await fetchFavCount();
+
     if (save && state.current) saveSnapshot(state.current);
     render();
 
@@ -222,11 +304,13 @@ function renderMetricGrid() {
     ? String(d.nextUpdateTime).split(' ')[0].slice(5).replace('-', '/')
     : '—';
 
-  const summaryRow = [
+  const summaryCards = [
     metricCard('当前排名', `#${d.curRank}`, `第 ${d.chartsIssue} 期`, '#a97619'),
     metricCard('由你指数', d.uniIndex, `${d.chartsIssueStartTime} — ${d.chartsIssueEndTime}`, '#167447'),
     metricCard('更新区间', `${updateHM} — ${nextHM}`, updateDate, '#2c6f99'),
-  ].join('');
+    ...(state.favCount != null ? [metricCard('收藏数', fmtNum(state.favCount), 'QQ音乐', '#c9553d')] : []),
+  ];
+  const summaryRow = summaryCards.join('');
 
   const dimRow = dims.map((dim, i) =>
     metricCard(
@@ -239,7 +323,7 @@ function renderMetricGrid() {
 
   els.metricGrid.style.cssText = 'display:flex;flex-direction:column;gap:12px;margin-bottom:14px';
   els.metricGrid.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">${summaryRow}</div>
+    <div style="display:grid;grid-template-columns:repeat(${summaryCards.length},minmax(0,1fr));gap:12px">${summaryRow}</div>
     ${dims.length ? `<div style="display:grid;grid-template-columns:repeat(${dims.length},minmax(0,1fr));gap:12px">${dimRow}</div>` : ''}
   `;
 }
@@ -639,111 +723,6 @@ function toggleAutoFetch() {
   }, delay);
 }
 
-// ── Song search ───────────────────────────────────────────────────────────────
-
-const YOBANG_SEARCH_URL = 'https://yobang.tencentmusic.com/unichartsapi/v1/songs/search';
-
-function jsonpFetch(urlTemplate) {
-  return new Promise((resolve, reject) => {
-    const cb = '_qqcb' + Date.now();
-    const url = urlTemplate.replace('__CB__', cb);
-    window[cb] = (data) => { delete window[cb]; s.remove(); resolve(data); };
-    const s = document.createElement('script');
-    s.onerror = () => { delete window[cb]; s.remove(); reject(new Error('JSONP failed')); };
-    document.head.appendChild(s);
-    s.src = url;
-  });
-}
-
-async function searchQQMusic(query) {
-  const url = `https://c.y.qq.com/soso/fcgi-bin/client_search_cp?w=${encodeURIComponent(query)}&format=jsonp&jsonpCallback=__CB__&n=8&p=1`;
-  const data = await jsonpFetch(url);
-  return data?.data?.song?.list || [];
-}
-
-async function resolveUniId(songName) {
-  try {
-    const r = await fetch(
-      `${YOBANG_SEARCH_URL}?keyword=${encodeURIComponent(songName)}&source=009&pageNo=1&pageSize=10`,
-      { credentials: 'include' }
-    );
-    const json = await r.json();
-    console.log('[yobang search]', JSON.stringify(json));
-    const content = json.data?.content;
-    if (Array.isArray(content) && content.length > 0) {
-      const item = content[0];
-      return item.uniId || item.uniTrackId || item.id || item.songId || null;
-    }
-  } catch (e) {
-    console.warn('[resolveUniId]', e);
-  }
-  return null;
-}
-
-function closeSearchResults() {
-  const el = document.getElementById('searchResults');
-  if (el) el.style.display = 'none';
-}
-
-function renderSearchResults(results) {
-  const el = document.getElementById('searchResults');
-  if (!el) return;
-  if (!results.length) {
-    el.innerHTML = '<div class="search-msg">未找到相关歌曲</div>';
-    el.style.display = 'block';
-    return;
-  }
-  el.innerHTML = results.map((s, i) => {
-    const name = s.songname || s.title || '';
-    const singer = (s.singer || [])[0]?.name || '';
-    const album = s.albumname || s.album?.name || '';
-    return `<div class="search-item" data-idx="${i}" data-name="${name.replace(/"/g,'&quot;')}">
-      <strong>${name}</strong>
-      <span class="si-singer">${singer}</span>
-      <span class="si-album">${album}</span>
-    </div>`;
-  }).join('');
-  el.style.display = 'block';
-
-  el.querySelectorAll('.search-item[data-idx]').forEach(item => {
-    item.addEventListener('click', async () => {
-      const name = item.dataset.name;
-      el.innerHTML = `<div class="search-msg">正在查找「${name}」的由你榜 uniId…</div>`;
-      const uniId = await resolveUniId(name);
-      if (uniId) {
-        closeSearchResults();
-        els.songIdInput.value = uniId;
-        loadSong(String(uniId));
-      } else {
-        els.songIdInput.value = '';
-        els.songIdInput.placeholder = '粘贴由你榜链接或 uniId';
-        els.songIdInput.focus();
-        closeSearchResults();
-        el.innerHTML = `<div class="search-msg">
-          未能自动匹配「${name}」。请前往
-          <a href="https://yobang.tencentmusic.com/" target="_blank" rel="noopener">由你榜</a>
-          找到该歌曲详情页，将整个网址粘贴到上方输入框，点击「载入」即可。
-        </div>`;
-        el.style.display = 'block';
-      }
-    });
-  });
-}
-
-async function doSearch() {
-  const input = document.getElementById('searchInput');
-  const q = input?.value.trim();
-  if (!q) return;
-  const el = document.getElementById('searchResults');
-  if (el) { el.innerHTML = '<div class="search-msg">搜索中…</div>'; el.style.display = 'block'; }
-  try {
-    const results = await searchQQMusic(q);
-    renderSearchResults(results);
-  } catch (e) {
-    if (el) el.innerHTML = `<div class="search-msg">搜索失败：${e.message}</div>`;
-  }
-}
-
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 els.tabs.forEach(t => t.addEventListener('click', () => setView(t.dataset.view)));
@@ -751,11 +730,53 @@ els.refreshBtn.addEventListener('click', () => fetchAndRender());
 els.loadBtn.addEventListener('click', () => loadSong(els.songIdInput.value));
 els.songIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadSong(els.songIdInput.value); });
 document.getElementById('autoFetchBtn')?.addEventListener('click', toggleAutoFetch);
-document.getElementById('searchBtn')?.addEventListener('click', doSearch);
-document.getElementById('searchInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
-document.addEventListener('click', e => {
-  if (!e.target.closest('.topic-meta')) closeSearchResults();
+
+// ── QQ Auth panel ─────────────────────────────────────────────────────────────
+
+const qqAuthToggle  = document.getElementById('qqAuthToggle');
+const qqAuthPanel   = document.getElementById('qqAuthPanel');
+const qqUinInput    = document.getElementById('qqUinInput');
+const qqPSkeyInput  = document.getElementById('qqPSkeyInput');
+const qqAuthStatus  = document.getElementById('qqAuthStatus');
+
+function updateQQAuthUI() {
+  const auth = loadQQAuth();
+  const ok = !!(auth.uin && auth.pSkey);
+  if (qqUinInput)   qqUinInput.value   = auth.uin   || '';
+  if (qqPSkeyInput) qqPSkeyInput.value = auth.pSkey || '';
+  if (qqAuthStatus) qqAuthStatus.textContent = ok ? `已保存 · uin ${auth.uin}` : '未设置';
+  if (qqAuthToggle) {
+    qqAuthToggle.style.color       = ok ? 'var(--green)' : '';
+    qqAuthToggle.style.borderColor = ok ? 'var(--green)' : '';
+  }
+}
+
+qqAuthToggle?.addEventListener('click', () => {
+  const hidden = qqAuthPanel.style.display === 'none';
+  qqAuthPanel.style.display = hidden ? 'block' : 'none';
+  if (hidden) updateQQAuthUI();
 });
+
+document.getElementById('qqSaveBtn')?.addEventListener('click', () => {
+  const uin   = qqUinInput.value.trim();
+  const pSkey = qqPSkeyInput.value.trim();
+  if (!uin || !pSkey) { if (qqAuthStatus) qqAuthStatus.textContent = '请填写完整'; return; }
+  saveQQAuth(uin, pSkey);
+  updateQQAuthUI();
+  qqAuthPanel.style.display = 'none';
+  fetchFavCount().then(() => renderMetricGrid());
+});
+
+document.getElementById('qqClearBtn')?.addEventListener('click', () => {
+  clearQQAuth();
+  state.favCount = null;
+  updateQQAuthUI();
+  renderMetricGrid();
+});
+
+updateQQAuthUI();
+
+// ── Init ──────────────────────────────────────────────────────────────────────
 
 loadSnapshots();
 setView('dashboard');

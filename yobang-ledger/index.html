@@ -33,24 +33,38 @@
 
     <main class="workspace">
       <header class="topbar">
-        <div class="topic-meta" style="position:relative">
+        <div class="topic-meta">
           <label class="field-label" for="songIdInput">歌曲 uniId</label>
           <div class="url-row">
-            <input id="songIdInput" type="text" autocomplete="off" spellcheck="false" placeholder="uniId 或粘贴由你榜链接" value="530004147">
+            <input id="songIdInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="530004147" value="530004147">
             <button id="loadBtn" class="button" type="button">载入</button>
           </div>
-          <div class="url-row" style="margin-top:6px">
-            <input id="searchInput" type="text" autocomplete="off" spellcheck="false" placeholder="搜索歌曲名…">
-            <button id="searchBtn" class="button secondary" type="button">搜索</button>
-          </div>
-          <div id="searchResults"></div>
         </div>
         <div class="top-actions">
           <span id="lastSync" class="metric-foot">等待首次获取…</span>
           <button id="refreshBtn" class="button secondary" type="button">刷新</button>
           <button id="autoFetchBtn" class="button secondary" type="button">定时抓取 ○</button>
+          <button id="qqAuthToggle" class="button secondary" type="button">QQ收藏</button>
         </div>
       </header>
+
+      <div id="qqAuthPanel" class="qq-auth-panel" style="display:none">
+        <div class="qq-auth-fields">
+          <div>
+            <label class="field-label" for="qqUinInput">QQ号 (uin)</label>
+            <input id="qqUinInput" type="text" autocomplete="off" spellcheck="false" placeholder="123456789">
+          </div>
+          <div>
+            <label class="field-label" for="qqPSkeyInput">p_skey</label>
+            <input id="qqPSkeyInput" type="password" autocomplete="off" placeholder="从 y.qq.com Cookie 中复制">
+          </div>
+          <div class="qq-auth-actions">
+            <button id="qqSaveBtn" class="button" type="button">保存</button>
+            <button id="qqClearBtn" class="button secondary" type="button">清除</button>
+            <span id="qqAuthStatus" class="metric-foot"></span>
+          </div>
+        </div>
+      </div>
 
       <section id="dashboardView" class="view is-visible" aria-label="总览">
         <div class="metric-grid" id="metricGrid">
