@@ -99,16 +99,16 @@ def main():
     detail = fetch_charts_detail()
     info_raw = fetch_info()
 
-    # Split dynamic (current) vs history issues
+    # Split dynamic (current) vs history issues (detail is a list)
     current_issue = None
     history_issues = []
-    for issue in detail.get('chartsIssues', []):
+    for issue in detail:
         if issue.get('dynamic'):
             current_issue = issue
         else:
             history_issues.append(issue)
-    if current_issue is None and detail.get('chartsIssues'):
-        current_issue = detail['chartsIssues'][0]
+    if current_issue is None and detail:
+        current_issue = detail[0]
 
     qy_track_id = info_raw.get('qyTrackId')
     comment_total = fetch_comment_total(qy_track_id) if qy_track_id else None
