@@ -494,7 +494,7 @@ function drawSmooth(ctx, pts) {
   }
 }
 
-// ── Hourly growth chart ───────────────────────────────────────────────────────
+// ── Hourly growth chart (per dimension) ──────────────────────────────────────
 
 function drawGrowthCanvas() {
   const canvas = els.growthCanvas;
@@ -508,7 +508,13 @@ function drawGrowthCanvas() {
     return;
   }
 
-  // Group snapshots by date+hour
+  const dims = snaps[0]?.dims || [];
+  if (!dims.length) { canvas.style.display = 'none'; return; }
+
+  canvas.style.display = '';
+  if (els.growthScroll) els.growthScroll.style.display = '';
+
+  // Group by hour
   const hourGroups = {};
   snaps.forEach(s => {
     const dt = new Date(s.at);
@@ -517,32 +523,29 @@ function drawGrowthCanvas() {
     hourGroups[key].push(s);
   });
 
-  const keys = Object.keys(hourGroups).sort();
+  const hours = Object.keys(hourGroups).sort();
 
-  // Growth per hour = sum of all 10-min increments within that hour
-  // (equivalent to last.uniIndex - first.uniIndex within the hour)
-  const bars = keys.map(key => {
+  // Per-dimension growth per hour (sum of increments within the hour)
+  const barData = hours.map(key => {
     const group = hourGroups[key];
-    let total = 0;
-    for (let i = 1; i < group.length; i++) {
-      total += parseFloat(group[i].uniIndex || 0) - parseFloat(group[i - 1].uniIndex || 0);
-    }
-    return { label: key, value: parseFloat(total.toFixed(2)) };
+    const dimGrowths = dims.map((_, di) => {
+      let total = 0;
+      for (let i = 1; i < group.length; i++) {
+        total += parseFloat(group[i].dims[di]?.index || 0) - parseFloat(group[i - 1].dims[di]?.index || 0);
+      }
+      return parseFloat(total.toFixed(2));
+    });
+    return { label: key, dimGrowths };
   });
 
-  if (bars.length < 1) {
-    canvas.style.display = 'none';
-    if (els.growthScroll) els.growthScroll.style.display = 'none';
-    return;
-  }
+  if (!barData.length) { canvas.style.display = 'none'; return; }
 
-  canvas.style.display = '';
-  if (els.growthScroll) els.growthScroll.style.display = '';
-
+  const D = dims.length;
+  const BAR_W = Math.max(8, Math.min(16, 80 / D));
+  const SLOT_W = D * BAR_W + 20;
   const ratio = window.devicePixelRatio || 1;
-  const BAR_W = 44;
-  const W = Math.max((els.growthScroll?.clientWidth || 500), bars.length * (BAR_W + 12) + 80);
-  const H = 180;
+  const W = Math.max(hours.length * SLOT_W + 80, els.growthScroll?.clientWidth || 500);
+  const H = 200;
 
   canvas.style.width = W + 'px';
   canvas.style.height = H + 'px';
@@ -552,57 +555,64 @@ function drawGrowthCanvas() {
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
   const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, '#f8faf9');
-  bg.addColorStop(1, '#ffffff');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
+  bg.addColorStop(0, '#f8faf9'); bg.addColorStop(1, '#ffffff');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-  const PAD = { top: 28, right: 20, bottom: 40, left: 50 };
+  const PAD = { top: 24, right: 20, bottom: 44, left: 52 };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
-
-  const maxAbs = Math.max(0.01, ...bars.map(b => Math.abs(b.value)));
   const zeroY = PAD.top + innerH / 2;
-  const slotW = innerW / bars.length;
+
+  const maxAbs = Math.max(0.01, ...barData.flatMap(b => b.dimGrowths.map(Math.abs)));
 
   // Zero line
-  ctx.strokeStyle = 'rgba(22,116,71,0.3)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = 'rgba(22,116,71,0.25)';
+  ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
   ctx.beginPath(); ctx.moveTo(PAD.left, zeroY); ctx.lineTo(W - PAD.right, zeroY); ctx.stroke();
   ctx.setLineDash([]);
 
-  // Y axis labels
-  ctx.fillStyle = '#8a9a91'; ctx.font = '10px system-ui'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-  ctx.fillText(`+${maxAbs.toFixed(2)}`, PAD.left - 6, PAD.top + 4);
-  ctx.fillText(`-${maxAbs.toFixed(2)}`, PAD.left - 6, PAD.top + innerH - 4);
+  // Y labels
+  ctx.fillStyle = '#8a9a91'; ctx.font = '10px system-ui';
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ctx.fillText(`+${maxAbs.toFixed(2)}`, PAD.left - 6, PAD.top + 2);
   ctx.fillText('0', PAD.left - 6, zeroY);
+  ctx.fillText(`-${maxAbs.toFixed(2)}`, PAD.left - 6, PAD.top + innerH - 2);
 
-  bars.forEach((bar, i) => {
-    const cx = PAD.left + slotW * i + slotW / 2;
-    const bw = Math.min(BAR_W, slotW - 8);
-    const bh = (Math.abs(bar.value) / maxAbs) * (innerH / 2);
-    const isPos = bar.value >= 0;
+  const slotW = innerW / hours.length;
 
-    ctx.fillStyle = isPos ? 'rgba(22,116,71,0.75)' : 'rgba(201,85,61,0.75)';
-    if (isPos) {
-      ctx.fillRect(cx - bw / 2, zeroY - bh, bw, bh || 1);
-    } else {
-      ctx.fillRect(cx - bw / 2, zeroY, bw, bh || 1);
-    }
+  barData.forEach((bar, hi) => {
+    const slotCx = PAD.left + (hi + 0.5) * slotW;
+    const groupStartX = slotCx - (D * BAR_W) / 2;
+
+    bar.dimGrowths.forEach((growth, di) => {
+      const bx = groupStartX + di * BAR_W;
+      const bh = Math.max(1, (Math.abs(growth) / maxAbs) * (innerH / 2));
+      const isPos = growth >= 0;
+      const col = DIMENSION_COLORS[di % DIMENSION_COLORS.length];
+      ctx.fillStyle = col + (isPos ? 'cc' : '88');
+      if (isPos) {
+        ctx.fillRect(bx + 1, zeroY - bh, BAR_W - 2, bh);
+      } else {
+        ctx.fillRect(bx + 1, zeroY, BAR_W - 2, bh);
+      }
+    });
 
     // Hour label
     ctx.fillStyle = '#8a9a91'; ctx.font = '10px system-ui';
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillText(bar.label, cx, H - PAD.bottom + 6);
+    ctx.fillText(bar.label, slotCx, H - PAD.bottom + 6);
+  });
 
-    // Value label
-    if (bar.value !== 0) {
-      ctx.fillStyle = isPos ? '#167447' : '#c9553d';
-      ctx.textBaseline = isPos ? 'bottom' : 'top';
-      const sign = isPos ? '+' : '';
-      ctx.fillText(`${sign}${bar.value}`, cx, isPos ? zeroY - bh - 2 : zeroY + bh + 2);
-    }
+  // Dimension legend
+  const legendY = H - PAD.bottom + 20;
+  const legendItemW = innerW / D;
+  dims.forEach((dim, di) => {
+    const lx = PAD.left + di * legendItemW;
+    ctx.fillStyle = DIMENSION_COLORS[di % DIMENSION_COLORS.length];
+    ctx.fillRect(lx, legendY, 8, 8);
+    ctx.fillStyle = '#8a9a91'; ctx.font = '10px system-ui';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(dim.name, lx + 11, legendY);
   });
 }
 
