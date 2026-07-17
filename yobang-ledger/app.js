@@ -665,11 +665,15 @@ async function resolveUniId(songName) {
       { credentials: 'include' }
     );
     const json = await r.json();
+    console.log('[yobang search]', JSON.stringify(json));
     const content = json.data?.content;
     if (Array.isArray(content) && content.length > 0) {
-      return content[0].uniId || content[0].uniTrackId || null;
+      const item = content[0];
+      return item.uniId || item.uniTrackId || item.id || item.songId || null;
     }
-  } catch {}
+  } catch (e) {
+    console.warn('[resolveUniId]', e);
+  }
   return null;
 }
 
