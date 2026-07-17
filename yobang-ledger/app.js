@@ -1,5 +1,5 @@
 const API_BASE = 'https://yobang.tencentmusic.com/unichartsapi/v1/songs';
-const STORAGE_KEY = 'yobang-ledger-v3';
+const STORAGE_KEY = 'yobang-ledger-v4';
 const DEFAULT_ID = '530004147';
 const MIN_PX_PER_SNAP = 52;
 
@@ -260,6 +260,7 @@ function renderIssueList() {
       state.selectedIssue = state.history[+el.dataset.idx];
       renderMetricGrid();
       renderIssueList();
+      drawTrendCanvas();
     });
   });
 }
