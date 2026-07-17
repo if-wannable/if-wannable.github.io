@@ -30,6 +30,8 @@ const els = {
   songIdInput:     document.getElementById('songIdInput'),
   loadBtn:         document.getElementById('loadBtn'),
   dayFilter:       document.getElementById('dayFilter'),
+  growthCanvas:    document.getElementById('growthCanvas'),
+  growthScroll:    document.getElementById('growthScroll'),
 };
 
 let state = {
@@ -204,6 +206,7 @@ function render() {
   renderIssueList();
   renderChartControls();
   drawTrendCanvas();
+  drawGrowthCanvas();
   renderTable();
 }
 
@@ -461,20 +464,23 @@ function drawTrendCanvas(highlightIdx = null) {
 
   // Legend with delta hint
   const latest = snaps.at(-1);
+  const prev2 = snaps.length >= 2 ? snaps.at(-2) : null;
   els.dimensionLegend.innerHTML = snaps[0].dims.map((dim, di) => {
-    const curVal = latest.dims[di]?.index ?? '—';
-    let deltaStr = '';
-    if (snaps.length >= 2) {
-      const diff = parseFloat(curVal || 0) - parseFloat(snaps.at(-2).dims[di]?.index || 0);
-      if (diff !== 0) {
-        const sign = diff > 0 ? '+' : '';
-        deltaStr = ` <small style="color:${diff > 0 ? '#167447' : '#c9553d'}">${sign}${diff.toFixed(2)}</small>`;
-      }
+    const curVal = parseFloat(latest.dims[di]?.index || 0);
+    let deltaDisplay, deltaColor;
+    if (!prev2) {
+      deltaDisplay = '—';
+      deltaColor = '#8a9a91';
+    } else {
+      const diff = curVal - parseFloat(prev2.dims[di]?.index || 0);
+      const sign = diff >= 0 ? '+' : '';
+      deltaDisplay = `${sign}${diff.toFixed(2)}`;
+      deltaColor = diff > 0 ? '#167447' : diff < 0 ? '#c9553d' : '#8a9a91';
     }
     return `<div class="legend-item">
       <div class="legend-swatch" style="background:${DIMENSION_COLORS[di % DIMENSION_COLORS.length]}"></div>
       <span class="legend-name">${dim.name}</span>
-      <span class="legend-value">${curVal}${deltaStr}</span>
+      <span class="legend-value" style="color:${deltaColor}">${deltaDisplay}</span>
     </div>`;
   }).join('');
   els.trendStatus.textContent = `${snaps.length} 个快照`;
@@ -486,6 +492,118 @@ function drawSmooth(ctx, pts) {
   for (let i = 1; i < pts.length; i++) {
     ctx.lineTo(pts[i].x, pts[i].y);
   }
+}
+
+// ── Hourly growth chart ───────────────────────────────────────────────────────
+
+function drawGrowthCanvas() {
+  const canvas = els.growthCanvas;
+  if (!canvas) return;
+
+  const snaps = filteredSnaps();
+
+  if (!snaps.length || !state.selectedIssue?.dynamic) {
+    canvas.style.display = 'none';
+    if (els.growthScroll) els.growthScroll.style.display = 'none';
+    return;
+  }
+
+  // Group snapshots by date+hour
+  const hourGroups = {};
+  snaps.forEach(s => {
+    const dt = new Date(s.at);
+    const key = `${String(dt.getHours()).padStart(2, '0')}:00`;
+    if (!hourGroups[key]) hourGroups[key] = [];
+    hourGroups[key].push(s);
+  });
+
+  const keys = Object.keys(hourGroups).sort();
+
+  // Growth per hour = sum of all 10-min increments within that hour
+  // (equivalent to last.uniIndex - first.uniIndex within the hour)
+  const bars = keys.map(key => {
+    const group = hourGroups[key];
+    let total = 0;
+    for (let i = 1; i < group.length; i++) {
+      total += parseFloat(group[i].uniIndex || 0) - parseFloat(group[i - 1].uniIndex || 0);
+    }
+    return { label: key, value: parseFloat(total.toFixed(2)) };
+  });
+
+  if (bars.length < 1) {
+    canvas.style.display = 'none';
+    if (els.growthScroll) els.growthScroll.style.display = 'none';
+    return;
+  }
+
+  canvas.style.display = '';
+  if (els.growthScroll) els.growthScroll.style.display = '';
+
+  const ratio = window.devicePixelRatio || 1;
+  const BAR_W = 44;
+  const W = Math.max((els.growthScroll?.clientWidth || 500), bars.length * (BAR_W + 12) + 80);
+  const H = 180;
+
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  canvas.width = Math.round(W * ratio);
+  canvas.height = Math.round(H * ratio);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#f8faf9');
+  bg.addColorStop(1, '#ffffff');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const PAD = { top: 28, right: 20, bottom: 40, left: 50 };
+  const innerW = W - PAD.left - PAD.right;
+  const innerH = H - PAD.top - PAD.bottom;
+
+  const maxAbs = Math.max(0.01, ...bars.map(b => Math.abs(b.value)));
+  const zeroY = PAD.top + innerH / 2;
+  const slotW = innerW / bars.length;
+
+  // Zero line
+  ctx.strokeStyle = 'rgba(22,116,71,0.3)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(PAD.left, zeroY); ctx.lineTo(W - PAD.right, zeroY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Y axis labels
+  ctx.fillStyle = '#8a9a91'; ctx.font = '10px system-ui'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ctx.fillText(`+${maxAbs.toFixed(2)}`, PAD.left - 6, PAD.top + 4);
+  ctx.fillText(`-${maxAbs.toFixed(2)}`, PAD.left - 6, PAD.top + innerH - 4);
+  ctx.fillText('0', PAD.left - 6, zeroY);
+
+  bars.forEach((bar, i) => {
+    const cx = PAD.left + slotW * i + slotW / 2;
+    const bw = Math.min(BAR_W, slotW - 8);
+    const bh = (Math.abs(bar.value) / maxAbs) * (innerH / 2);
+    const isPos = bar.value >= 0;
+
+    ctx.fillStyle = isPos ? 'rgba(22,116,71,0.75)' : 'rgba(201,85,61,0.75)';
+    if (isPos) {
+      ctx.fillRect(cx - bw / 2, zeroY - bh, bw, bh || 1);
+    } else {
+      ctx.fillRect(cx - bw / 2, zeroY, bw, bh || 1);
+    }
+
+    // Hour label
+    ctx.fillStyle = '#8a9a91'; ctx.font = '10px system-ui';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(bar.label, cx, H - PAD.bottom + 6);
+
+    // Value label
+    if (bar.value !== 0) {
+      ctx.fillStyle = isPos ? '#167447' : '#c9553d';
+      ctx.textBaseline = isPos ? 'bottom' : 'top';
+      const sign = isPos ? '+' : '';
+      ctx.fillText(`${sign}${bar.value}`, cx, isPos ? zeroY - bh - 2 : zeroY + bh + 2);
+    }
+  });
 }
 
 // ── Canvas hover ──────────────────────────────────────────────────────────────
