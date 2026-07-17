@@ -168,7 +168,7 @@ function niceGridTicks(yMin, yMax, count = 5) {
 
 // ── API ───────────────────────────────────────────────────────────────────────
 
-async function fetchAndRender() {
+async function fetchAndRender(save = false) {
   els.lastSync.textContent = '获取中…';
   try {
     const r = await fetch(`${API_BASE}/${state.songId}/charts_detail?_=${Date.now()}`, { cache: 'no-store' });
@@ -184,7 +184,7 @@ async function fetchAndRender() {
       ? (state.history.find(h => h.chartsIssue === sel.chartsIssue) || state.current)
       : state.current;
 
-    if (state.current) saveSnapshot(state.current);
+    if (save && state.current) saveSnapshot(state.current);
     render();
 
     const t = new Date().toLocaleTimeString('zh-CN');
@@ -230,7 +230,7 @@ function renderMetricGrid() {
 
   const dimRow = dims.map((dim, i) =>
     metricCard(
-      `${dim.name} <small style="font-weight:normal;opacity:.65">${dim.percentage}%</small>`,
+      dim.name,
       dim.index,
       dim.subdivisions.join(' · '),
       DIMENSION_COLORS[i % DIMENSION_COLORS.length]
@@ -631,8 +631,8 @@ function toggleAutoFetch() {
   updateAutoBtn(true);
   _autoTimer = setTimeout(() => {
     _autoTimer = null;
-    fetchAndRender();
-    _autoInterval = setInterval(fetchAndRender, 10 * 60 * 1000);
+    fetchAndRender(true);
+    _autoInterval = setInterval(() => fetchAndRender(true), 10 * 60 * 1000);
   }, delay);
 }
 
@@ -647,3 +647,4 @@ document.getElementById('autoFetchBtn')?.addEventListener('click', toggleAutoFet
 loadSnapshots();
 setView('dashboard');
 fetchAndRender();
+toggleAutoFetch();
