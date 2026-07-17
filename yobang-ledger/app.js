@@ -251,8 +251,8 @@ function renderMetricGrid() {
     : '—';
 
   const summaryCards = [
-    metricCard('当前排名', `#${d.curRank}`, `第 ${d.chartsIssue} 期`, '#a97619'),
-    metricCard('由你指数', d.uniIndex, `${d.chartsIssueStartTime} — ${d.chartsIssueEndTime}`, '#167447'),
+    metricCard('当前排名', `#${d.curRank}`, `第 ${d.chartsIssue} 期&nbsp;&nbsp;${d.chartsIssueStartTime} — ${d.chartsIssueEndTime}`, '#a97619'),
+    metricCard('由你指数', d.uniIndex, '', '#167447'),
     metricCard('更新区间', `${updateHM} — ${nextHM}`, updateDate, '#2c6f99'),
   ];
   const summaryRow = summaryCards.join('');
@@ -261,15 +261,15 @@ function renderMetricGrid() {
     metricCard(
       dim.name,
       dim.index,
-      dim.subdivisions.join(' · '),
+      '',
       DIMENSION_COLORS[i % DIMENSION_COLORS.length]
     )
   ).join('');
 
   els.metricGrid.style.cssText = 'display:flex;flex-direction:column;gap:12px;margin-bottom:14px';
   els.metricGrid.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(${summaryCards.length},minmax(0,1fr));gap:12px">${summaryRow}</div>
-    ${dims.length ? `<div style="display:grid;grid-template-columns:repeat(${dims.length},minmax(0,1fr));gap:12px">${dimRow}</div>` : ''}
+    <div class="metric-row summary-row" style="display:grid;grid-template-columns:repeat(${summaryCards.length},minmax(0,1fr));gap:12px">${summaryRow}</div>
+    ${dims.length ? `<div class="dim-row-wrap"><div class="metric-row dim-row" style="display:grid;grid-template-columns:repeat(${dims.length},minmax(0,1fr));gap:12px">${dimRow}</div></div>` : ''}
   `;
 }
 

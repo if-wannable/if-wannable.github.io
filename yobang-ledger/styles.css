@@ -511,6 +511,16 @@ tr.is-stale td {
   .top-actions {
     flex-wrap: wrap;
   }
+
+  .dim-row {
+    min-width: max-content;
+  }
+
+  .dim-row-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+  }
 }
 
 @media (max-width: 620px) {
