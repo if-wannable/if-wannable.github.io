@@ -586,7 +586,10 @@ function setView(name) {
 // ── Song switching ────────────────────────────────────────────────────────────
 
 function loadSong(id) {
-  const trimmed = id.trim();
+  let trimmed = id.trim();
+  // Support pasting a full yobang URL — extract uniId param
+  const urlMatch = trimmed.match(/[?&]uniId=(\d+)/);
+  if (urlMatch) trimmed = urlMatch[1];
   if (!trimmed || trimmed === state.songId) { fetchAndRender(); return; }
   state.songId = trimmed;
   state.current = null; state.history = []; state.selectedIssue = null;
@@ -712,16 +715,16 @@ function renderSearchResults(results) {
         els.songIdInput.value = uniId;
         loadSong(String(uniId));
       } else {
-        // Clear input so user knows to fill it in manually
         els.songIdInput.value = '';
-        els.songIdInput.placeholder = '请输入 uniId';
+        els.songIdInput.placeholder = '粘贴由你榜链接或 uniId';
         els.songIdInput.focus();
+        closeSearchResults();
         el.innerHTML = `<div class="search-msg">
-          未能自动获取「${name}」的 uniId。<br>
-          请前往 <a href="https://yobang.tencentmusic.com/" target="_blank" rel="noopener">由你榜</a>
-          搜索该歌曲，从详情页 URL 中复制 uniId（如 <code>?uniId=530004147</code>），
-          粘贴到左侧输入框后点击「载入」。
+          未能自动匹配「${name}」。请前往
+          <a href="https://yobang.tencentmusic.com/" target="_blank" rel="noopener">由你榜</a>
+          找到该歌曲详情页，将整个网址粘贴到上方输入框，点击「载入」即可。
         </div>`;
+        el.style.display = 'block';
       }
     });
   });
