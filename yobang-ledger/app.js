@@ -712,10 +712,15 @@ function renderSearchResults(results) {
         els.songIdInput.value = uniId;
         loadSong(String(uniId));
       } else {
+        // Clear input so user knows to fill it in manually
+        els.songIdInput.value = '';
+        els.songIdInput.placeholder = '请输入 uniId';
+        els.songIdInput.focus();
         el.innerHTML = `<div class="search-msg">
-          无法自动获取 uniId，请前往
-          <a href="https://yobang.tencentmusic.com/" target="_blank" rel="noopener">由你榜官网</a>
-          搜索「${name}」，复制 URL 中的 uniId 后手动载入
+          未能自动获取「${name}」的 uniId。<br>
+          请前往 <a href="https://yobang.tencentmusic.com/" target="_blank" rel="noopener">由你榜</a>
+          搜索该歌曲，从详情页 URL 中复制 uniId（如 <code>?uniId=530004147</code>），
+          粘贴到左侧输入框后点击「载入」。
         </div>`;
       }
     });
