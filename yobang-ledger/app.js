@@ -139,7 +139,7 @@ function renderMetricGrid() {
   const summaryRow = [
     metricCard('当前排名', `#${d.curRank}`, `第 ${d.chartsIssue} 期`, '#a97619'),
     metricCard('由你指数', d.uniIndex, `${d.chartsIssueStartTime} — ${d.chartsIssueEndTime}`, '#167447'),
-    metricCard('更新区间', `${updateHM} — ${nextHM}`, updateDate ? `${updateDate} · 10 分钟一次` : '10 分钟一次', '#2c6f99'),
+    metricCard('更新区间', `${updateHM} — ${nextHM}`, updateDate || '—', '#2c6f99'),
   ].join('');
 
   const dimRow = dims.map((dim, i) =>
