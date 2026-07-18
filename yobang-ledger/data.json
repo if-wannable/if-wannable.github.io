@@ -1,6 +1,6 @@
 {
   "song_id": "530004147",
-  "updated_at": "2026-07-18T20:27:31+08:00",
+  "updated_at": "2026-07-18T21:57:41+08:00",
   "info": {
     "track_name": "红尘慌慌",
     "singer_name": "周深",
@@ -10,13 +10,13 @@
   "current_issue": "202628",
   "current": {
     "chartsIssue": "202628",
-    "updateTime": 1784376600000,
-    "nextUpdateTime": "2026.07.18 20:35",
+    "updateTime": 1784382000000,
+    "nextUpdateTime": "2026.07.18 22:05",
     "chartsIssueStartTime": "2026.07.13",
     "chartsIssueEndTime": "2026.07.19",
     "curRank": 1,
-    "uniIndex": "96.80",
-    "uniIndexNew": "96.80442",
+    "uniIndex": "96.82",
+    "uniIndexNew": "96.81719",
     "sameIndex": 0,
     "rankThanPre": 0,
     "indexThanPre": "0.00",
@@ -35,7 +35,7 @@
           "音频播放",
           "视频播放"
         ],
-        "index": "73.26",
+        "index": "73.32",
         "isChampion": null,
         "breakRecord": false
       },
@@ -72,7 +72,7 @@
           "数专销量",
           "价值打榜"
         ],
-        "index": "70.11",
+        "index": "70.12",
         "isChampion": null,
         "breakRecord": false
       },
@@ -83,7 +83,7 @@
         "subdivisions": [
           "点赞"
         ],
-        "index": "90.05",
+        "index": "90.08",
         "isChampion": null,
         "breakRecord": false
       }
@@ -479,6 +479,32 @@
             "code": 5,
             "percentage": 20,
             "index": "90.05"
+          }
+        ],
+        "comment_total": null
+      },
+      {
+        "at": "2026-07-18T21:55:00+08:00",
+        "uniIndex": "96.82",
+        "curRank": 1,
+        "dims": [
+          {
+            "name": "播放热度",
+            "code": 1,
+            "percentage": 35,
+            "index": "73.32"
+          },
+          {
+            "name": "畅销度",
+            "code": 4,
+            "percentage": 15,
+            "index": "70.12"
+          },
+          {
+            "name": "推荐度",
+            "code": 5,
+            "percentage": 20,
+            "index": "90.08"
           }
         ],
         "comment_total": null
