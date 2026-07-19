@@ -1,6 +1,6 @@
 {
   "song_id": "530004147",
-  "updated_at": "2026-07-20T01:12:53+08:00",
+  "updated_at": "2026-07-20T02:07:15+08:00",
   "info": {
     "track_name": "红尘慌慌",
     "singer_name": "周深",
@@ -10,17 +10,17 @@
   "current_issue": "202629",
   "current": {
     "chartsIssue": "202629",
-    "updateTime": 1784480400000,
-    "nextUpdateTime": "2026.07.20 01:25",
+    "updateTime": 1784483400000,
+    "nextUpdateTime": "2026.07.20 02:15",
     "chartsIssueStartTime": "2026.07.20",
     "chartsIssueEndTime": "2026.07.26",
-    "curRank": 11,
-    "uniIndex": "24.30",
-    "uniIndexNew": "24.29991",
+    "curRank": 14,
+    "uniIndex": "30.26",
+    "uniIndexNew": "30.26254",
     "sameIndex": 0,
     "rankThanPre": 0,
-    "indexThanPre": "2.20",
-    "indexThanPreRank": "19.07",
+    "indexThanPre": "0.81",
+    "indexThanPreRank": "2.80",
     "isHistoryHighestRank": null,
     "isHistoryHighestUniIndex": null,
     "historyHighestRank": 1,
@@ -35,7 +35,7 @@
           "音频播放",
           "视频播放"
         ],
-        "index": "35.08",
+        "index": "40.24",
         "isChampion": null,
         "breakRecord": false
       },
@@ -83,7 +83,7 @@
         "subdivisions": [
           "点赞"
         ],
-        "index": "31.10",
+        "index": "31.81",
         "isChampion": null,
         "breakRecord": false
       }
@@ -1027,6 +1027,32 @@
             "code": 5,
             "percentage": 20,
             "index": "31.10"
+          }
+        ],
+        "comment_total": null
+      },
+      {
+        "at": "2026-07-20T02:05:00+08:00",
+        "uniIndex": "30.26",
+        "curRank": 14,
+        "dims": [
+          {
+            "name": "播放热度",
+            "code": 1,
+            "percentage": 35,
+            "index": "40.24"
+          },
+          {
+            "name": "畅销度",
+            "code": 4,
+            "percentage": 15,
+            "index": "0.61"
+          },
+          {
+            "name": "推荐度",
+            "code": 5,
+            "percentage": 20,
+            "index": "31.81"
           }
         ],
         "comment_total": null
