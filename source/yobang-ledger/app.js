@@ -3,10 +3,8 @@ const STORAGE_KEY = 'yobang-ledger-v4';
 const DEFAULT_ID = '530004147';
 const MIN_PX_PER_SNAP = 52;
 
-// Gist ID — set this after creating your Gist (see README)
-const GIST_ID = '1c1816cc2ddf292545dd5ed0a9641952';
-
 const DIMENSION_COLORS = ['#167447', '#2c6f99', '#a97619', '#c9553d', '#5b6abf'];
+const UNIINDEX_COLOR   = '#9747b0'; // purple — distinct from all dimension colors
 
 const tooltip = document.createElement('div');
 tooltip.style.cssText = [
@@ -33,6 +31,7 @@ const els = {
   songIdInput:     document.getElementById('songIdInput'),
   loadBtn:         document.getElementById('loadBtn'),
   dayFilter:       document.getElementById('dayFilter'),
+  growthDayFilter: document.getElementById('growthDayFilter'),
   growthCanvas:    document.getElementById('growthCanvas'),
   growthScroll:    document.getElementById('growthScroll'),
   growthPanel:     document.getElementById('growthPanel'),
@@ -84,6 +83,35 @@ function saveSnapshot(issue) {
   try { localStorage.setItem(storageKey(state.songId), JSON.stringify({ snapshots: state.snapshots })); } catch {}
 }
 
+async function loadDataJson() {
+  try {
+    const r = await fetch(`./data.json?_=${Date.now()}`, { cache: 'no-store' });
+    if (!r.ok) return;
+    const data = await r.json();
+    // Merge all issues' snapshots
+    const allRemote = Object.values(data.snapshots || {}).flat();
+    if (allRemote.length) {
+      const byAt = new Map(state.snapshots.map(s => [s.at, s]));
+      allRemote.forEach(s => byAt.set(s.at, s));
+      state.snapshots = [...byAt.values()].sort((a, b) => new Date(a.at) - new Date(b.at));
+      try { localStorage.setItem(storageKey(state.songId), JSON.stringify({ snapshots: state.snapshots })); } catch {}
+    }
+    // Fallback: fill history from data.json if API hasn't responded yet
+    if (!state.history.length && Array.isArray(data.history) && data.history.length) {
+      state.history = data.history;
+      if (!state.selectedIssue && state.history.length) {
+        state.selectedIssue = state.history.find(h => h.dynamic) || state.history[0] || null;
+      }
+    }
+    render();
+    if (state.snapshots.length) {
+      els.trendStatus.textContent = `${filteredSnaps().length} 个快照（含云端）`;
+    }
+  } catch (e) {
+    console.warn('data.json load failed:', e);
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function visibleDims(issue) {
@@ -97,6 +125,15 @@ function fmtTime(iso) {
 function snapDay(iso) {
   const d = new Date(iso);
   return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+// Parse "2026/07/14" or "2026-07-14" as local date
+function parseIssueDate(str) {
+  if (!str) return null;
+  const s = String(str).trim().split(' ')[0].replace(/\//g, '-');
+  const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!m) return null;
+  return new Date(+m[1], +m[2] - 1, +m[3]);
 }
 
 // "2026-07-17 11:10:00" → "11:00" (minus 10 min)
@@ -131,6 +168,10 @@ function metricCard(label, value, foot, color) {
 
 function filteredSnaps() {
   let snaps = state.snapshots;
+  // Filter to selected issue only
+  if (state.selectedIssue?.chartsIssue) {
+    snaps = snaps.filter(s => s.chartsIssue === state.selectedIssue.chartsIssue);
+  }
   if (state.selectedDay) snaps = snaps.filter(s => snapDay(s.at) === state.selectedDay);
   // Only keep :05/:15/:25/:35/:45/:55 aligned snapshots
   snaps = snaps.filter(s => new Date(s.at).getMinutes() % 10 === 5);
@@ -141,12 +182,16 @@ function computeYBounds(snaps, mode) {
   if (!snaps.length) return { yMin: 0, yMax: 100 };
   let vals = [];
   if (mode === 'score') {
-    snaps.forEach(s => s.dims.forEach(d => vals.push(parseFloat(d.index || 0))));
+    snaps.forEach(s => {
+      s.dims.forEach(d => vals.push(parseFloat(d.index || 0)));
+      vals.push(parseFloat(s.uniIndex || 0));
+    });
   } else {
     for (let i = 1; i < snaps.length; i++) {
       snaps[i].dims.forEach((d, di) => {
         vals.push(parseFloat(d.index || 0) - parseFloat(snaps[i - 1].dims[di]?.index || 0));
       });
+      vals.push(parseFloat(snaps[i].uniIndex || 0) - parseFloat(snaps[i - 1].uniIndex || 0));
     }
     if (!vals.length) vals = [0];
   }
@@ -266,16 +311,67 @@ function renderIssueList() {
   els.issueList.querySelectorAll('[data-idx]').forEach(el => {
     el.addEventListener('click', () => {
       state.selectedIssue = state.history[+el.dataset.idx];
+      state.selectedDay = null;
       renderMetricGrid();
       renderIssueList();
+      renderChartControls();
       drawTrendCanvas();
+      drawGrowthCanvas();
+    });
+  });
+}
+
+function buildCalHtml(days, issue) {
+  const start = parseIssueDate(issue?.chartsIssueStartTime);
+  const end   = parseIssueDate(issue?.chartsIssueEndTime);
+  if (start && end) {
+    const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+    const calDays = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) calDays.push(new Date(d));
+    const todayKey = snapDay(new Date().toISOString());
+    const allActive = !state.selectedDay;
+    return `<div class="cal-week">
+      <button class="cal-all-btn${allActive ? ' is-active' : ''}" data-day="" type="button">全部</button>
+      ${calDays.map(d => {
+        const key = `${d.getMonth() + 1}/${d.getDate()}`;
+        const hasData = days.includes(key);
+        const isActive = state.selectedDay === key;
+        const isToday = todayKey === key;
+        return `<button class="cal-day${hasData ? ' has-data' : ''}${isActive ? ' is-active' : (isToday ? ' is-today' : '')}"
+          data-day="${key}" type="button"${!hasData ? ' aria-disabled="true"' : ''}>
+          <span class="cal-wd">${weekDays[d.getDay()]}</span>
+          <span class="cal-date">${d.getDate()}</span>
+          ${hasData ? '<span class="cal-dot"></span>' : '<span class="cal-dot" style="opacity:0"></span>'}
+        </button>`;
+      }).join('')}
+    </div>`;
+  } else if (days.length > 1) {
+    const allActive = !state.selectedDay;
+    return `<div class="day-filter-bar">
+      <button class="day-btn${allActive ? ' is-active' : ''}" data-day="">全部</button>
+      ${days.map(d => `<button class="day-btn${state.selectedDay === d ? ' is-active' : ''}" data-day="${d}">${d}</button>`).join('')}
+    </div>`;
+  }
+  return '';
+}
+
+function attachCalListeners(container) {
+  container.querySelectorAll('.cal-day, .cal-all-btn, .day-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.selectedDay = btn.dataset.day || null;
+      renderChartControls();
+      drawTrendCanvas();
+      drawGrowthCanvas();
     });
   });
 }
 
 function renderChartControls() {
-  const snaps = state.snapshots;
-  const days = snaps.length ? [...new Set(snaps.map(s => snapDay(s.at)))] : [];
+  // Snapshots for the current issue only (for knowing which days have data)
+  const issuedSnaps = state.snapshots.filter(s =>
+    !state.selectedIssue?.chartsIssue || s.chartsIssue === state.selectedIssue.chartsIssue
+  );
+  const days = issuedSnaps.length ? [...new Set(issuedSnaps.map(s => snapDay(s.at)))] : [];
   if (state.selectedDay && !days.includes(state.selectedDay)) state.selectedDay = null;
 
   const modeHtml = `<div class="mode-bar">
@@ -283,12 +379,10 @@ function renderChartControls() {
     <button class="mode-btn${state.chartMode === 'delta' ? ' is-active' : ''}" data-mode="delta">区间涨幅</button>
   </div>`;
 
-  const dayHtml = days.length > 1 ? `<div class="day-filter-bar">
-    <button class="day-btn${!state.selectedDay ? ' is-active' : ''}" data-day="">全部</button>
-    ${days.map(d => `<button class="day-btn${state.selectedDay === d ? ' is-active' : ''}" data-day="${d}">${d}</button>`).join('')}
-  </div>` : '';
+  const calHtml = buildCalHtml(days, state.selectedIssue);
 
-  els.dayFilter.innerHTML = `<div class="chart-controls">${modeHtml}${dayHtml}</div>`;
+  els.dayFilter.innerHTML = `<div class="chart-controls">${modeHtml}</div>${calHtml}`;
+  if (els.growthDayFilter) els.growthDayFilter.innerHTML = calHtml;
 
   els.dayFilter.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -297,11 +391,9 @@ function renderChartControls() {
       drawTrendCanvas();
     });
   });
-  els.dayFilter.querySelectorAll('.day-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.selectedDay = btn.dataset.day || null;
-      renderChartControls();
-      drawTrendCanvas();
+  attachCalListeners(els.dayFilter);
+  if (els.growthDayFilter) attachCalListeners(els.growthDayFilter);
+}
     });
   });
 }
@@ -468,21 +560,70 @@ function drawTrendCanvas(highlightIdx = null) {
     ctx.beginPath(); ctx.moveTo(x, pad.top + ch); ctx.lineTo(x, pad.top + ch + 4); ctx.stroke();
   }
 
+  // ── 总指数 line (dashed, drawn on top of dims) ───────────────────────────
+  const uniPts = snaps.map((snap, si) => {
+    const val = isDelta
+      ? (si === 0 ? 0 : parseFloat(snap.uniIndex || 0) - parseFloat(snaps[si - 1].uniIndex || 0))
+      : parseFloat(snap.uniIndex || 0);
+    return { x: xOf(si), y: yOf(val) };
+  });
+
+  if (!isDelta) {
+    const uniGrad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+    uniGrad.addColorStop(0, UNIINDEX_COLOR + '22');
+    uniGrad.addColorStop(1, UNIINDEX_COLOR + '00');
+    ctx.beginPath();
+    drawSmooth(ctx, uniPts);
+    ctx.lineTo(uniPts.at(-1).x, pad.top + ch);
+    ctx.lineTo(uniPts[0].x, pad.top + ch);
+    ctx.closePath();
+    ctx.fillStyle = uniGrad;
+    ctx.fill();
+  }
+
+  ctx.beginPath();
+  drawSmooth(ctx, uniPts);
+  ctx.strokeStyle = UNIINDEX_COLOR;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.setLineDash([7, 4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  uniPts.forEach((pt, si) => {
+    const isHover = highlightIdx === si;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, isHover ? 5.5 : 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.strokeStyle = UNIINDEX_COLOR;
+    ctx.lineWidth = isHover ? 2.5 : 1.5;
+    ctx.stroke();
+  });
+
   // Legend with delta hint
   const latest = snaps.at(-1);
   const prev2 = snaps.length >= 2 ? snaps.at(-2) : null;
-  els.dimensionLegend.innerHTML = snaps[0].dims.map((dim, di) => {
+
+  function deltaEntry(curVal, prevVal) {
+    if (!prev2) return { display: '—', color: '#8a9a91' };
+    const diff = curVal - prevVal;
+    return {
+      display: (diff >= 0 ? '+' : '') + diff.toFixed(2),
+      color: diff > 0 ? '#167447' : diff < 0 ? '#c9553d' : '#8a9a91',
+    };
+  }
+
+  const uniEntry = deltaEntry(parseFloat(latest.uniIndex || 0), parseFloat(prev2?.uniIndex || 0));
+  const uniLegend = `<div class="legend-item legend-item--uni">
+    <div class="legend-swatch legend-swatch--dashed" style="background:${UNIINDEX_COLOR}"></div>
+    <span class="legend-name">总指数</span>
+    <span class="legend-value" style="color:${uniEntry.color}">${uniEntry.display}</span>
+  </div>`;
+
+  els.dimensionLegend.innerHTML = uniLegend + snaps[0].dims.map((dim, di) => {
     const curVal = parseFloat(latest.dims[di]?.index || 0);
-    let deltaDisplay, deltaColor;
-    if (!prev2) {
-      deltaDisplay = '—';
-      deltaColor = '#8a9a91';
-    } else {
-      const diff = curVal - parseFloat(prev2.dims[di]?.index || 0);
-      const sign = diff >= 0 ? '+' : '';
-      deltaDisplay = `${sign}${diff.toFixed(2)}`;
-      deltaColor = diff > 0 ? '#167447' : diff < 0 ? '#c9553d' : '#8a9a91';
-    }
+    const { display: deltaDisplay, color: deltaColor } = deltaEntry(curVal, parseFloat(prev2?.dims[di]?.index || 0));
     return `<div class="legend-item">
       <div class="legend-swatch" style="background:${DIMENSION_COLORS[di % DIMENSION_COLORS.length]}"></div>
       <span class="legend-name">${dim.name}</span>
@@ -532,14 +673,26 @@ function drawGrowthCanvas() {
 
   const hours = Object.keys(hourGroups).sort();
 
-  // Per-dimension growth per hour (sum of increments within the hour)
+  // All series: each dim + uniIndex at the end
+  const allSeries = [
+    ...dims.map((d, di) => ({
+      name: d.name,
+      color: DIMENSION_COLORS[di % DIMENSION_COLORS.length],
+      growth: (group, i) => parseFloat(group[i].dims[di]?.index || 0) - parseFloat(group[i - 1].dims[di]?.index || 0),
+    })),
+    {
+      name: '总指数',
+      color: UNIINDEX_COLOR,
+      growth: (group, i) => parseFloat(group[i].uniIndex || 0) - parseFloat(group[i - 1].uniIndex || 0),
+    },
+  ];
+
+  // Per-series growth per hour (sum of increments within the hour)
   const barData = hours.map(key => {
     const group = hourGroups[key];
-    const dimGrowths = dims.map((_, di) => {
+    const dimGrowths = allSeries.map(ser => {
       let total = 0;
-      for (let i = 1; i < group.length; i++) {
-        total += parseFloat(group[i].dims[di]?.index || 0) - parseFloat(group[i - 1].dims[di]?.index || 0);
-      }
+      for (let i = 1; i < group.length; i++) total += ser.growth(group, i);
       return parseFloat(total.toFixed(2));
     });
     return { label: key, dimGrowths };
@@ -547,12 +700,14 @@ function drawGrowthCanvas() {
 
   if (!barData.length) { canvas.style.display = 'none'; return; }
 
-  const D = dims.length;
-  const BAR_W = Math.max(8, Math.min(16, 80 / D));
-  const SLOT_W = D * BAR_W + 20;
+  const D = allSeries.length;
+  const BAR_W = Math.max(7, Math.min(16, 70 / D));
+  const SLOT_W = D * BAR_W + 14;
   const ratio = window.devicePixelRatio || 1;
-  const W = Math.max(hours.length * SLOT_W + 80, els.growthScroll?.clientWidth || 500);
-  const H = 200;
+  const containerW = els.growthScroll?.clientWidth || 400;
+  // Let canvas be as wide as content needs; container handles scroll
+  const W = Math.max(hours.length * SLOT_W + 70, containerW);
+  const H = 160;
 
   canvas.style.width = W + 'px';
   canvas.style.height = H + 'px';
@@ -565,7 +720,7 @@ function drawGrowthCanvas() {
   bg.addColorStop(0, '#f8faf9'); bg.addColorStop(1, '#ffffff');
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-  const PAD = { top: 40, right: 20, bottom: 44, left: 52 };
+  const PAD = { top: 24, right: 14, bottom: 38, left: 46 };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
   const zeroY = PAD.top + innerH / 2;
@@ -579,16 +734,16 @@ function drawGrowthCanvas() {
   ctx.setLineDash([]);
 
   // Y labels
-  ctx.fillStyle = '#8a9a91'; ctx.font = '10px system-ui';
+  ctx.fillStyle = '#8a9a91'; ctx.font = '9px system-ui';
   ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-  ctx.fillText(`+${maxAbs.toFixed(2)}`, PAD.left - 6, PAD.top + 2);
-  ctx.fillText('0', PAD.left - 6, zeroY);
-  ctx.fillText(`-${maxAbs.toFixed(2)}`, PAD.left - 6, PAD.top + innerH - 2);
+  ctx.fillText(`+${maxAbs.toFixed(2)}`, PAD.left - 4, PAD.top + 2);
+  ctx.fillText('0', PAD.left - 4, zeroY);
+  ctx.fillText(`-${maxAbs.toFixed(2)}`, PAD.left - 4, PAD.top + innerH - 2);
 
   const slotW = innerW / hours.length;
 
   _growthData = barData;
-  _growthLayout = { PAD, slotW, D, BAR_W, innerH, zeroY, maxAbs, dims, W, H };
+  _growthLayout = { PAD, slotW, D, BAR_W, innerH, zeroY, maxAbs, dims: allSeries, W, H };
 
   barData.forEach((bar, hi) => {
     const slotCx = PAD.left + (hi + 0.5) * slotW;
@@ -598,7 +753,7 @@ function drawGrowthCanvas() {
       const bx = groupStartX + di * BAR_W;
       const bh = Math.max(1, (Math.abs(growth) / maxAbs) * (innerH / 2));
       const isPos = growth >= 0;
-      const col = DIMENSION_COLORS[di % DIMENSION_COLORS.length];
+      const col = allSeries[di].color;
       ctx.fillStyle = col + (isPos ? 'cc' : '88');
       if (isPos) {
         ctx.fillRect(bx + 1, zeroY - bh, BAR_W - 2, bh);
@@ -606,37 +761,36 @@ function drawGrowthCanvas() {
         ctx.fillRect(bx + 1, zeroY, BAR_W - 2, bh);
       }
 
-      // Rotated value label above/below bar
-      if (Math.abs(growth) > 0.001) {
-        ctx.save();
-        ctx.translate(bx + BAR_W / 2, isPos ? zeroY - bh - 3 : zeroY + bh + 3);
-        ctx.rotate(-Math.PI / 2);
+      // Value label only when bars are wide enough
+      if (Math.abs(growth) > 0.001 && BAR_W >= 13) {
         ctx.fillStyle = col;
-        ctx.font = '9px system-ui';
-        ctx.textAlign = isPos ? 'left' : 'right';
-        ctx.textBaseline = 'middle';
+        ctx.font = '8px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = isPos ? 'bottom' : 'top';
         const sign = isPos ? '+' : '';
-        ctx.fillText(`${sign}${growth.toFixed(2)}`, 0, 0);
-        ctx.restore();
+        ctx.fillText(`${sign}${growth.toFixed(2)}`, bx + BAR_W / 2, isPos ? zeroY - bh - 1 : zeroY + bh + 1);
       }
     });
 
     // Hour label
-    ctx.fillStyle = '#8a9a91'; ctx.font = '10px system-ui';
+    ctx.fillStyle = '#8a9a91'; ctx.font = '9px system-ui';
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillText(bar.label, slotCx, H - PAD.bottom + 6);
+    ctx.fillText(bar.label, slotCx, H - PAD.bottom + 4);
   });
 
-  // Dimension legend
-  const legendY = H - PAD.bottom + 20;
-  const legendItemW = innerW / D;
-  dims.forEach((dim, di) => {
-    const lx = PAD.left + di * legendItemW;
-    ctx.fillStyle = DIMENSION_COLORS[di % DIMENSION_COLORS.length];
-    ctx.fillRect(lx, legendY, 8, 8);
-    ctx.fillStyle = '#8a9a91'; ctx.font = '10px system-ui';
-    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText(dim.name, lx + 11, legendY);
+  // Legend — compact, centered, includes all series
+  ctx.font = '9px system-ui';
+  const legendY = H - PAD.bottom + 18;
+  const SQ = 6, LGAP = 3, LSEP = 8;
+  const itemWidths = allSeries.map(ser => SQ + LGAP + ctx.measureText(ser.name).width);
+  const totalLegW = itemWidths.reduce((s, w) => s + w, 0) + LSEP * (D - 1);
+  let lx = (W - totalLegW) / 2;
+  allSeries.forEach((ser, di) => {
+    ctx.fillStyle = ser.color;
+    ctx.fillRect(lx, legendY, SQ, SQ);
+    ctx.fillStyle = '#8a9a91'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(ser.name, lx + SQ + LGAP, legendY);
+    lx += itemWidths[di] + LSEP;
   });
 }
 
@@ -659,9 +813,9 @@ els.growthCanvas?.addEventListener('mousemove', (e) => {
 
   const growth = bar.dimGrowths[di];
   const sign = growth >= 0 ? '+' : '';
-  const col = DIMENSION_COLORS[di % DIMENSION_COLORS.length];
+  const col = dims[di]?.color || UNIINDEX_COLOR;
   const dimsHtml = bar.dimGrowths.map((g, idx) => {
-    const c = DIMENSION_COLORS[idx % DIMENSION_COLORS.length];
+    const c = dims[idx]?.color || UNIINDEX_COLOR;
     const s = g >= 0 ? '+' : '';
     return `<div><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin-right:5px;vertical-align:middle"></span>${dims[idx]?.name} <strong style="color:${g >= 0 ? '#7ed8a8' : '#f4a090'}">${s}${g.toFixed(2)}</strong></div>`;
   }).join('');
@@ -754,6 +908,136 @@ function renderTable() {
   els.rowCount.textContent = `${state.snapshots.length} 行`;
 }
 
+// ── Export ─────────────────────────────────────────────────────────────────────
+
+function downloadText(content, filename, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = filename;
+  a.click();
+}
+
+function exportCSV() {
+  const snaps = state.snapshots;
+  if (!snaps.length) return;
+  const dims = snaps[0].dims.map(d => d.name);
+  const header = ['时间', '排名', '由你指数', ...dims].join(',');
+  const rows = snaps.map(s =>
+    [new Date(s.at).toLocaleString('zh-CN'), s.curRank, s.uniIndex,
+     ...s.dims.map(d => d.index)].join(',')
+  );
+  downloadText([header, ...rows].join('\n'), `yobang-${state.songId}.csv`, 'text/csv');
+}
+
+function exportJSON() {
+  downloadText(JSON.stringify(state.snapshots, null, 2), `yobang-${state.songId}.json`, 'application/json');
+}
+
+// ── Share ──────────────────────────────────────────────────────────────────────
+
+async function shareSnapshot() {
+  const d = state.selectedIssue;
+  if (!d) return;
+  const dims = visibleDims(d).map(dim => `${dim.name} ${dim.index}`).join(' · ');
+  const text = `📊 由你榜第 ${d.chartsIssue} 期\n排名 #${d.curRank} · 指数 ${d.uniIndex}\n${dims}`;
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('shareBtn');
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '已复制';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    }
+  } catch (e) {
+    console.warn('clipboard write failed:', e);
+  }
+}
+
+// ── Compare ────────────────────────────────────────────────────────────────────
+
+const COMPARE_KEY = 'yobang-compare-list';
+
+function getCompareList() {
+  try { return JSON.parse(localStorage.getItem(COMPARE_KEY) || '[]'); } catch { return []; }
+}
+
+function saveCompareList(list) {
+  try { localStorage.setItem(COMPARE_KEY, JSON.stringify(list)); } catch {}
+}
+
+function addToCompare(id) {
+  const trimmed = id.trim();
+  if (!trimmed) return;
+  const list = getCompareList();
+  if (list.includes(trimmed)) return;
+  list.push(trimmed);
+  saveCompareList(list);
+  fetchAndRenderCompare();
+}
+
+function removeFromCompare(id) {
+  saveCompareList(getCompareList().filter(x => x !== id));
+  fetchAndRenderCompare();
+}
+
+async function fetchAndRenderCompare() {
+  const list = getCompareList();
+  const status = document.getElementById('compareStatus');
+  const grid = document.getElementById('compareGrid');
+  if (!list.length) {
+    if (status) status.textContent = '添加歌曲开始对比';
+    if (grid) grid.innerHTML = '';
+    return;
+  }
+  if (status) status.textContent = '获取中…';
+
+  const results = await Promise.allSettled(list.map(async id => {
+    const [detailRes, infoRes] = await Promise.all([
+      fetch(`${API_BASE}/${id}/charts_detail?_=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${API_BASE}/${id}/info?_=${Date.now()}`, { cache: 'no-store' }),
+    ]);
+    const detail = await detailRes.json();
+    const info = await infoRes.json();
+    const current = (detail.data || []).find(d => d.dynamic) || (detail.data || [])[0] || null;
+    return { id, current, info: info.data || {} };
+  }));
+
+  if (status) status.textContent = `${list.length} 首歌曲`;
+  if (!grid) return;
+
+  grid.innerHTML = results.map((r, i) => {
+    const id = list[i];
+    if (r.status === 'rejected' || !r.value?.current) {
+      return `<div class="compare-card">
+        <button class="compare-card-remove" data-id="${id}" type="button">✕</button>
+        <h3>${id}</h3>
+        <div class="rank" style="color:var(--muted)">—</div>
+        <div style="color:var(--muted);font-size:12px">获取失败</div>
+      </div>`;
+    }
+    const { current, info } = r.value;
+    const name = info.trackName || id;
+    const singer = info.singerName || '';
+    const dims = visibleDims(current).map((d, di) =>
+      `<div style="font-size:12px;color:var(--muted);margin-top:4px">` +
+      `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${DIMENSION_COLORS[di % DIMENSION_COLORS.length]};margin-right:5px"></span>` +
+      `${d.name} <strong style="color:var(--ink)">${d.index}</strong></div>`
+    ).join('');
+    return `<div class="compare-card">
+      <button class="compare-card-remove" data-id="${id}" type="button">✕</button>
+      <h3>${name}</h3>
+      ${singer ? `<div style="color:var(--muted);font-size:12px;margin-bottom:8px">${singer}</div>` : ''}
+      <div class="rank" style="color:var(--gold)">#${current.curRank}</div>
+      <div style="font-size:13px;color:var(--green);margin-bottom:6px">指数 ${current.uniIndex}</div>
+      ${dims}
+    </div>`;
+  }).join('');
+
+  grid.querySelectorAll('.compare-card-remove').forEach(btn => {
+    btn.addEventListener('click', () => removeFromCompare(btn.dataset.id));
+  });
+}
+
 // ── Tab ───────────────────────────────────────────────────────────────────────
 
 function setView(name) {
@@ -818,56 +1102,29 @@ function toggleAutoFetch() {
   }, delay);
 }
 
-// ── Gist sync ─────────────────────────────────────────────────────────────────
-
-async function loadGistSnapshots() {
-  if (!GIST_ID) return;
-  try {
-    const r = await fetch(`https://api.github.com/gists/${GIST_ID}`, { cache: 'no-store' });
-    if (!r.ok) return;
-    const data = await r.json();
-    const files = data.files || {};
-
-    // Collect all per-day JSONL files matching this song
-    const prefix = `yobang-${state.songId}-`;
-    const remoteSnaps = [];
-    for (const [name, file] of Object.entries(files)) {
-      if (!name.startsWith(prefix) || !name.endsWith('.jsonl')) continue;
-      const raw = file.truncated
-        ? await fetch(file.raw_url).then(res => res.text())
-        : (file.content || '');
-      raw.trim().split('\n').forEach(line => {
-        if (!line) return;
-        try { remoteSnaps.push(JSON.parse(line)); } catch {}
-      });
-    }
-
-    if (!remoteSnaps.length) return;
-
-    // Merge: remote wins for same `at` slot, then re-sort
-    const byAt = new Map(state.snapshots.map(s => [s.at, s]));
-    remoteSnaps.forEach(s => byAt.set(s.at, s));
-    state.snapshots = [...byAt.values()].sort((a, b) => new Date(a.at) - new Date(b.at));
-
-    // Persist merged result locally
-    try {
-      localStorage.setItem(storageKey(state.songId), JSON.stringify({ snapshots: state.snapshots }));
-    } catch {}
-
-    render();
-    els.trendStatus.textContent = `${state.snapshots.length} 个快照（含云端）`;
-  } catch (e) {
-    console.warn('Gist sync failed:', e);
-  }
-}
-
 // ── Init ──────────────────────────────────────────────────────────────────────
 
-els.tabs.forEach(t => t.addEventListener('click', () => setView(t.dataset.view)));
+els.tabs.forEach(t => t.addEventListener('click', () => {
+  setView(t.dataset.view);
+  if (t.dataset.view === 'compare') fetchAndRenderCompare();
+}));
 els.refreshBtn.addEventListener('click', () => fetchAndRender());
 els.loadBtn.addEventListener('click', () => loadSong(els.songIdInput.value));
 els.songIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadSong(els.songIdInput.value); });
 document.getElementById('autoFetchBtn')?.addEventListener('click', toggleAutoFetch);
+document.getElementById('shareBtn')?.addEventListener('click', shareSnapshot);
+document.getElementById('exportCsvBtn')?.addEventListener('click', exportCSV);
+document.getElementById('exportJsonBtn')?.addEventListener('click', exportJSON);
+document.getElementById('compareAddBtn')?.addEventListener('click', () => {
+  addToCompare(document.getElementById('compareIdInput').value);
+  document.getElementById('compareIdInput').value = '';
+});
+document.getElementById('compareIdInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    addToCompare(e.target.value);
+    e.target.value = '';
+  }
+});
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -875,4 +1132,4 @@ loadSnapshots();
 setView('dashboard');
 fetchAndRender();
 toggleAutoFetch();
-loadGistSnapshots();
+loadDataJson();

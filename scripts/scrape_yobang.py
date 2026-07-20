@@ -133,8 +133,10 @@ def main():
 
         snap = {
             'at': at,
+            'chartsIssue': charts_issue,
             'uniIndex': current_issue.get('uniIndex'),
             'curRank': current_issue.get('curRank'),
+            'nextUpdateTime': current_issue.get('nextUpdateTime') or None,
             'dims': [
                 {
                     'name': d.get('name'),

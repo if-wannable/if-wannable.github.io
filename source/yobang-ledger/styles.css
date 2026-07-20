@@ -384,6 +384,23 @@ h1 {
   border-radius: 999px;
 }
 
+.legend-swatch--dashed {
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.legend-swatch--dashed::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 2px,
+    rgba(255,255,255,0.55) 2px 4px
+  );
+}
+
 .legend-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -455,6 +472,126 @@ tr.is-stale td {
   flex-wrap: wrap;
 }
 
+/* Calendar day picker */
+.cal-week {
+  display: flex;
+  gap: 6px;
+  padding: 10px 0 6px;
+  align-items: center;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cal-all-btn {
+  padding: 5px 12px;
+  border-radius: 99px;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.cal-all-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.cal-all-btn.is-active {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 42px;
+  padding: 6px 4px 4px;
+  border-radius: 10px;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.cal-day:hover {
+  border-color: var(--green);
+  color: var(--ink);
+}
+
+.cal-day.has-data {
+  color: var(--ink);
+}
+
+.cal-day[aria-disabled="true"] {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
+.cal-day.is-active {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.cal-day.is-today {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.cal-day.is-today.is-active {
+  color: #fff;
+}
+
+.cal-wd {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.cal-date {
+  font-size: 17px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.cal-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 99px;
+  background: currentColor;
+  margin-top: 1px;
+}
+
+.cal-day.is-active .cal-dot {
+  background: rgba(255,255,255,0.7);
+}
+
+#growthScroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+#growthCanvas {
+  display: block;
+  background: linear-gradient(180deg, #fcfdfd, #f6f8f7);
+  border: 1px solid #e8eeeb;
+  border-radius: 8px;
+}
+
+
 .day-btn {
   padding: 4px 13px;
   border-radius: 99px;
@@ -492,11 +629,21 @@ tr.is-stale td {
   }
 
   .tabs {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .tracker-list {
-    display: none;
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+    padding-bottom: 4px;
+  }
+
+  .tracker-item {
+    min-width: 160px;
+    flex-shrink: 0;
   }
 
   .workspace {
@@ -539,6 +686,92 @@ tr.is-stale td {
   #trendCanvas {
     height: 280px;
   }
+}
+
+.panel-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-head-actions .button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.compare-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.compare-input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.compare-input-row input {
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  flex: 1;
+  font: inherit;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.compare-input-row input:focus {
+  outline: 2px solid var(--green);
+  outline-offset: 1px;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.compare-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--panel-soft);
+  position: relative;
+}
+
+.compare-card-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.compare-card-remove:hover {
+  color: var(--coral);
+}
+
+.compare-card h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  padding-right: 24px;
+}
+
+.compare-card .rank {
+  font-size: 28px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 
 .qq-auth-panel {
