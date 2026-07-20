@@ -88,20 +88,22 @@ async function loadDataJson() {
     const r = await fetch(`./data.json?_=${Date.now()}`, { cache: 'no-store' });
     if (!r.ok) return;
     const data = await r.json();
-    // Merge all issues' snapshots
-    const allRemote = Object.values(data.snapshots || {}).flat();
+    // Merge all issues' snapshots; backfill chartsIssue for snaps written by old scraper
+    const allRemote = Object.entries(data.snapshots || {}).flatMap(([issue, snaps]) =>
+      snaps.map(s => ({ ...s, chartsIssue: s.chartsIssue || issue }))
+    );
     if (allRemote.length) {
       const byAt = new Map(state.snapshots.map(s => [s.at, s]));
       allRemote.forEach(s => byAt.set(s.at, s));
       state.snapshots = [...byAt.values()].sort((a, b) => new Date(a.at) - new Date(b.at));
       try { localStorage.setItem(storageKey(state.songId), JSON.stringify({ snapshots: state.snapshots })); } catch {}
     }
-    // Fallback: fill history from data.json if API hasn't responded yet
+    // Fallback: fill history / selectedIssue from data.json if API hasn't responded yet
     if (!state.history.length && Array.isArray(data.history) && data.history.length) {
       state.history = data.history;
-      if (!state.selectedIssue && state.history.length) {
-        state.selectedIssue = state.history.find(h => h.dynamic) || state.history[0] || null;
-      }
+    }
+    if (!state.selectedIssue && data.current_issue) {
+      state.selectedIssue = data.current || { chartsIssue: data.current_issue };
     }
     render();
     if (state.snapshots.length) {
