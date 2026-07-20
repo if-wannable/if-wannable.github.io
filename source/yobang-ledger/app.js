@@ -70,15 +70,18 @@ function saveSnapshot(issue) {
       name: d.name, code: d.code, percentage: d.percentage, index: d.index,
     })),
   };
-  state.snapshots = state.snapshots.filter(s => s.chartsIssue === issue.chartsIssue);
+  // Keep snapshots from other issues; deduplicate only within current issue
+  const otherSnaps = state.snapshots.filter(s => s.chartsIssue !== issue.chartsIssue);
+  const issueSnaps = state.snapshots.filter(s => s.chartsIssue === issue.chartsIssue);
   // One snapshot per 10-min slot (keyed by hour * 10 + floor(min/10))
   const d = new Date(snap.at);
   const slot = d.getHours() * 10 + Math.floor(d.getMinutes() / 10);
-  const idx = state.snapshots.findIndex(s => {
+  const idx = issueSnaps.findIndex(s => {
     const sd = new Date(s.at);
     return sd.getHours() * 10 + Math.floor(sd.getMinutes() / 10) === slot;
   });
-  if (idx >= 0) { state.snapshots[idx] = snap; } else { state.snapshots.push(snap); }
+  if (idx >= 0) { issueSnaps[idx] = snap; } else { issueSnaps.push(snap); }
+  state.snapshots = [...otherSnaps, ...issueSnaps];
   if (state.snapshots.length > 300) state.snapshots = state.snapshots.slice(-300);
   try { localStorage.setItem(storageKey(state.songId), JSON.stringify({ snapshots: state.snapshots })); } catch {}
 }
@@ -129,10 +132,10 @@ function snapDay(iso) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-// Parse "2026/07/14" or "2026-07-14" as local date
+// Parse "2026/07/14", "2026-07-14", or "2026.07.14" as local date
 function parseIssueDate(str) {
   if (!str) return null;
-  const s = String(str).trim().split(' ')[0].replace(/\//g, '-');
+  const s = String(str).trim().split(' ')[0].replace(/[\/\.]/g, '-');
   const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (!m) return null;
   return new Date(+m[1], +m[2] - 1, +m[3]);
@@ -395,9 +398,6 @@ function renderChartControls() {
   });
   attachCalListeners(els.dayFilter);
   if (els.growthDayFilter) attachCalListeners(els.growthDayFilter);
-}
-    });
-  });
 }
 
 // ── Chart ─────────────────────────────────────────────────────────────────────
