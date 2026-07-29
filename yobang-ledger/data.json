@@ -1,6 +1,6 @@
 {
   "song_id": "530004147",
-  "updated_at": "2026-07-30T01:22:17+08:00",
+  "updated_at": "2026-07-30T02:17:03+08:00",
   "info": {
     "track_name": "红尘慌慌",
     "singer_name": "周深",
@@ -10,17 +10,17 @@
   "current_issue": "202630",
   "current": {
     "chartsIssue": "202630",
-    "updateTime": 1785345000000,
-    "nextUpdateTime": "2026.07.30 01:35",
+    "updateTime": 1785348000000,
+    "nextUpdateTime": "2026.07.30 02:25",
     "chartsIssueStartTime": "2026.07.27",
     "chartsIssueEndTime": "2026.08.02",
     "curRank": 58,
-    "uniIndex": "81.42",
-    "uniIndexNew": "81.42213",
+    "uniIndex": "81.48",
+    "uniIndexNew": "81.48398",
     "sameIndex": 0,
     "rankThanPre": 0,
     "indexThanPre": "0.01",
-    "indexThanPreRank": "0.22",
+    "indexThanPreRank": "0.20",
     "isHistoryHighestRank": null,
     "isHistoryHighestUniIndex": null,
     "historyHighestRank": 1,
@@ -35,7 +35,7 @@
           "音频播放",
           "视频播放"
         ],
-        "index": "65.09",
+        "index": "65.22",
         "isChampion": null,
         "breakRecord": false
       },
@@ -83,7 +83,7 @@
         "subdivisions": [
           "点赞"
         ],
-        "index": "46.22",
+        "index": "46.31",
         "isChampion": null,
         "breakRecord": false
       }
@@ -3817,6 +3817,34 @@
             "code": 5,
             "percentage": 20,
             "index": "46.22"
+          }
+        ],
+        "comment_total": null
+      },
+      {
+        "at": "2026-07-30T02:15:00+08:00",
+        "chartsIssue": "202630",
+        "uniIndex": "81.48",
+        "curRank": 58,
+        "nextUpdateTime": "2026.07.30 02:25",
+        "dims": [
+          {
+            "name": "播放热度",
+            "code": 1,
+            "percentage": 35,
+            "index": "65.22"
+          },
+          {
+            "name": "畅销度",
+            "code": 4,
+            "percentage": 15,
+            "index": "9.43"
+          },
+          {
+            "name": "推荐度",
+            "code": 5,
+            "percentage": 20,
+            "index": "46.31"
           }
         ],
         "comment_total": null
