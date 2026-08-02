@@ -1,6 +1,6 @@
 {
   "song_id": "530004147",
-  "updated_at": "2026-08-02T07:29:36+08:00",
+  "updated_at": "2026-08-02T09:07:04+08:00",
   "info": {
     "track_name": "红尘慌慌",
     "singer_name": "周深",
@@ -10,17 +10,17 @@
   "current_issue": "202630",
   "current": {
     "chartsIssue": "202630",
-    "updateTime": 1785625800000,
-    "nextUpdateTime": "2026.08.02 07:35",
+    "updateTime": 1785631800000,
+    "nextUpdateTime": "2026.08.02 09:15",
     "chartsIssueStartTime": "2026.07.27",
     "chartsIssueEndTime": "2026.08.02",
-    "curRank": 60,
-    "uniIndex": "86.47",
-    "uniIndexNew": "86.46652",
+    "curRank": 61,
+    "uniIndex": "86.52",
+    "uniIndexNew": "86.52461",
     "sameIndex": 0,
     "rankThanPre": 0,
-    "indexThanPre": "0.01",
-    "indexThanPreRank": "0.15",
+    "indexThanPre": "0.00",
+    "indexThanPreRank": "0.02",
     "isHistoryHighestRank": null,
     "isHistoryHighestUniIndex": null,
     "historyHighestRank": 1,
@@ -35,7 +35,7 @@
           "音频播放",
           "视频播放"
         ],
-        "index": "72.01",
+        "index": "72.07",
         "isChampion": null,
         "breakRecord": false
       },
@@ -72,7 +72,7 @@
           "数专销量",
           "价值打榜"
         ],
-        "index": "19.99",
+        "index": "20.04",
         "isChampion": null,
         "breakRecord": false
       },
@@ -83,7 +83,7 @@
         "subdivisions": [
           "点赞"
         ],
-        "index": "53.09",
+        "index": "53.17",
         "isChampion": null,
         "breakRecord": false
       }
@@ -3234,34 +3234,6 @@
         "comment_total": null
       },
       {
-        "at": "2026-07-29T09:05:00+08:00",
-        "chartsIssue": "202630",
-        "uniIndex": "79.65",
-        "curRank": 53,
-        "nextUpdateTime": "2026.07.29 09:15",
-        "dims": [
-          {
-            "name": "播放热度",
-            "code": 1,
-            "percentage": 35,
-            "index": "62.59"
-          },
-          {
-            "name": "畅销度",
-            "code": 4,
-            "percentage": 15,
-            "index": "6.58"
-          },
-          {
-            "name": "推荐度",
-            "code": 5,
-            "percentage": 20,
-            "index": "43.53"
-          }
-        ],
-        "comment_total": null
-      },
-      {
         "at": "2026-07-29T12:25:00+08:00",
         "chartsIssue": "202630",
         "uniIndex": "80.16",
@@ -4601,6 +4573,34 @@
             "code": 5,
             "percentage": 20,
             "index": "53.09"
+          }
+        ],
+        "comment_total": null
+      },
+      {
+        "at": "2026-08-02T09:05:00+08:00",
+        "chartsIssue": "202630",
+        "uniIndex": "86.52",
+        "curRank": 61,
+        "nextUpdateTime": "2026.08.02 09:15",
+        "dims": [
+          {
+            "name": "播放热度",
+            "code": 1,
+            "percentage": 35,
+            "index": "72.07"
+          },
+          {
+            "name": "畅销度",
+            "code": 4,
+            "percentage": 15,
+            "index": "20.04"
+          },
+          {
+            "name": "推荐度",
+            "code": 5,
+            "percentage": 20,
+            "index": "53.17"
           }
         ],
         "comment_total": null
