@@ -1,31 +1,31 @@
 {
   "song_id": "530004147",
-  "updated_at": "2026-08-10T00:00:19+08:00",
+  "updated_at": "2026-08-10T00:38:20+08:00",
   "info": {
     "track_name": "红尘慌慌",
     "singer_name": "周深",
     "cover_image": "https://y.qq.com/music/photo_new/T062R180x180M000002P5PQ93Mb5a2.jpg",
     "qy_track_id": 705148995
   },
-  "current_issue": "202631",
+  "current_issue": "202632",
   "current": {
-    "chartsIssue": "202631",
-    "updateTime": 1786290000000,
-    "nextUpdateTime": "2026.08.10 00:05",
-    "chartsIssueStartTime": "2026.08.03",
-    "chartsIssueEndTime": "2026.08.09",
-    "curRank": 82,
-    "uniIndex": "84.52",
-    "uniIndexNew": "84.52313",
-    "sameIndex": 0,
-    "rankThanPre": 0,
-    "indexThanPre": "0.01",
-    "indexThanPreRank": "0.09",
+    "chartsIssue": "202632",
+    "updateTime": 1786292400000,
+    "nextUpdateTime": "2026.08.10 00:45",
+    "chartsIssueStartTime": "2026.08.10",
+    "chartsIssueEndTime": "2026.08.16",
+    "curRank": 81,
+    "uniIndex": "0.57",
+    "uniIndexNew": "0.57066",
+    "sameIndex": 1,
+    "rankThanPre": -5,
+    "indexThanPre": "0.28",
+    "indexThanPreRank": "0.01",
     "isHistoryHighestRank": null,
     "isHistoryHighestUniIndex": null,
     "historyHighestRank": 1,
     "historyHighestUniIndex": "96.98",
-    "onChartWeeks": 4,
+    "onChartWeeks": 5,
     "classifyIndices": [
       {
         "name": "播放热度",
@@ -35,7 +35,7 @@
           "音频播放",
           "视频播放"
         ],
-        "index": "70.35",
+        "index": "20.87",
         "isChampion": null,
         "breakRecord": false
       },
@@ -72,7 +72,7 @@
           "数专销量",
           "价值打榜"
         ],
-        "index": "10.73",
+        "index": "0.08",
         "isChampion": null,
         "breakRecord": false
       },
@@ -83,7 +83,7 @@
         "subdivisions": [
           "点赞"
         ],
-        "index": "50.33",
+        "index": "1.18",
         "isChampion": null,
         "breakRecord": false
       }
@@ -7164,9 +7164,121 @@
         ],
         "comment_total": null
       }
+    ],
+    "202632": [
+      {
+        "at": "2026-08-10T00:35:00+08:00",
+        "chartsIssue": "202632",
+        "uniIndex": "0.57",
+        "curRank": 81,
+        "nextUpdateTime": "2026.08.10 00:45",
+        "dims": [
+          {
+            "name": "播放热度",
+            "code": 1,
+            "percentage": 35,
+            "index": "20.87"
+          },
+          {
+            "name": "畅销度",
+            "code": 4,
+            "percentage": 15,
+            "index": "0.08"
+          },
+          {
+            "name": "推荐度",
+            "code": 5,
+            "percentage": 20,
+            "index": "1.18"
+          }
+        ],
+        "comment_total": null
+      }
     ]
   },
   "history": [
+    {
+      "chartsIssue": "202631",
+      "updateTime": null,
+      "nextUpdateTime": null,
+      "chartsIssueStartTime": "2026.08.03",
+      "chartsIssueEndTime": "2026.08.09",
+      "curRank": 82,
+      "uniIndex": "84.54",
+      "uniIndexNew": "84.54468",
+      "sameIndex": 0,
+      "rankThanPre": null,
+      "indexThanPre": null,
+      "indexThanPreRank": null,
+      "isHistoryHighestRank": false,
+      "isHistoryHighestUniIndex": false,
+      "historyHighestRank": 1,
+      "historyHighestUniIndex": "96.98",
+      "onChartWeeks": 5,
+      "classifyIndices": [
+        {
+          "name": "播放热度",
+          "code": 1,
+          "percentage": 35,
+          "subdivisions": [
+            "音频播放",
+            "视频播放"
+          ],
+          "index": "70.35",
+          "isChampion": false,
+          "breakRecord": false
+        },
+        {
+          "name": "传播度",
+          "code": 2,
+          "percentage": 20,
+          "subdivisions": [
+            "分享",
+            "K歌传唱",
+            "微博转发"
+          ],
+          "index": "0.00",
+          "isChampion": false,
+          "breakRecord": false
+        },
+        {
+          "name": "喜好度",
+          "code": 3,
+          "percentage": 10,
+          "subdivisions": [
+            "收藏",
+            "下载"
+          ],
+          "index": "0.00",
+          "isChampion": false,
+          "breakRecord": false
+        },
+        {
+          "name": "畅销度",
+          "code": 4,
+          "percentage": 15,
+          "subdivisions": [
+            "数专销量",
+            "价值打榜"
+          ],
+          "index": "10.83",
+          "isChampion": false,
+          "breakRecord": false
+        },
+        {
+          "name": "推荐度",
+          "code": 5,
+          "percentage": 20,
+          "subdivisions": [
+            "点赞"
+          ],
+          "index": "50.35",
+          "isChampion": false,
+          "breakRecord": false
+        }
+      ],
+      "dynamic": false
+    },
     {
       "chartsIssue": "202630",
       "updateTime": null,
@@ -7184,7 +7296,7 @@
       "isHistoryHighestUniIndex": false,
       "historyHighestRank": 1,
       "historyHighestUniIndex": "96.98",
-      "onChartWeeks": 4,
+      "onChartWeeks": 5,
       "classifyIndices": [
         {
           "name": "播放热度",
@@ -7266,7 +7378,7 @@
       "isHistoryHighestUniIndex": false,
       "historyHighestRank": 1,
       "historyHighestUniIndex": "96.98",
-      "onChartWeeks": 4,
+      "onChartWeeks": 5,
       "classifyIndices": [
         {
           "name": "播放热度",
@@ -7348,7 +7460,7 @@
       "isHistoryHighestUniIndex": true,
       "historyHighestRank": 1,
       "historyHighestUniIndex": "96.98",
-      "onChartWeeks": 4,
+      "onChartWeeks": 5,
       "classifyIndices": [
         {
           "name": "播放热度",
@@ -7430,7 +7542,7 @@
       "isHistoryHighestUniIndex": false,
       "historyHighestRank": 1,
       "historyHighestUniIndex": "96.98",
-      "onChartWeeks": 4,
+      "onChartWeeks": 5,
       "classifyIndices": [
         {
           "name": "播放热度",
