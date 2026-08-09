@@ -1,6 +1,6 @@
 {
   "song_id": "530004147",
-  "updated_at": "2026-08-10T03:34:24+08:00",
+  "updated_at": "2026-08-10T04:00:08+08:00",
   "info": {
     "track_name": "红尘慌慌",
     "singer_name": "周深",
@@ -10,17 +10,17 @@
   "current_issue": "202632",
   "current": {
     "chartsIssue": "202632",
-    "updateTime": 1786303200000,
-    "nextUpdateTime": "2026.08.10 03:45",
+    "updateTime": 1786304400000,
+    "nextUpdateTime": "2026.08.10 04:05",
     "chartsIssueStartTime": "2026.08.10",
     "chartsIssueEndTime": "2026.08.16",
-    "curRank": 89,
-    "uniIndex": "2.82",
-    "uniIndexNew": "2.82193",
+    "curRank": 87,
+    "uniIndex": "3.01",
+    "uniIndexNew": "3.01074",
     "sameIndex": 0,
-    "rankThanPre": 1,
-    "indexThanPre": "0.10",
-    "indexThanPreRank": "0.01",
+    "rankThanPre": 2,
+    "indexThanPre": "0.13",
+    "indexThanPreRank": "0.02",
     "isHistoryHighestRank": null,
     "isHistoryHighestUniIndex": null,
     "historyHighestRank": 1,
@@ -35,7 +35,7 @@
           "音频播放",
           "视频播放"
         ],
-        "index": "34.97",
+        "index": "35.59",
         "isChampion": null,
         "breakRecord": false
       },
@@ -83,7 +83,7 @@
         "subdivisions": [
           "点赞"
         ],
-        "index": "4.40",
+        "index": "4.66",
         "isChampion": null,
         "breakRecord": false
       }
@@ -7330,6 +7330,34 @@
             "code": 5,
             "percentage": 20,
             "index": "4.40"
+          }
+        ],
+        "comment_total": null
+      },
+      {
+        "at": "2026-08-10T04:05:00+08:00",
+        "chartsIssue": "202632",
+        "uniIndex": "3.01",
+        "curRank": 87,
+        "nextUpdateTime": "2026.08.10 04:05",
+        "dims": [
+          {
+            "name": "播放热度",
+            "code": 1,
+            "percentage": 35,
+            "index": "35.59"
+          },
+          {
+            "name": "畅销度",
+            "code": 4,
+            "percentage": 15,
+            "index": "0.08"
+          },
+          {
+            "name": "推荐度",
+            "code": 5,
+            "percentage": 20,
+            "index": "4.66"
           }
         ],
         "comment_total": null
