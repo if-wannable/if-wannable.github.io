@@ -91,11 +91,11 @@ h3.warn { color: #e67e22; }
   <div class="subtitle">🦋 梦蝶破笼 · 振翅自由生长</div>
   <p class="tip">粘贴手机端短链接，自动解析并生成举报链接和二维码。</p>
 
-  <label>视频手机端短链接：</label>
-  <input type="text" id="videoShort" placeholder="https://v.douyin.com/…">
+  <label>手机端视频分享链接：</label>
+  <input type="text" id="videoShort" placeholder="可粘贴完整分享文案，自动提取短链">
 
-  <label>作者手机端短链接：</label>
-  <input type="text" id="authorShort" placeholder="https://v.douyin.com/…">
+  <label>手机端作者分享链接：</label>
+  <input type="text" id="authorShort" placeholder="可粘贴完整分享文案，自动提取短链">
 
   <button id="parseBtn" onclick="parseAndGenerate()">解析并生成</button>
   <p id="status"></p>
@@ -184,6 +184,11 @@ function applyIds(objectId, secUid) {
   generateQR();
 }
 
+function pickShortUrl(text) {
+  const m = text.match(/https?:\/\/v\.douyin\.com\/[A-Za-z0-9_\-\/]+/);
+  return m ? m[0] : text.trim();
+}
+
 async function resolveShort(url) {
   const res = await fetch(RESOLVE_API + '?url=' + encodeURIComponent(url));
   if (!res.ok) throw new Error('服务返回 ' + res.status);
@@ -193,8 +198,8 @@ async function resolveShort(url) {
 }
 
 async function parseAndGenerate() {
-  const videoShort = document.getElementById('videoShort').value.trim();
-  const authorShort = document.getElementById('authorShort').value.trim();
+  const videoShort = pickShortUrl(document.getElementById('videoShort').value);
+  const authorShort = pickShortUrl(document.getElementById('authorShort').value);
 
   if (!videoShort && !authorShort) {
     showFallback('请至少输入一个短链接。');
