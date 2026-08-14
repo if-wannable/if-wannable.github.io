@@ -5,80 +5,114 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>💚 贺峻霖粉丝专用抖音举报链接生成器</title>
 <style>
+* { box-sizing: border-box; }
 body {
   font-family: "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
-  max-width: 950px;
-  margin: 40px auto;
-  padding: 20px;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 16px;
   background: linear-gradient(135deg, #f7fff7 0%, #edf9ef 50%, #dff3e2 100%);
+  min-height: 100vh;
   line-height: 1.6;
 }
 .box {
-  background: rgba(255,255,255,0.96);
-  padding: 30px;
-  border-radius: 20px;
+  background: rgba(255,255,255,0.97);
+  padding: 20px 18px;
+  border-radius: 18px;
   border: 2px solid #d8f0dc;
-  box-shadow: 0 10px 30px rgba(52,168,83,0.12);
+  box-shadow: 0 6px 24px rgba(52,168,83,0.11);
 }
 .main-title {
   text-align: center;
-  font-size: 34px;
+  font-size: clamp(17px, 4.2vw, 26px);
   color: #34a853;
-  margin-bottom: 6px;
+  margin: 0 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .subtitle {
   text-align: center;
-  font-size: 16px;
+  font-size: 14px;
   color: #5f8f69;
-  margin-bottom: 18px;
+  margin: 0 0 12px;
 }
 .tip {
   text-align: center;
-  color: #666;
-  margin-bottom: 25px;
+  color: #777;
+  font-size: 13px;
+  margin: 0 0 18px;
+}
+label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #3a5c40;
+  margin-bottom: 4px;
 }
 input[type=text], textarea, input[readonly] {
   width: 100%;
-  box-sizing: border-box;
-  padding: 12px;
-  margin-top: 6px;
-  margin-bottom: 15px;
-  border: 1px solid #cde8d1;
+  padding: 11px 12px;
+  margin-bottom: 12px;
+  border: 1.5px solid #cde8d1;
   border-radius: 10px;
   font-size: 14px;
   font-family: inherit;
+  background: #fafffe;
+  color: #273444;
+  -webkit-appearance: none;
 }
-::placeholder { color: rgba(52,168,83,0.35); }
-textarea { height: 90px; }
-.result { height: 150px; }
 input[type=text]:focus, textarea:focus {
   outline: none;
   border-color: #34a853;
-  box-shadow: 0 0 0 3px rgba(52,168,83,0.15);
+  box-shadow: 0 0 0 3px rgba(52,168,83,0.13);
+}
+::placeholder { color: rgba(52,168,83,0.38); }
+textarea { height: 80px; resize: vertical; }
+.result { height: 120px; font-size: 12px; color: #555; }
+.btn-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
 }
 button {
-  padding: 10px 18px;
-  margin: 8px 8px 12px 0;
+  flex: 1;
+  min-width: 100px;
+  padding: 12px 10px;
   border: none;
   border-radius: 10px;
   cursor: pointer;
   background: #34a853;
   color: white;
-  font-size: 14px;
-  transition: all 0.2s;
+  font-size: 15px;
+  font-family: inherit;
+  font-weight: 600;
+  transition: background 0.18s, transform 0.12s;
+  -webkit-tap-highlight-color: transparent;
 }
-button:hover { background: #2d8e48; transform: translateY(-1px); }
+button:active { background: #2a7d40; transform: scale(0.97); }
 button:disabled { background: #9fcca8; cursor: not-allowed; transform: none; }
-.section {
-  margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid #d8f0dc;
+button.secondary {
+  background: #eaf6ec;
+  color: #34a853;
+  border: 1.5px solid #c2e8cc;
+  font-weight: 500;
 }
-h3 { color: #34a853; margin-top: 0; }
+button.secondary:active { background: #d4f0da; }
+.btn-full { width: 100%; }
+.section {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1.5px solid #e0f2e4;
+}
+h3 { color: #34a853; margin: 0 0 12px; font-size: 16px; }
 h3.warn { color: #e67e22; }
-#qrcode { margin-top: 20px; text-align: center; }
-.footer { text-align: center; margin-top: 40px; color: #5f8f69; font-size: 14px; }
-#status { font-size: 14px; margin: 0 0 10px; min-height: 20px; }
+#qrcode { margin-top: 14px; text-align: center; }
+#qrcode img, #qrcode canvas { border-radius: 10px; max-width: 100%; }
+.qr-hint { font-size: 12px; color: #888; margin-top: 8px; }
+.footer { text-align: center; margin-top: 28px; color: #7aaa82; font-size: 12px; }
+#status { font-size: 13px; margin: 4px 0 8px; min-height: 18px; }
 #status.ok { color: #34a853; }
 #status.err { color: #e53935; }
 #fallbackSection { display: none; }
@@ -89,7 +123,7 @@ h3.warn { color: #e67e22; }
 <div class="box">
   <h1 class="main-title">💚 贺峻霖粉丝专用链接生成器</h1>
   <div class="subtitle">🦋 梦蝶破笼 · 振翅自由生长</div>
-  <p class="tip">粘贴手机端短链接，自动解析并生成举报链接和二维码。</p>
+  <p class="tip">抖音举报二维码生成</p>
 
   <label>手机端视频分享链接：</label>
   <input type="text" id="videoShort" placeholder="可粘贴完整分享文案，自动提取短链">
@@ -97,17 +131,16 @@ h3.warn { color: #e67e22; }
   <label>手机端作者分享链接：</label>
   <input type="text" id="authorShort" placeholder="可粘贴完整分享文案，自动提取短链">
 
-  <button id="parseBtn" onclick="parseAndGenerate()">解析并生成</button>
+  <button id="parseBtn" class="btn-full" onclick="parseAndGenerate()">解析并生成</button>
   <p id="status"></p>
 
-  <!-- 短链解析失败时才显示 -->
   <div id="fallbackSection" class="section">
     <h3 class="warn">⚠️ 短链解析失败，请手动输入网页端链接</h3>
     <label>视频网页链接：</label>
     <input type="text" id="videoUrl" placeholder="https://www.douyin.com/video/… 或含 modal_id=…">
     <label>作者主页链接：</label>
     <input type="text" id="profileUrl" placeholder="https://www.douyin.com/user/MS4wLj…">
-    <button onclick="generateFromWeb()">从网页链接生成</button>
+    <button class="btn-full" onclick="generateFromWeb()">从网页链接生成</button>
   </div>
 
   <div class="section">
@@ -118,18 +151,22 @@ h3.warn { color: #e67e22; }
     <input id="secUidShow" readonly>
   </div>
 
-  <div class="section">
+  <div class="section" id="resultSection" hidden>
     <h3>最终生成链接</h3>
     <textarea id="result" class="result" readonly></textarea>
-    <button onclick="copyResult()">复制链接</button>
-    <button onclick="openResult()">打开链接</button>
+    <div class="btn-row">
+      <button onclick="copyResult()">复制链接</button>
+      <button class="secondary" onclick="openResult()">打开链接</button>
+    </div>
   </div>
 
   <div class="section">
     <h3>二维码</h3>
-    <button onclick="generateQR()">生成二维码</button>
-    <button onclick="downloadQR()">下载二维码图片</button>
     <div id="qrcode"></div>
+    <p class="qr-hint" id="qrHint" style="display:none">iOS：长按图片 → 存储到相册</p>
+    <div class="btn-row" style="margin-top:12px">
+      <button onclick="downloadQR()">保存二维码</button>
+    </div>
   </div>
 
   <div class="footer">页面仅对你输入的链接进行本地处理，不会上传内容。</div>
@@ -140,6 +177,9 @@ h3.warn { color: #e67e22; }
 const TEMPLATE = `snssdk1128://webview?refer=web&from=webview&from_ssr=1&video_share_track_ver=&did=MS4wLjABAAAAhEltVQqw0IO019aRbo-Tp0pvQMoOYB-fGga5Ecn1V-t__n4eX4_H-YNjeJPH6tbI&mid=7646235433218706230&ts=1780715436&share_track_info=%7B%22link_description_type%22%3A%22%22%7D&region=CN&share_sign=ajBOxdDiG4GPlG7R_hphom_RMadaGj1uzjgvJYhBzzI-&tt_from=share_to&with_sec_did=1&from_aid=1128&titleType=title&utm_source=share_to&utm_medium=ios&activity_info=%7B%22social_share_time%22%3A%221780715437%22%2C%22social_author_id%22%3A%22354500756115683%22%2C%22social_share_id%22%3A%2261063326523_1780715437%22%2C%22social_share_user_id%22%3A%2261063326523%22%7D&timestamp=1780715438&share_version=390000&ug_share_id=68cd82a961c5063b_1780715440614&u_code=hlb65133&iid=MS4wLjABAAAALJojJn0PxwivmNM0uBhwVhtOSD9NLbyguIY2geIs1JmsQYRp06R_Qfqo1kNkW1Yd&utm_campaign=client_share&app=aweme&scene_from=share_reflow&ori_scene_from=default&host=www.iesdouyin.com&group_id=7646235543919299749&web_id=7647158969585206793&browser_name=safari&referrer_host=&is_edenx=1&forbid_pasteboard=1&gd_label=click_schema_ug_filter_v1_click_schema_lhft_48148317a&launch_h5_method=click_wap_rf_video_report&url=https%3A%2F%2Fapi.amemv.com%2Ffalcon%2Ffe_douyin_security_react%2Fmortise%2F9879902d-907f-46f3-85e0-678c416f366a%2F%3Freport_type%3Dvideo%26object_id%3D{OBJECT_ID}%26sec_owner_id%3D{SEC_UID}%26enter_from%3Daweme_reflow%26hide_nav_bar%3D1%26should_full_screen%3D1&hide_nav_bar=1&should_full_screen=1&enter_from=aweme_reflow`;
 
 const RESOLVE_API = 'https://1468756186-1w2s37xoom.ap-shanghai.tencentscf.com';
+
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+const isMobile = /Mobi|Android/i.test(navigator.userAgent) || isIOS;
 
 function extractVideoId(text) {
   let m;
@@ -269,18 +309,38 @@ function generateQR() {
     qrContainer.innerHTML = '<p style="color:red;">二维码库没有加载成功，请检查网络。</p>';
     return;
   }
+  const size = Math.min(window.innerWidth - 80, 280);
   try {
-    new QRCode(qrContainer, { text: finalLink, width: 280, height: 280, correctLevel: QRCode.CorrectLevel.L });
+    new QRCode(qrContainer, { text: finalLink, width: size, height: size, correctLevel: QRCode.CorrectLevel.L });
+    if (isMobile) document.getElementById('qrHint').style.display = '';
   } catch(e) {
     qrContainer.innerHTML = '<p style="color:red;">二维码生成失败，链接可能太长。</p>';
   }
 }
 
-function downloadQR() {
-  const e = document.querySelector('#qrcode canvas, #qrcode img');
-  if (!e) { alert('请先生成二维码。'); return; }
+async function downloadQR() {
+  const el = document.querySelector('#qrcode canvas, #qrcode img');
+  if (!el) { alert('请先生成二维码。'); return; }
+  const dataUrl = el.tagName === 'CANVAS' ? el.toDataURL('image/png') : el.src;
+
+  // iOS Safari: a.download doesn't work — open in new tab for long-press save
+  if (isIOS) {
+    window.open(dataUrl, '_blank');
+    return;
+  }
+
+  // Android / desktop
+  try {
+    const blob = await fetch(dataUrl).then(r => r.blob());
+    const file = new File([blob], 'qrcode.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: '举报二维码' });
+      return;
+    }
+  } catch (_) {}
+
   const a = document.createElement('a');
-  a.href = e.tagName === 'CANVAS' ? e.toDataURL('image/png') : e.src;
+  a.href = dataUrl;
   a.download = 'qrcode.png';
   a.click();
 }
