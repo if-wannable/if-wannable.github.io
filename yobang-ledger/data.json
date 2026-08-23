@@ -1,6 +1,6 @@
 {
   "song_id": "530004147",
-  "updated_at": "2026-08-24T02:32:03+08:00",
+  "updated_at": "2026-08-24T02:58:20+08:00",
   "info": {
     "track_name": "红尘慌慌",
     "singer_name": "周深",
@@ -10,17 +10,17 @@
   "current_issue": "202634",
   "current": {
     "chartsIssue": "202634",
-    "updateTime": 1787509200000,
-    "nextUpdateTime": "2026.08.24 02:45",
+    "updateTime": 1787510400000,
+    "nextUpdateTime": "2026.08.24 03:05",
     "chartsIssueStartTime": "2026.08.24",
     "chartsIssueEndTime": "2026.08.30",
-    "curRank": 101,
-    "uniIndex": "1.68",
-    "uniIndexNew": "1.67708",
-    "sameIndex": 0,
-    "rankThanPre": 0,
-    "indexThanPre": "0.07",
-    "indexThanPreRank": "0.04",
+    "curRank": 106,
+    "uniIndex": "1.77",
+    "uniIndexNew": "1.76944",
+    "sameIndex": 1,
+    "rankThanPre": -1,
+    "indexThanPre": "0.05",
+    "indexThanPreRank": "0.01",
     "isHistoryHighestRank": null,
     "isHistoryHighestUniIndex": null,
     "historyHighestRank": 1,
@@ -35,7 +35,7 @@
           "音频播放",
           "视频播放"
         ],
-        "index": "30.94",
+        "index": "31.42",
         "isChampion": null,
         "breakRecord": false
       },
@@ -13958,6 +13958,34 @@
             "code": 1,
             "percentage": 35,
             "index": "30.94"
+          },
+          {
+            "name": "畅销度",
+            "code": 4,
+            "percentage": 15,
+            "index": "0.07"
+          },
+          {
+            "name": "推荐度",
+            "code": 5,
+            "percentage": 20,
+            "index": "3.04"
+          }
+        ],
+        "comment_total": null
+      },
+      {
+        "at": "2026-08-24T02:55:00+08:00",
+        "chartsIssue": "202634",
+        "uniIndex": "1.77",
+        "curRank": 106,
+        "nextUpdateTime": "2026.08.24 03:05",
+        "dims": [
+          {
+            "name": "播放热度",
+            "code": 1,
+            "percentage": 35,
+            "index": "31.42"
           },
           {
             "name": "畅销度",
