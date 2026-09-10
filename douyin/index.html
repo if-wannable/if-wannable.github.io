@@ -132,6 +132,8 @@ h3.warn { color: #e67e22; }
 #status, #userStatus { font-size: 13px; margin: 4px 0 8px; min-height: 18px; }
 #status.ok, #userStatus.ok { color: #34a853; }
 #status.err, #userStatus.err { color: #e53935; }
+.extract-line { font-size: 12px; color: #7a8a80; margin: 4px 0; word-break: break-all; }
+.extract-line span:last-child { color: #273444; }
 #fallbackSection { display: none; }
 #fallbackSection.show { display: block; }
 </style>
@@ -154,6 +156,9 @@ h3.warn { color: #e67e22; }
     <label>手机端作者分享链接：</label>
     <input type="text" id="authorShort" placeholder="可粘贴完整分享文案，自动提取短链">
 
+    <label for="reportReason">举报理由（可选）：</label>
+    <input type="text" id="reportReason" placeholder="填写后会显示在二维码下方，可留空">
+
     <button id="parseBtn" class="btn-full" onclick="parseAndGenerate()">解析并生成</button>
     <p id="status"></p>
 
@@ -171,6 +176,9 @@ h3.warn { color: #e67e22; }
     <label>用户主页链接：</label>
     <input type="text" id="userLink" placeholder="可粘贴用户主页分享短链或完整文案，自动提取短链">
 
+    <label for="reportReasonUser">举报理由（可选）：</label>
+    <input type="text" id="reportReasonUser" placeholder="填写后会显示在二维码下方，可留空">
+
     <button id="userParseBtn" class="btn-full" onclick="parseUserAndGenerate()">解析并生成</button>
     <p id="userStatus"></p>
 
@@ -184,10 +192,8 @@ h3.warn { color: #e67e22; }
 
   <div class="section">
     <h3>自动提取结果</h3>
-    <label id="idLabel">作品 ID：</label>
-    <input id="objectIdShow" readonly>
-    <label>用户加密 ID：</label>
-    <input id="secUidShow" readonly>
+    <p class="extract-line"><span id="idLabel">作品 ID：</span><span id="objectIdShow"></span></p>
+    <p class="extract-line">用户加密 ID：<span id="secUidShow"></span></p>
   </div>
 
   <div class="section" id="resultSection" hidden>
@@ -208,12 +214,8 @@ h3.warn { color: #e67e22; }
     </div>
   </div>
 
-  <label for="reportReason">举报理由（可选）：</label>
-  <input type="text" id="reportReason" placeholder="填写后会显示在二维码下方，可留空">
-
   <div class="footer">
-    页面仅对你输入的链接进行本地处理，不会上传内容。<br>
-    <a href="search.html" style="color:#34a853;text-decoration:none;">→ 抖音关键词搜索检索</a>
+    页面仅对你输入的链接进行本地处理，不会上传内容。
   </div>
 </div>
 
@@ -262,8 +264,8 @@ function hideFallback() {
 }
 
 function applyIds(objectId, secUid) {
-  document.getElementById('objectIdShow').value = objectId;
-  document.getElementById('secUidShow').value = secUid;
+  document.getElementById('objectIdShow').textContent = objectId;
+  document.getElementById('secUidShow').textContent = secUid;
   document.getElementById('result').value = TEMPLATE
     .replace('{OBJECT_ID}', encodeURIComponent(objectId))
     .replace('{SEC_UID}', encodeURIComponent(secUid));
@@ -370,8 +372,8 @@ function hideUserFallback() {
 }
 
 function applyUserIds(userId, secUid) {
-  document.getElementById('objectIdShow').value = userId;
-  document.getElementById('secUidShow').value = secUid;
+  document.getElementById('objectIdShow').textContent = userId;
+  document.getElementById('secUidShow').textContent = secUid;
   document.getElementById('result').value = USER_TEMPLATE
     .replace(/\{USER_ID\}/g, encodeURIComponent(userId))
     .replace(/\{SEC_UID\}/g, encodeURIComponent(secUid));
@@ -465,46 +467,59 @@ function generateQR() {
   try {
     new QRCode(qrContainer, { text: finalLink, width: size, height: size, correctLevel: QRCode.CorrectLevel.L });
     if (isMobile) document.getElementById('qrHint').style.display = '';
-    applyReportReason();
+    finalizeQR();
   } catch(e) {
     qrContainer.innerHTML = '<p style="color:red;">二维码生成失败，链接可能太长。</p>';
   }
 }
 
-function applyReportReason() {
-  const reason = document.getElementById('reportReason').value.trim();
+function getReportReason() {
+  const isUser = !document.getElementById('userPanel').hidden;
+  const input = document.getElementById(isUser ? 'reportReasonUser' : 'reportReason');
+  return input && input.value ? input.value.trim() : '';
+}
+
+function finalizeQR() {
   const qrContainer = document.getElementById('qrcode');
   const canvas = qrContainer.querySelector('canvas');
-  if (!canvas || !reason) return;
+  if (!canvas) return;
 
-  const pad = 14;
-  const fontSize = 14;
-  const textAreaHeight = fontSize + pad * 2;
+  const reason = getReportReason();
 
-  const c2 = document.createElement('canvas');
-  c2.width = canvas.width;
-  c2.height = canvas.height + textAreaHeight;
-  const ctx = c2.getContext('2d');
+  let output = canvas;
+  if (reason) {
+    const pad = 14;
+    const fontSize = 14;
+    const textAreaHeight = fontSize + pad * 2;
 
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, c2.width, c2.height);
-  ctx.drawImage(canvas, 0, 0);
+    output = document.createElement('canvas');
+    output.width = canvas.width;
+    output.height = canvas.height + textAreaHeight;
+    const ctx = output.getContext('2d');
 
-  ctx.fillStyle = '#34a853';
-  ctx.font = fontSize + 'px "PingFang SC", "Microsoft YaHei", Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, output.width, output.height);
+    ctx.drawImage(canvas, 0, 0);
 
-  let text = reason;
-  const maxWidth = c2.width - pad * 2;
-  if (ctx.measureText(text).width > maxWidth) {
-    while (ctx.measureText(text).width > maxWidth && text.length > 1) text = text.slice(0, -1);
-    text = text.slice(0, -1) + '…';
+    ctx.fillStyle = '#34a853';
+    ctx.font = fontSize + 'px "PingFang SC", "Microsoft YaHei", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    let text = reason;
+    const maxWidth = output.width - pad * 2;
+    if (ctx.measureText(text).width > maxWidth) {
+      while (ctx.measureText(text).width > maxWidth && text.length > 1) text = text.slice(0, -1);
+      text = text.slice(0, -1) + '…';
+    }
+    ctx.fillText(text, output.width / 2, canvas.height + textAreaHeight / 2);
   }
-  ctx.fillText(text, c2.width / 2, canvas.height + textAreaHeight / 2);
 
+  const img = document.createElement('img');
+  img.src = output.toDataURL('image/png');
+  img.alt = '抖音举报二维码';
   qrContainer.innerHTML = '';
-  qrContainer.appendChild(c2);
+  qrContainer.appendChild(img);
 }
 
 async function downloadQR() {
