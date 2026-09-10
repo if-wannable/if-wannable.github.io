@@ -147,6 +147,9 @@ h3.warn { color: #e67e22; }
     <button id="tabUserBtn" class="tab" onclick="switchTab('user')">抖音账号举报</button>
   </div>
 
+  <label for="reportReason">举报理由（可选）：</label>
+  <input type="text" id="reportReason" placeholder="填写后会显示在二维码下方，可留空">
+
   <div id="videoPanel">
     <label>手机端视频分享链接：</label>
     <input type="text" id="videoShort" placeholder="可粘贴完整分享文案，自动提取短链">
@@ -462,9 +465,46 @@ function generateQR() {
   try {
     new QRCode(qrContainer, { text: finalLink, width: size, height: size, correctLevel: QRCode.CorrectLevel.L });
     if (isMobile) document.getElementById('qrHint').style.display = '';
+    applyReportReason();
   } catch(e) {
     qrContainer.innerHTML = '<p style="color:red;">二维码生成失败，链接可能太长。</p>';
   }
+}
+
+function applyReportReason() {
+  const reason = document.getElementById('reportReason').value.trim();
+  const qrContainer = document.getElementById('qrcode');
+  const canvas = qrContainer.querySelector('canvas');
+  if (!canvas || !reason) return;
+
+  const pad = 14;
+  const fontSize = 14;
+  const textAreaHeight = fontSize + pad * 2;
+
+  const c2 = document.createElement('canvas');
+  c2.width = canvas.width;
+  c2.height = canvas.height + textAreaHeight;
+  const ctx = c2.getContext('2d');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, c2.width, c2.height);
+  ctx.drawImage(canvas, 0, 0);
+
+  ctx.fillStyle = '#34a853';
+  ctx.font = fontSize + 'px "PingFang SC", "Microsoft YaHei", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  let text = reason;
+  const maxWidth = c2.width - pad * 2;
+  if (ctx.measureText(text).width > maxWidth) {
+    while (ctx.measureText(text).width > maxWidth && text.length > 1) text = text.slice(0, -1);
+    text = text.slice(0, -1) + '…';
+  }
+  ctx.fillText(text, c2.width / 2, canvas.height + textAreaHeight / 2);
+
+  qrContainer.innerHTML = '';
+  qrContainer.appendChild(c2);
 }
 
 async function downloadQR() {
