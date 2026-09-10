@@ -147,9 +147,6 @@ h3.warn { color: #e67e22; }
     <button id="tabUserBtn" class="tab" onclick="switchTab('user')">抖音账号举报</button>
   </div>
 
-  <label for="reportReason">举报理由（可选）：</label>
-  <input type="text" id="reportReason" placeholder="填写后会显示在二维码下方，可留空">
-
   <div id="videoPanel">
     <label>手机端视频分享链接：</label>
     <input type="text" id="videoShort" placeholder="可粘贴完整分享文案，自动提取短链">
@@ -210,6 +207,9 @@ h3.warn { color: #e67e22; }
       <button onclick="downloadQR()">保存二维码</button>
     </div>
   </div>
+
+  <label for="reportReason">举报理由（可选）：</label>
+  <input type="text" id="reportReason" placeholder="填写后会显示在二维码下方，可留空">
 
   <div class="footer">
     页面仅对你输入的链接进行本地处理，不会上传内容。<br>
