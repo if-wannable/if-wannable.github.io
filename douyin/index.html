@@ -486,19 +486,19 @@ function finalizeQR() {
 
   const reason = getReportReason();
 
-  let output = canvas;
+  let base = canvas;
   if (reason) {
     const pad = 14;
     const fontSize = 14;
     const textAreaHeight = fontSize + pad * 2;
 
-    output = document.createElement('canvas');
-    output.width = canvas.width;
-    output.height = canvas.height + textAreaHeight;
-    const ctx = output.getContext('2d');
+    base = document.createElement('canvas');
+    base.width = canvas.width;
+    base.height = canvas.height + textAreaHeight;
+    const ctx = base.getContext('2d');
 
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, output.width, output.height);
+    ctx.fillRect(0, 0, base.width, base.height);
     ctx.drawImage(canvas, 0, 0);
 
     ctx.fillStyle = '#34a853';
@@ -507,16 +507,25 @@ function finalizeQR() {
     ctx.textBaseline = 'middle';
 
     let text = reason;
-    const maxWidth = output.width - pad * 2;
+    const maxWidth = base.width - pad * 2;
     if (ctx.measureText(text).width > maxWidth) {
       while (ctx.measureText(text).width > maxWidth && text.length > 1) text = text.slice(0, -1);
       text = text.slice(0, -1) + '…';
     }
-    ctx.fillText(text, output.width / 2, canvas.height + textAreaHeight / 2);
+    ctx.fillText(text, base.width / 2, canvas.height + textAreaHeight / 2);
   }
 
+  const border = 18;
+  const finalCanvas = document.createElement('canvas');
+  finalCanvas.width = base.width + border * 2;
+  finalCanvas.height = base.height + border * 2;
+  const fctx = finalCanvas.getContext('2d');
+  fctx.fillStyle = '#ffffff';
+  fctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+  fctx.drawImage(base, border, border);
+
   const img = document.createElement('img');
-  img.src = output.toDataURL('image/png');
+  img.src = finalCanvas.toDataURL('image/png');
   img.alt = '抖音举报二维码';
   qrContainer.innerHTML = '';
   qrContainer.appendChild(img);
