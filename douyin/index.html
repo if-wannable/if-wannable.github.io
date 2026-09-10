@@ -101,6 +101,23 @@ button.secondary {
 }
 button.secondary:active { background: #d4f0da; }
 .btn-full { width: 100%; }
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.tab {
+  background: #eaf6ec;
+  color: #34a853;
+  border: 1.5px solid #c2e8cc;
+  font-weight: 500;
+}
+.tab.active {
+  background: #34a853;
+  color: #fff;
+  border-color: #34a853;
+  font-weight: 600;
+}
 .section {
   margin-top: 22px;
   padding-top: 18px;
@@ -112,9 +129,9 @@ h3.warn { color: #e67e22; }
 #qrcode img, #qrcode canvas { border-radius: 10px; max-width: 100%; }
 .qr-hint { font-size: 12px; color: #888; margin-top: 8px; }
 .footer { text-align: center; margin-top: 28px; color: #7aaa82; font-size: 12px; }
-#status { font-size: 13px; margin: 4px 0 8px; min-height: 18px; }
-#status.ok { color: #34a853; }
-#status.err { color: #e53935; }
+#status, #userStatus { font-size: 13px; margin: 4px 0 8px; min-height: 18px; }
+#status.ok, #userStatus.ok { color: #34a853; }
+#status.err, #userStatus.err { color: #e53935; }
 #fallbackSection { display: none; }
 #fallbackSection.show { display: block; }
 </style>
@@ -125,27 +142,49 @@ h3.warn { color: #e67e22; }
   <div class="subtitle">🦋 梦蝶破笼 · 振翅自由生长</div>
   <p class="tip">抖音举报二维码生成</p>
 
-  <label>手机端视频分享链接：</label>
-  <input type="text" id="videoShort" placeholder="可粘贴完整分享文案，自动提取短链">
+  <div class="tabs">
+    <button id="tabVideoBtn" class="tab active" onclick="switchTab('video')">抖音视频举报</button>
+    <button id="tabUserBtn" class="tab" onclick="switchTab('user')">抖音账号举报</button>
+  </div>
 
-  <label>手机端作者分享链接：</label>
-  <input type="text" id="authorShort" placeholder="可粘贴完整分享文案，自动提取短链">
+  <div id="videoPanel">
+    <label>手机端视频分享链接：</label>
+    <input type="text" id="videoShort" placeholder="可粘贴完整分享文案，自动提取短链">
 
-  <button id="parseBtn" class="btn-full" onclick="parseAndGenerate()">解析并生成</button>
-  <p id="status"></p>
+    <label>手机端作者分享链接：</label>
+    <input type="text" id="authorShort" placeholder="可粘贴完整分享文案，自动提取短链">
 
-  <div id="fallbackSection" class="section">
-    <h3 class="warn">⚠️ 短链解析失败，请手动输入网页端链接</h3>
-    <label>视频网页链接：</label>
-    <input type="text" id="videoUrl" placeholder="https://www.douyin.com/video/… 或含 modal_id=…">
-    <label>作者主页链接：</label>
-    <input type="text" id="profileUrl" placeholder="https://www.douyin.com/user/MS4wLj…">
-    <button class="btn-full" onclick="generateFromWeb()">从网页链接生成</button>
+    <button id="parseBtn" class="btn-full" onclick="parseAndGenerate()">解析并生成</button>
+    <p id="status"></p>
+
+    <div id="fallbackSection" class="section">
+      <h3 class="warn">⚠️ 短链解析失败，请手动输入网页端链接</h3>
+      <label>视频网页链接：</label>
+      <input type="text" id="videoUrl" placeholder="https://www.douyin.com/video/… 或含 modal_id=…">
+      <label>作者主页链接：</label>
+      <input type="text" id="profileUrl" placeholder="https://www.douyin.com/user/MS4wLj…">
+      <button class="btn-full" onclick="generateFromWeb()">从网页链接生成</button>
+    </div>
+  </div>
+
+  <div id="userPanel" hidden>
+    <label>用户主页链接：</label>
+    <input type="text" id="userLink" placeholder="可粘贴用户主页分享短链或完整文案，自动提取短链">
+
+    <button id="userParseBtn" class="btn-full" onclick="parseUserAndGenerate()">解析并生成</button>
+    <p id="userStatus"></p>
+
+    <div id="userFallbackSection" class="section" style="display:none">
+      <h3 class="warn">⚠️ 短链解析失败，请手动输入网页端链接</h3>
+      <label>用户主页网页链接：</label>
+      <input type="text" id="userProfileUrl" placeholder="https://www.douyin.com/user/MS4wLj…">
+      <button class="btn-full" onclick="generateUserFromWeb()">从网页链接生成</button>
+    </div>
   </div>
 
   <div class="section">
     <h3>自动提取结果</h3>
-    <label>作品 ID：</label>
+    <label id="idLabel">作品 ID：</label>
     <input id="objectIdShow" readonly>
     <label>用户加密 ID：</label>
     <input id="secUidShow" readonly>
@@ -179,6 +218,8 @@ h3.warn { color: #e67e22; }
 <script>
 const TEMPLATE = `snssdk1128://webview?url=https%3A%2F%2Faweme.snssdk.com%2Ffalcon%2Fdouyin_falcon%2Freport%2F%3Freport_type%3Dvideo%26object_id%3D{OBJECT_ID}%26sec_owner_id%3D{SEC_UID}%26enter_from%3Daweme_reflow%26hide_nav_bar%3D1%26should_full_screen%3D1&from=webview&refer=web`;
 
+const USER_TEMPLATE = `snssdk1128://webview?url=https%3A%2F%2Faweme.snssdk.com%2Ffalcon%2Fdouyin_falcon%2Freport%2F%3Freport_type%3Duser%26object_id%3D{USER_ID}%26sec_object_id%3D{SEC_UID}%26owner_id%3D{USER_ID}%26sec_owner_id%3D{SEC_UID}%26enter_from%3Dothers_homepage%26hide_nav_bar%3D1%26should_full_screen%3D1&from=webview&refer=web`;
+
 const RESOLVE_API = 'https://1468756186-1w2s37xoom.ap-shanghai.tencentscf.com';
 
 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -196,7 +237,7 @@ function extractVideoId(text) {
 
 function extractSecUid(text) {
   let m;
-  m = text.match(/douyin\.com\/user\/([^?&\s]+)/); if (m) return decodeURIComponent(m[1]);
+  m = text.match(/(?:douyin\.com\/user\/|iesdouyin\.com\/share\/user\/)([^?&\s]+)/); if (m) return decodeURIComponent(m[1]);
   m = text.match(/sec_uid=([^&\s]+)/); if (m) return decodeURIComponent(m[1]);
   m = text.match(/sec_owner_id(?:%3D|=)([^%&\s]+)/); if (m) return decodeURIComponent(m[1]);
   return '';
@@ -232,8 +273,18 @@ function pickShortUrl(text) {
   return m ? m[0] : text.trim();
 }
 
-async function resolveShort(url) {
-  const res = await fetch(RESOLVE_API + '?url=' + encodeURIComponent(url));
+async function resolveShort(url, type) {
+  let api = RESOLVE_API + '?url=' + encodeURIComponent(url);
+  if (type) api += '&type=' + encodeURIComponent(type);
+  const res = await fetch(api);
+  if (!res.ok) throw new Error('服务返回 ' + res.status);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+async function resolveSecUid(secUid) {
+  const res = await fetch(RESOLVE_API + '?sec_uid=' + encodeURIComponent(secUid) + '&type=user');
   if (!res.ok) throw new Error('服务返回 ' + res.status);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
@@ -289,6 +340,101 @@ function generateFromWeb() {
   if (!secUid)   { alert('没有提取到用户加密 ID，请检查作者主页链接。'); return; }
   applyIds(objectId, secUid);
   setStatus('已从网页链接生成。', 'ok');
+}
+
+function switchTab(type) {
+  const isVideo = type === 'video';
+  document.getElementById('videoPanel').hidden = !isVideo;
+  document.getElementById('userPanel').hidden = isVideo;
+  document.getElementById('tabVideoBtn').classList.toggle('active', isVideo);
+  document.getElementById('tabUserBtn').classList.toggle('active', !isVideo);
+  document.getElementById('idLabel').textContent = isVideo ? '作品 ID：' : '用户 ID：';
+}
+
+function setUserStatus(msg, cls) {
+  const el = document.getElementById('userStatus');
+  el.textContent = msg;
+  el.className = cls || '';
+}
+
+function showUserFallback(msg) {
+  document.getElementById('userFallbackSection').style.display = 'block';
+  if (msg) setUserStatus(msg, 'err');
+}
+
+function hideUserFallback() {
+  document.getElementById('userFallbackSection').style.display = 'none';
+}
+
+function applyUserIds(userId, secUid) {
+  document.getElementById('objectIdShow').value = userId;
+  document.getElementById('secUidShow').value = secUid;
+  document.getElementById('result').value = USER_TEMPLATE
+    .replace(/\{USER_ID\}/g, encodeURIComponent(userId))
+    .replace(/\{SEC_UID\}/g, encodeURIComponent(secUid));
+  document.getElementById('qrcode').innerHTML = '';
+  generateQR();
+}
+
+async function parseUserAndGenerate() {
+  const rawText = document.getElementById('userLink').value;
+  const userLink = pickShortUrl(rawText);
+
+  if (!userLink) {
+    showUserFallback('请输入用户主页链接。');
+    return;
+  }
+
+  if (!RESOLVE_API) {
+    showUserFallback('解析服务未配置，请手动输入网页端链接。');
+    return;
+  }
+
+  const btn = document.getElementById('userParseBtn');
+  btn.disabled = true;
+  btn.textContent = '正在解析…';
+  setUserStatus('正在解析用户链接，请稍候…', '');
+
+  try {
+    let data;
+    if (/v\.douyin\.com/.test(userLink)) {
+      data = await resolveShort(userLink, 'user');
+    } else {
+      const directSecUid = extractSecUid(rawText);
+      if (!directSecUid) throw new Error('未能提取到用户加密 ID，请粘贴短链或主页链接');
+      data = await resolveSecUid(directSecUid);
+    }
+
+    const userId = data?.userId || '';
+    const secUid = data?.secUid || '';
+
+    if (!userId || !secUid) throw new Error('未能从用户链接中提取到所需 ID');
+
+    hideUserFallback();
+    applyUserIds(userId, secUid);
+    setUserStatus('解析成功，账号举报链接和二维码已生成。', 'ok');
+  } catch (e) {
+    showUserFallback('解析失败：' + e.message + '。请手动输入网页端链接。');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '解析并生成';
+  }
+}
+
+async function generateUserFromWeb() {
+  const text = document.getElementById('userProfileUrl').value;
+  const secUid = extractSecUid(text);
+  if (!secUid) { alert('没有提取到用户加密 ID，请检查主页链接。'); return; }
+
+  try {
+    const data = await resolveSecUid(secUid);
+    const userId = data?.userId || '';
+    if (!userId) throw new Error('未能获取到用户数字 ID');
+    applyUserIds(userId, secUid);
+    setUserStatus('已从网页链接生成。', 'ok');
+  } catch (e) {
+    setUserStatus('生成失败：' + e.message, 'err');
+  }
 }
 
 async function copyResult() {
