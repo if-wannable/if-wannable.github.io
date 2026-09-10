@@ -169,12 +169,15 @@ h3.warn { color: #e67e22; }
     </div>
   </div>
 
-  <div class="footer">页面仅对你输入的链接进行本地处理，不会上传内容。</div>
+  <div class="footer">
+    页面仅对你输入的链接进行本地处理，不会上传内容。<br>
+    <a href="search.html" style="color:#34a853;text-decoration:none;">→ 抖音关键词搜索检索</a>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
-const TEMPLATE = `snssdk1128://webview?refer=web&from=webview&from_ssr=1&video_share_track_ver=&did=MS4wLjABAAAAhEltVQqw0IO019aRbo-Tp0pvQMoOYB-fGga5Ecn1V-t__n4eX4_H-YNjeJPH6tbI&mid=7646235433218706230&ts=1780715436&share_track_info=%7B%22link_description_type%22%3A%22%22%7D&region=CN&share_sign=ajBOxdDiG4GPlG7R_hphom_RMadaGj1uzjgvJYhBzzI-&tt_from=share_to&with_sec_did=1&from_aid=1128&titleType=title&utm_source=share_to&utm_medium=ios&activity_info=%7B%22social_share_time%22%3A%221780715437%22%2C%22social_author_id%22%3A%22354500756115683%22%2C%22social_share_id%22%3A%2261063326523_1780715437%22%2C%22social_share_user_id%22%3A%2261063326523%22%7D&timestamp=1780715438&share_version=390000&ug_share_id=68cd82a961c5063b_1780715440614&u_code=hlb65133&iid=MS4wLjABAAAALJojJn0PxwivmNM0uBhwVhtOSD9NLbyguIY2geIs1JmsQYRp06R_Qfqo1kNkW1Yd&utm_campaign=client_share&app=aweme&scene_from=share_reflow&ori_scene_from=default&host=www.iesdouyin.com&group_id=7646235543919299749&web_id=7647158969585206793&browser_name=safari&referrer_host=&is_edenx=1&forbid_pasteboard=1&gd_label=click_schema_ug_filter_v1_click_schema_lhft_48148317a&launch_h5_method=click_wap_rf_video_report&url=https%3A%2F%2Fapi.amemv.com%2Ffalcon%2Ffe_douyin_security_react%2Fmortise%2F9879902d-907f-46f3-85e0-678c416f366a%2F%3Freport_type%3Dvideo%26object_id%3D{OBJECT_ID}%26sec_owner_id%3D{SEC_UID}%26enter_from%3Daweme_reflow%26hide_nav_bar%3D1%26should_full_screen%3D1&hide_nav_bar=1&should_full_screen=1&enter_from=aweme_reflow`;
+const TEMPLATE = `snssdk1128://webview?url=https%3A%2F%2Faweme.snssdk.com%2Ffalcon%2Fdouyin_falcon%2Freport%2F%3Freport_type%3Dvideo%26object_id%3D{OBJECT_ID}%26sec_owner_id%3D{SEC_UID}%26enter_from%3Daweme_reflow%26hide_nav_bar%3D1%26should_full_screen%3D1&from=webview&refer=web`;
 
 const RESOLVE_API = 'https://1468756186-1w2s37xoom.ap-shanghai.tencentscf.com';
 

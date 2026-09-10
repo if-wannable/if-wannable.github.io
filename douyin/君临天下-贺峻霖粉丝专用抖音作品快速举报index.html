@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💚 贺峻霖粉丝专用抖音举报链接生成器</title>
+
+<style>
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  max-width: 950px;
+  margin: 40px auto;
+  padding: 20px;
+  background: linear-gradient(135deg, #f7fff7 0%, #edf9ef 50%, #dff3e2 100%);
+  line-height: 1.6;
+}
+
+.box {
+  background: rgba(255,255,255,0.96);
+  padding: 30px;
+  border-radius: 20px;
+  border: 2px solid #d8f0dc;
+  box-shadow: 0 10px 30px rgba(52,168,83,0.12);
+}
+
+.main-title {
+  text-align: center;
+  font-size: 34px;
+  color: #34a853;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  text-align: center;
+  font-size: 16px;
+  color: #5f8f69;
+  margin-bottom: 18px;
+}
+
+.tip {
+  text-align: center;
+  color: #666;
+  margin-bottom: 25px;
+}
+
+textarea, input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  margin-top: 6px;
+  margin-bottom: 15px;
+  border: 1px solid #cde8d1;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.72);
+  font: inherit;
+}
+
+textarea::placeholder, input::placeholder {
+  color: rgba(52,168,83,0.42);
+}
+
+textarea {
+  height: 76px;
+  resize: vertical;
+}
+
+.result {
+  height: 150px;
+}
+
+textarea:focus,
+input:focus {
+  outline: none;
+  border-color: #34a853;
+  box-shadow: 0 0 0 3px rgba(52,168,83,0.15);
+}
+
+button {
+  padding: 10px 18px;
+  margin: 8px 8px 12px 0;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #34a853;
+  color: white;
+  transition: all 0.2s;
+  font-size: 15px;
+}
+
+button:hover {
+  background: #2d8e48;
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+  transform: none;
+}
+
+.section {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #d8f0dc;
+}
+
+.fallback {
+  display: none;
+  margin: 8px 0 18px;
+  padding: 14px 16px 2px;
+  border: 1px dashed rgba(52,168,83,0.45);
+  border-radius: 12px;
+  background: rgba(52,168,83,0.045);
+}
+
+.fallback.show, .output.show {
+  display: block;
+}
+
+.fallback-note, #status {
+  color: #5f8f69;
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+
+#status.error {
+  color: #c94b4b;
+}
+
+.output {
+  display: none;
+}
+
+h3 {
+  color: #34a853;
+}
+
+#qrcode {
+  margin-top: 12px;
+  text-align: center;
+}
+
+#qrcode img, #qrcode canvas {
+  display: inline-block !important;
+  max-width: 100%;
+  height: auto !important;
+}
+
+.footer {
+  text-align: center;
+  margin-top: 40px;
+  color: #5f8f69;
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  body { margin: 0; padding: 12px; }
+  .box { padding: 20px 16px; }
+  .main-title { font-size: 26px; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+  <h1 class="main-title">💚 贺峻霖粉丝专用链接生成器</h1>
+
+  <div class="subtitle">🦋 梦蝶破笼 · 振翅自由生长</div>
+
+  <p class="tip">粘贴作者和视频的手机端短链接，即可生成举报链接和二维码。</p>
+
+  <label for="profileShortUrl">作者手机端短链接：</label>
+  <textarea id="profileShortUrl" placeholder="粘贴作者主页分享短链接或整段分享文字"></textarea>
+
+  <div id="profileFallback" class="fallback">
+    <p class="fallback-note">作者短链接解析失败，请在浏览器打开作者主页后，粘贴地址栏中的网页端链接。</p>
+    <label for="profileWebUrl">作者网页端链接：</label>
+    <textarea id="profileWebUrl" placeholder="粘贴作者主页网页端链接"></textarea>
+  </div>
+
+  <label for="videoShortUrl">视频手机端短链接：</label>
+  <textarea id="videoShortUrl" placeholder="粘贴视频分享短链接或整段分享文字"></textarea>
+
+  <div id="videoFallback" class="fallback">
+    <p class="fallback-note">视频短链接解析失败，请在浏览器打开视频后，粘贴地址栏中的网页端链接。</p>
+    <label for="videoWebUrl">视频网页端链接：</label>
+    <textarea id="videoWebUrl" placeholder="粘贴视频网页端链接"></textarea>
+  </div>
+
+  <button id="generateButton" type="button" onclick="generateAll()">生成举报链接和二维码</button>
+  <p id="status" aria-live="polite"></p>
+
+  <div id="output" class="output">
+    <div class="section">
+      <h3>自动提取结果</h3>
+
+      <label for="objectIdShow">作品ID：</label>
+      <input id="objectIdShow" readonly placeholder="解析后显示">
+
+      <label for="secUidShow">用户加密ID：</label>
+      <input id="secUidShow" readonly placeholder="解析后显示">
+    </div>
+
+    <div class="section">
+      <h3>最终生成链接</h3>
+
+      <textarea id="result" class="result" readonly placeholder="生成后显示"></textarea>
+      <button type="button" onclick="copyResult()">复制链接</button>
+    </div>
+
+    <div class="section">
+      <h3>账号举报链接</h3>
+      <textarea id="accountResult" class="result" readonly placeholder="生成后显示"></textarea>
+      <button type="button" onclick="copyAccountResult()">复制账号举报链接</button>
+    </div>
+
+    <div class="section">
+      <h3>二维码</h3>
+      <div id="qrcode"></div>
+      <button type="button" onclick="downloadQR()">下载二维码图片</button>
+      <p class="fallback-note">二维码对应视频举报链接；账号举报链接可复制后在抖音中打开。</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+<script>
+const TEMPLATE = `snssdk1128://webview?url=https%3A%2F%2Faweme.snssdk.com%2Ffalcon%2Fdouyin_falcon%2Freport%2F%3Freport_type%3Dvideo%26object_id%3D{OBJECT_ID}%26sec_owner_id%3D{SEC_UID}%26enter_from%3Daweme_reflow%26hide_nav_bar%3D1%26should_full_screen%3D1&from=webview&refer=web`;
+
+function buildAccountReportLink(secUid) {
+  const accountPage = "https://api.amemv.com/falcon/fe_douyin_security_react/mortise/ba0333f4-9f4a-4a3b-97c0-4c44ab863916/" +
+    "?sec_owner_id=" + encodeURIComponent(secUid) +
+    "&sec_object_id=" + encodeURIComponent(secUid) +
+    "&enter_from=aweme_reflow&hide_nav_bar=1&should_full_screen=1";
+
+  return "snssdk1128://webview?url=" + encodeURIComponent(accountPage) + "&from=webview&refer=web";
+}
+
+function extractFirstUrl(text) {
+  const match = String(text || "").match(/https?:\/\/[^\s<>"']+/i);
+  return match ? match[0].replace(/[，。！？、；：）】》]+$/, "") : "";
+}
+
+function safelyDecode(text) {
+  let value = String(text || "");
+  for (let i = 0; i < 2; i++) {
+    try {
+      const decoded = decodeURIComponent(value);
+      if (decoded === value) break;
+      value = decoded;
+    } catch (e) {
+      break;
+    }
+  }
+  return value;
+}
+
+function extractVideoId(text) {
+  const source = safelyDecode(text);
+  const patterns = [
+    /[?&]modal_id=(\d+)/i,
+    /[?&]vid=(\d+)/i,
+    /\/video\/(\d+)/i,
+    /[?&]aweme_id=(\d+)/i,
+    /[?&]object_id=(\d+)/i,
+    /["'](?:aweme_id|group_id|itemId)["']\s*:\s*["']?(\d{10,})/i
+  ];
+  for (const pattern of patterns) {
+    const match = source.match(pattern);
+    if (match) return match[1];
+  }
+  return "";
+}
+
+function extractSecUid(text) {
+  const source = safelyDecode(text).replace(/\\u002F/g, "/").replace(/\\u0026/g, "&");
+  const patterns = [
+    /douyin\.com\/user\/([^?&#\s"'<>]+)/i,
+    /[?&](?:sec_uid|sec_owner_id)=([^&#\s"'<>]+)/i,
+    /["'](?:secUid|sec_uid|sec_user_id)["']\s*:\s*["']([^"']+)/i
+  ];
+  for (const pattern of patterns) {
+    const match = source.match(pattern);
+    if (match) return safelyDecode(match[1]);
+  }
+  return "";
+}
+
+async function resolveShortLink(rawText) {
+  const url = extractFirstUrl(rawText);
+  if (!url) return "";
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      cache: "no-store",
+      signal: controller.signal
+    });
+    const body = await response.text();
+    return response.url + "\n" + body;
+  } catch (e) {
+    return "";
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function showFallback(type, show) {
+  document.getElementById(type + "Fallback").classList.toggle("show", show);
+}
+
+function setStatus(message, isError) {
+  const status = document.getElementById("status");
+  status.textContent = message;
+  status.classList.toggle("error", Boolean(isError));
+}
+
+async function parseInput(kind) {
+  const shortText = document.getElementById(kind + "ShortUrl").value.trim();
+  const webText = document.getElementById(kind + "WebUrl").value.trim();
+  const extractor = kind === "video" ? extractVideoId : extractSecUid;
+
+  let value = extractor(shortText);
+  if (value) {
+    showFallback(kind, false);
+    return value;
+  }
+
+  if (shortText) {
+    const resolvedText = await resolveShortLink(shortText);
+    value = extractor(resolvedText);
+    if (value) {
+      showFallback(kind, false);
+      return value;
+    }
+  }
+
+  showFallback(kind, true);
+  return extractor(webText);
+}
+
+async function generateAll() {
+  const profileShort = document.getElementById("profileShortUrl").value.trim();
+  const videoShort = document.getElementById("videoShortUrl").value.trim();
+  const button = document.getElementById("generateButton");
+
+  if (!profileShort || !videoShort) {
+    setStatus("请先粘贴作者和视频的手机端短链接。", true);
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "正在解析短链接…";
+  setStatus("正在解析，请稍候…", false);
+
+  try {
+    const values = await Promise.all([parseInput("profile"), parseInput("video")]);
+    const secUid = values[0];
+    const objectId = values[1];
+    const missing = [];
+
+    if (!secUid) missing.push("作者");
+    if (!objectId) missing.push("视频");
+
+    if (missing.length) {
+      document.getElementById("output").classList.remove("show");
+      setStatus(missing.join("和") + "短链接暂时无法解析，请在新出现的输入框中粘贴网页端链接后再次生成。", true);
+      return;
+    }
+
+    const finalLink = TEMPLATE
+      .replace("{OBJECT_ID}", encodeURIComponent(objectId))
+      .replace("{SEC_UID}", encodeURIComponent(secUid));
+
+    document.getElementById("objectIdShow").value = objectId;
+    document.getElementById("secUidShow").value = secUid;
+    document.getElementById("result").value = finalLink;
+    document.getElementById("accountResult").value = buildAccountReportLink(secUid);
+    document.getElementById("output").classList.add("show");
+
+    if (!generateQR(finalLink)) {
+      setStatus("举报链接已生成，但二维码库加载失败，请联网后刷新页面重试。", true);
+      return;
+    }
+
+    setStatus("举报链接和二维码已生成。", false);
+    document.getElementById("output").scrollIntoView({ behavior: "smooth", block: "start" });
+  } finally {
+    button.disabled = false;
+    button.textContent = "生成举报链接和二维码";
+  }
+}
+
+async function copyResult() {
+  const result = document.getElementById("result");
+  const text = result.value;
+  if (!text) return;
+
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    result.select();
+    document.execCommand("copy");
+  }
+  setStatus("举报链接已复制。", false);
+}
+
+async function copyAccountResult() {
+  const result = document.getElementById("accountResult");
+  if (!result.value) return;
+
+  try {
+    await navigator.clipboard.writeText(result.value);
+  } catch (e) {
+    result.select();
+    document.execCommand("copy");
+  }
+  setStatus("账号举报链接已复制。", false);
+}
+
+function generateQR(finalLink) {
+  const qrContainer = document.getElementById("qrcode");
+  qrContainer.innerHTML = "";
+  if (typeof QRCode === "undefined") return false;
+
+  try {
+    new QRCode(qrContainer, {
+      text: finalLink,
+      width: 280,
+      height: 280,
+      correctLevel: QRCode.CorrectLevel.L
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function downloadQR() {
+  const qrImg = document.querySelector("#qrcode img");
+  const qrCanvas = document.querySelector("#qrcode canvas");
+  if (!qrImg && !qrCanvas) {
+    setStatus("二维码尚未生成。", true);
+    return;
+  }
+
+  const link = document.createElement("a");
+  link.href = qrCanvas ? qrCanvas.toDataURL("image/png") : qrImg.src;
+  link.download = "贺峻霖粉丝专用抖音举报二维码.png";
+  link.click();
+}
+</script>
+
+</body>
+</html>
