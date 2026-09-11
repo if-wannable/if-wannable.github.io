@@ -84,11 +84,9 @@
     <button id="export-btn" style="background: #7eb86e; color: white; border: none; padding: 6px 16px; border-radius: 20px; font-size: 0.85em; cursor: pointer;">📋 导出任务</button>
     <button id="refresh-btn" style="background: #7eb86e; color: white; border: none; padding: 6px 16px; border-radius: 20px; font-size: 0.85em; cursor: pointer;">🔄 手动刷新</button>
     <button id="sync-btn" style="background: #7eb86e; color: white; border: none; padding: 6px 16px; border-radius: 20px; font-size: 0.85em; cursor: pointer; display: none;">☁️ 同步到云端</button>
-    <button id="admin-btn" style="background: #add5a2; color: white; border: none; padding: 6px 16px; border-radius: 20px; font-size: 0.85em; cursor: pointer;">🔒 解锁编辑</button>
   </div>
   <p style="font-size: 0.8em; margin-top: 8px; display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
     <span id="cloud-status" style="color: #7eb86e;"></span>
-    <span id="admin-status" style="color: #999; display: none;">✅ 已解锁编辑模式</span>
   </p>
 </div>
 
@@ -138,9 +136,12 @@
 <script>
 const GIST_CONFIG = {
   gistId: 'b153fed7b323ef2c10c230f12bd67142',
-  token: localStorage.getItem('github_token') || '',
   filename: 'tasks.json'
 };
+
+// 部署 tasks-sync Worker 后,把 URL 填在这里(例如 https://tasks-sync.xxx.workers.dev)
+// 未配置时,编辑只存本地;配置后,所有人编辑都会自动同步到云端
+const WORKER_URL = '';
 
 const DEFAULT_TASKS = {
   card: [{ id: 'card-1', text: '签到打卡' }, { id: 'card-2', text: '盖楼回复' }],
@@ -154,8 +155,7 @@ const DEFAULT_TASKS = {
 };
 
 let TASKS_CONFIG = DEFAULT_TASKS;
-const ADMIN_PASSWORD = '123456';
-let isAdminUnlocked = false;
+let isAdminUnlocked = true;
 let batchDeleteMode = false;
 
 // 初始化
@@ -215,7 +215,7 @@ function loadTasksFromGist(forceRefresh, callback) {
     callback && callback(TASKS_CONFIG);
   }, 5000);
 
-  const headers = GIST_CONFIG.token ? { 'Authorization': `token ${GIST_CONFIG.token}` } : {};
+  const headers = {};
   fetch(`https://api.github.com/gists/${GIST_CONFIG.gistId}?_=${Date.now()}`, { cache: 'no-cache', headers })
     .then(res => res.json())
     .then(data => {
@@ -259,32 +259,29 @@ function loadTasksFromGist(forceRefresh, callback) {
 }
 
 function saveTasksToGist(callback) {
-  if (!GIST_CONFIG.gistId || !GIST_CONFIG.token) {
-    const token = prompt('同步到云端需要 GitHub Token，请输入：\n\n（Token 将保存在本机 localStorage 中，不会上传）');
-    if (token?.trim()) {
-      GIST_CONFIG.token = token.trim();
-      localStorage.setItem('github_token', GIST_CONFIG.token);
-    } else {
-      alert('❌ 未提供 Token，无法同步到云端。');
-      callback && callback(false);
-      return;
-    }
+  if (!WORKER_URL) {
+    // 未配置 Worker,编辑只存本地
+    localStorage.setItem('tasks_cache', JSON.stringify(TASKS_CONFIG));
+    localStorage.setItem('tasks_cache_time', Date.now());
+    updateCloudStatus('⚠️ 未配置云端同步(本地已存)', true);
+    callback && callback(false);
+    return;
   }
 
-  const content = { [GIST_CONFIG.filename]: { content: JSON.stringify(TASKS_CONFIG, null, 2) } };
-  fetch(`https://api.github.com/gists/${GIST_CONFIG.gistId}`, {
-    method: 'PATCH',
-    headers: { 'Authorization': `token ${GIST_CONFIG.token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ files: content })
+  fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(TASKS_CONFIG)
   })
-  .then(res => {
-    if (res.ok) {
+  .then(res => res.json())
+  .then(data => {
+    if (data.ok) {
       localStorage.setItem('tasks_cache', JSON.stringify(TASKS_CONFIG));
       localStorage.setItem('tasks_cache_time', Date.now());
       updateCloudStatus('✅ 已同步到云端', false);
       callback && callback(true);
     } else {
-      res.text().then(text => alert(`❌ 同步失败！HTTP ${res.status}\n\n${text || ''}`));
+      alert(`❌ 同步失败！${data.error || ''}${data.detail ? '\n\n' + data.detail : ''}`);
       callback && callback(false);
     }
   })
@@ -377,9 +374,7 @@ function updateAdminStatus() {
   const isDisplay = isAdminUnlocked ? 'inline' : 'none';
   const notDisplay = isAdminUnlocked ? 'none' : 'inline-block';
 
-  document.getElementById('admin-btn').innerText = isAdminUnlocked ? '🔓 锁定编辑' : '🔒 解锁编辑';
-  document.getElementById('admin-status').style.display = isAdminUnlocked ? 'inline' : 'none';
-  document.getElementById('sync-btn').style.display = 'none';
+  document.getElementById('sync-btn').style.display = 'inline';
   document.getElementById('batch-delete-btn').style.display = isAdminUnlocked ? 'inline' : 'none';
 
   document.querySelectorAll('.delete-btn, .edit-link-btn').forEach(b => b.style.display = isDisplay);
@@ -519,33 +514,6 @@ function refresh(autoSync = true) {
 }
 
 // 事件绑定
-document.getElementById('admin-btn').onclick = function() {
-  if (isAdminUnlocked) {
-    isAdminUnlocked = false;
-    refresh();
-    return;
-  }
-  if (localStorage.getItem('admin_unlocked_once') === 'true') {
-    isAdminUnlocked = true;
-    refresh();
-    return;
-  }
-  const pwd = prompt('请输入管理员密码：');
-  if (pwd === ADMIN_PASSWORD) {
-    isAdminUnlocked = true;
-    localStorage.setItem('admin_unlocked_once', 'true');
-    refresh();
-    if (!GIST_CONFIG.token) {
-      const token = prompt('检测到未配置 GitHub Token。\n\n请输入 GitHub Personal Access Token：');
-      if (token?.trim()) {
-        GIST_CONFIG.token = token.trim();
-        localStorage.setItem('github_token', GIST_CONFIG.token);
-      }
-    }
-  } else if (pwd !== null) {
-    alert('密码错误！');
-  }
-};
 
 document.querySelectorAll('.add-task-btn').forEach(btn => {
   btn.onclick = function() {

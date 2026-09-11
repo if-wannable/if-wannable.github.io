@@ -1,0 +1,7 @@
+name = "tasks-sync"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+GIST_ID = "b153fed7b323ef2c10c230f12bd67142"
+GIST_FILENAME = "tasks.json"
