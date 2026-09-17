@@ -1,6 +1,6 @@
 {
   "song_id": "530004147",
-  "updated_at": "2026-09-17T08:38:08+08:00",
+  "updated_at": "2026-09-17T13:20:35+08:00",
   "info": {
     "track_name": "红尘慌慌",
     "singer_name": "周深",
@@ -10,84 +10,23 @@
   "current_issue": "202637",
   "current": {
     "chartsIssue": "202637",
-    "updateTime": 1789604400000,
-    "nextUpdateTime": "2026.09.17 08:45",
+    "updateTime": 1789621200000,
+    "nextUpdateTime": "2026.09.17 13:25",
     "chartsIssueStartTime": "2026.09.14",
     "chartsIssueEndTime": "2026.09.20",
-    "curRank": 198,
-    "uniIndex": "59.88",
-    "uniIndexNew": "59.87794",
+    "curRank": 201,
+    "uniIndex": "0.00",
+    "uniIndexNew": "0.00",
     "sameIndex": 0,
     "rankThanPre": 0,
-    "indexThanPre": "0.09",
-    "indexThanPreRank": "0.01",
+    "indexThanPre": "0.00",
+    "indexThanPreRank": "0.14",
     "isHistoryHighestRank": null,
     "isHistoryHighestUniIndex": null,
     "historyHighestRank": 1,
     "historyHighestUniIndex": "96.98",
     "onChartWeeks": 6,
-    "classifyIndices": [
-      {
-        "name": "播放热度",
-        "code": 1,
-        "percentage": 35,
-        "subdivisions": [
-          "音频播放",
-          "视频播放"
-        ],
-        "index": "55.28",
-        "isChampion": null,
-        "breakRecord": false
-      },
-      {
-        "name": "传播度",
-        "code": 2,
-        "percentage": 20,
-        "subdivisions": [
-          "分享",
-          "K歌传唱",
-          "微博转发"
-        ],
-        "index": "0.00",
-        "isChampion": null,
-        "breakRecord": false
-      },
-      {
-        "name": "喜好度",
-        "code": 3,
-        "percentage": 10,
-        "subdivisions": [
-          "收藏",
-          "下载"
-        ],
-        "index": "0.00",
-        "isChampion": null,
-        "breakRecord": false
-      },
-      {
-        "name": "畅销度",
-        "code": 4,
-        "percentage": 15,
-        "subdivisions": [
-          "数专销量",
-          "价值打榜"
-        ],
-        "index": "1.51",
-        "isChampion": null,
-        "breakRecord": false
-      },
-      {
-        "name": "推荐度",
-        "code": 5,
-        "percentage": 20,
-        "subdivisions": [
-          "点赞"
-        ],
-        "index": "26.93",
-        "isChampion": null,
-        "breakRecord": false
-      }
-    ],
+    "classifyIndices": [],
     "dynamic": true,
     "comment_total": null
   },
@@ -19430,6 +19369,15 @@
             "index": "26.93"
           }
         ],
+        "comment_total": null
+      },
+      {
+        "at": "2026-09-17T13:25:00+08:00",
+        "chartsIssue": "202637",
+        "uniIndex": "0.00",
+        "curRank": 201,
+        "nextUpdateTime": "2026.09.17 13:25",
+        "dims": [],
         "comment_total": null
       }
     ]
