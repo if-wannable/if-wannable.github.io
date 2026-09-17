@@ -1,6 +1,6 @@
 {
   "song_id": "530004147",
-  "updated_at": "2026-09-17T13:20:35+08:00",
+  "updated_at": "2026-09-17T18:05:48+08:00",
   "info": {
     "track_name": "红尘慌慌",
     "singer_name": "周深",
@@ -10,17 +10,17 @@
   "current_issue": "202637",
   "current": {
     "chartsIssue": "202637",
-    "updateTime": 1789621200000,
-    "nextUpdateTime": "2026.09.17 13:25",
+    "updateTime": 1789638600000,
+    "nextUpdateTime": "2026.09.17 18:15",
     "chartsIssueStartTime": "2026.09.14",
     "chartsIssueEndTime": "2026.09.20",
     "curRank": 201,
     "uniIndex": "0.00",
     "uniIndexNew": "0.00",
     "sameIndex": 0,
-    "rankThanPre": 0,
+    "rankThanPre": -1,
     "indexThanPre": "0.00",
-    "indexThanPreRank": "0.14",
+    "indexThanPreRank": "0.02",
     "isHistoryHighestRank": null,
     "isHistoryHighestUniIndex": null,
     "historyHighestRank": 1,
@@ -19036,34 +19036,6 @@
         "comment_total": null
       },
       {
-        "at": "2026-09-15T18:05:00+08:00",
-        "chartsIssue": "202637",
-        "uniIndex": "37.06",
-        "curRank": 199,
-        "nextUpdateTime": "2026.09.15 18:15",
-        "dims": [
-          {
-            "name": "播放热度",
-            "code": 1,
-            "percentage": 35,
-            "index": "51.30"
-          },
-          {
-            "name": "畅销度",
-            "code": 4,
-            "percentage": 15,
-            "index": "0.73"
-          },
-          {
-            "name": "推荐度",
-            "code": 5,
-            "percentage": 20,
-            "index": "13.74"
-          }
-        ],
-        "comment_total": null
-      },
-      {
         "at": "2026-09-15T22:45:00+08:00",
         "chartsIssue": "202637",
         "uniIndex": "43.47",
@@ -19377,6 +19349,15 @@
         "uniIndex": "0.00",
         "curRank": 201,
         "nextUpdateTime": "2026.09.17 13:25",
+        "dims": [],
+        "comment_total": null
+      },
+      {
+        "at": "2026-09-17T18:05:00+08:00",
+        "chartsIssue": "202637",
+        "uniIndex": "0.00",
+        "curRank": 201,
+        "nextUpdateTime": "2026.09.17 18:15",
         "dims": [],
         "comment_total": null
       }
