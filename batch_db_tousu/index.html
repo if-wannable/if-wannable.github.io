@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>豆瓣批量投诉工具</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --card: #1a1d29;
+  --border: #2a2d3a;
+  --accent: #4e7ef3;
+  --text: #e0e0e8;
+  --text-dim: #888;
+  --success: #4caf50;
+  --radius: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  padding: 24px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+h1 { font-size: 1.6rem; margin-bottom: 4px; }
+.subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 32px; }
+.subtitle a { color: var(--accent); text-decoration: none; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.card h2 { font-size: 1.1rem; margin-bottom: 16px; }
+.steps { padding-left: 0; list-style: none; counter-reset: step; }
+.steps li {
+  counter-increment: step;
+  padding-left: 36px;
+  position: relative;
+  margin-bottom: 12px;
+  font-size: 0.92rem;
+}
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0; top: 0;
+  width: 24px; height: 24px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.bookmarklet {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff !important;
+  text-decoration: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: grab;
+  user-select: none;
+  margin: 8px 0;
+  transition: background 0.2s;
+}
+.bookmarklet:hover { background: #3d6de0; }
+.bookmarklet:active { cursor: grabbing; }
+.hint { color: var(--text-dim); font-size: 0.82rem; margin-top: 8px; }
+.code-block {
+  background: #0c0e14;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 8px;
+  position: relative;
+}
+.code-block code {
+  display: block;
+  font-family: "SF Mono", monospace;
+  font-size: 0.78rem;
+  color: #8ad08a;
+  word-break: break-all;
+  line-height: 1.5;
+}
+.btn-copy {
+  position: absolute;
+  top: 8px; right: 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.btn-copy:hover { border-color: var(--accent); color: var(--text); }
+b { color: var(--text); }
+ul.features { padding-left: 20px; font-size: 0.9rem; color: var(--text-dim); }
+ul.features li { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<h1>豆瓣批量投诉工具</h1>
+<p class="subtitle">
+  举报讨论本身（非回复）｜ Cookie 不离开浏览器，全程浏览器端运行
+</p>
+
+<div class="card">
+  <h2>使用方法</h2>
+  <ol class="steps">
+    <li>
+      将下方按钮拖到浏览器书签栏：<br>
+      <a class="bookmarklet" href="javascript:(function(){var s=document.createElement('script');s.src='https://if-wannable.github.io/batch_db_tousu/tool.js';s.onload=function(){this.remove()};document.head.appendChild(s);})();">🔍 豆瓣投诉</a>
+      <div class="hint">（如果书签栏没显示，按 <b>Cmd+Shift+B</b> 或 <b>Ctrl+Shift+B</b> 显示书签栏）</div>
+    </li>
+    <li>
+      打开 <a href="https://www.douban.com" target="_blank" style="color:var(--accent)">douban.com</a> 并确保已登录
+    </li>
+    <li>
+      在豆瓣任意页面点击书签栏的 <b>"🔍 豆瓣投诉"</b><br>
+      <span class="hint">工具面板会出现在页面右上角，自动获取 Cookie，无需手动复制</span>
+    </li>
+  </ol>
+</div>
+
+<div class="card">
+  <h2>功能说明</h2>
+  <ul class="features">
+    <li><b>举报对象</b>：讨论本身（原始帖），非回复</li>
+    <li><b>举报理由</b>：两级下拉选择（大类 -> 小类），所有讨论共用同一理由</li>
+    <li><b>链接格式</b>：支持标准 URL 和 doubanapp/dispatch 格式</li>
+    <li><b>批量输入</b>：每行一个 URL，或上传 CSV/TXT 文件</li>
+    <li><b>进度显示</b>：进度条 + 成功/失败统计 + 逐条日志</li>
+    <li><b>限速</b>：默认 800ms 间隔防风控</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2>备用：控制台方式</h2>
+  <p class="hint">如果书签方式不工作，可以在豆瓣页面 F12 控制台粘贴以下代码：</p>
+  <div class="code-block">
+    <code>var s=document.createElement('script');s.src='https://if-wannable.github.io/batch_db_tousu/tool.js';document.head.appendChild(s);</code>
+    <button class="btn-copy" onclick="copyCode(this)">复制</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>手机端使用</h2>
+  <p class="hint"><b>iPhone Safari</b>：设置 -> Safari -> 高级 -> 启用"网页检查器"，连接 Mac 后在 Mac Safari 开发菜单中粘贴代码</p>
+  <p class="hint"><b>Android Chrome</b>：在 douban.com 页面打开菜单 -> 分享 -> 复制链接，然后将 bookmarklet 的 javascript: 代码粘贴到地址栏</p>
+</div>
+
+<script>
+function copyCode(btn) {
+  const code = btn.previousElementSibling.textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    btn.textContent = '已复制';
+    setTimeout(() => { btn.textContent = '复制'; }, 2000);
+  });
+}
+</script>
+</body>
+</html>
