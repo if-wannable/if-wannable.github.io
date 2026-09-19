@@ -35,7 +35,6 @@ h1 { font-size: 1.6rem; margin-bottom: 4px; }
   margin-bottom: 16px;
 }
 .card h2 { font-size: 1.1rem; margin-bottom: 16px; }
-.card h3 { font-size: 0.95rem; color: var(--accent); margin: 16px 0 8px; }
 .steps { padding-left: 0; list-style: none; counter-reset: step; }
 .steps li {
   counter-increment: step;
@@ -78,45 +77,6 @@ h1 { font-size: 1.6rem; margin-bottom: 4px; }
 b { color: var(--text); }
 ul.features { padding-left: 20px; font-size: 0.9rem; color: var(--text-dim); }
 ul.features li { margin-bottom: 6px; }
-
-.btn-copy {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 10px 20px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  margin: 8px 0;
-}
-.btn-copy:active { transform: scale(0.97); }
-.toast {
-  position: fixed;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #333;
-  color: #fff;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-  z-index: 9999;
-}
-.toast.show { opacity: 1; }
-.tag {
-  display: inline-block;
-  font-size: 0.7rem;
-  padding: 2px 8px;
-  border-radius: 4px;
-  margin-left: 6px;
-  vertical-align: middle;
-}
-.tag-ios { background: #2a2d3a; color: #aaa; }
-.tag-android { background: #2a2d3a; color: #aaa; }
 </style>
 </head>
 <body>
@@ -127,7 +87,7 @@ ul.features li { margin-bottom: 6px; }
 </p>
 
 <div class="card">
-  <h2>电脑端</h2>
+  <h2>使用方法</h2>
   <ol class="steps">
     <li>
       将下方按钮拖到浏览器书签栏：<br>
@@ -137,38 +97,6 @@ ul.features li { margin-bottom: 6px; }
     <li>打开 <a href="https://www.douban.com" target="_blank" style="color:var(--accent)">douban.com</a> 并确保已登录</li>
     <li>在豆瓣任意页面点击书签栏的 <b>"🔍 豆瓣投诉"</b>，工具面板自动出现</li>
   </ol>
-</div>
-
-<div class="card">
-  <h2>手机端 <span class="hint" style="font-size:0.8rem">设置一次，以后去豆瓣点书签即可</span></h2>
-
-  <h3>第一步：复制启动代码</h3>
-  <button class="btn-copy" onclick="copyCode(this)">📋 复制代码</button>
-  <div class="hint">点上面按钮复制，后面要用</div>
-
-  <h3>第二步：在豆瓣创建书签 <span class="tag tag-ios">iOS Safari</span></h3>
-  <ol class="steps">
-    <li>打开 <a href="https://www.douban.com" target="_blank" style="color:var(--accent)">douban.com</a>（确保已登录）</li>
-    <li>点底部 <b>分享按钮</b>（方框+向上箭头），选 <b>"添加书签"</b></li>
-    <li>点底部 <b>书签按钮</b>（打开的书本图标），找到刚保存的书签</li>
-    <li>点右下角 <b>"编辑"</b>，点击刚保存的书签</li>
-    <li>将 <b>URL</b> 栏清空，粘贴刚才复制的代码</li>
-    <li>将 <b>标题</b> 改为"豆瓣投诉"，点"完成"</li>
-  </ol>
-
-  <h3>第二步：在豆瓣创建书签 <span class="tag tag-android">Android Chrome</span></h3>
-  <ol class="steps">
-    <li>打开 <a href="https://www.douban.com" target="_blank" style="color:var(--accent)">douban.com</a>（确保已登录）</li>
-    <li>点地址栏右侧 <b>星标</b> 添加书签，选"书签栏"</li>
-    <li>点右上角 <b>三点菜单</b> -> <b>书签</b> -> 找到刚保存的书签</li>
-    <li>点击该书签右侧 <b>三点</b> -> <b>"编辑"</b></li>
-    <li>将 <b>URL</b> 栏清空，粘贴刚才复制的代码，点"保存"</li>
-  </ol>
-
-  <h3>第三步：使用</h3>
-  <div class="hint" style="font-size:0.92rem; color:var(--text)">
-    以后每次使用：打开豆瓣任意页面 -> 点书签 -> 选"豆瓣投诉" -> 工具面板自动出现
-  </div>
 </div>
 
 <div class="card">
@@ -183,25 +111,5 @@ ul.features li { margin-bottom: 6px; }
   </ul>
 </div>
 
-<div class="toast" id="toast"></div>
-
-<script>
-var BOOKMARK_CODE = "javascript:(function(){var s=document.createElement('script');s.src='https://if-wannable.github.io/batch_db_tousu/tool.js';s.onload=function(){this.remove()};document.head.appendChild(s);})();";
-
-function showToast(msg) {
-  var t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(function() { t.classList.remove('show'); }, 3000);
-}
-
-function copyCode(btn) {
-  navigator.clipboard.writeText(BOOKMARK_CODE).then(function() {
-    btn.textContent = '✅ 已复制';
-    showToast('代码已复制，继续下一步');
-    setTimeout(function() { btn.textContent = '📋 复制代码'; }, 3000);
-  });
-}
-</script>
 </body>
 </html>
