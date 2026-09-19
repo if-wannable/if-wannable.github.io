@@ -1,6 +1,6 @@
 {
   "song_id": "530004147",
-  "updated_at": "2026-09-19T21:30:05+08:00",
+  "updated_at": "2026-09-20T00:40:49+08:00",
   "info": {
     "track_name": "红尘慌慌",
     "singer_name": "周深",
@@ -10,8 +10,8 @@
   "current_issue": "202637",
   "current": {
     "chartsIssue": "202637",
-    "updateTime": 1789823400000,
-    "nextUpdateTime": "2026.09.19 21:35",
+    "updateTime": 1789834800000,
+    "nextUpdateTime": "2026.09.20 00:45",
     "chartsIssueStartTime": "2026.09.14",
     "chartsIssueEndTime": "2026.09.20",
     "curRank": 201,
@@ -20,7 +20,7 @@
     "sameIndex": 0,
     "rankThanPre": 0,
     "indexThanPre": "0.00",
-    "indexThanPreRank": "0.01",
+    "indexThanPreRank": "0.05",
     "isHistoryHighestRank": null,
     "isHistoryHighestUniIndex": null,
     "historyHighestRank": 1,
@@ -19148,34 +19148,6 @@
         "comment_total": null
       },
       {
-        "at": "2026-09-17T00:45:00+08:00",
-        "chartsIssue": "202637",
-        "uniIndex": "58.22",
-        "curRank": 198,
-        "nextUpdateTime": "2026.09.17 00:55",
-        "dims": [
-          {
-            "name": "播放热度",
-            "code": 1,
-            "percentage": 35,
-            "index": "54.75"
-          },
-          {
-            "name": "畅销度",
-            "code": 4,
-            "percentage": 15,
-            "index": "1.51"
-          },
-          {
-            "name": "推荐度",
-            "code": 5,
-            "percentage": 20,
-            "index": "26.17"
-          }
-        ],
-        "comment_total": null
-      },
-      {
         "at": "2026-09-17T03:45:00+08:00",
         "chartsIssue": "202637",
         "uniIndex": "58.92",
@@ -19409,6 +19381,15 @@
         "uniIndex": "0.00",
         "curRank": 201,
         "nextUpdateTime": "2026.09.19 21:35",
+        "dims": [],
+        "comment_total": null
+      },
+      {
+        "at": "2026-09-20T00:45:00+08:00",
+        "chartsIssue": "202637",
+        "uniIndex": "0.00",
+        "curRank": 201,
+        "nextUpdateTime": "2026.09.20 00:45",
         "dims": [],
         "comment_total": null
       }
