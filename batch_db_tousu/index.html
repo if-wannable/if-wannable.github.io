@@ -35,6 +35,7 @@ h1 { font-size: 1.6rem; margin-bottom: 4px; }
   margin-bottom: 16px;
 }
 .card h2 { font-size: 1.1rem; margin-bottom: 16px; }
+.card h3 { font-size: 0.95rem; color: var(--accent); margin: 16px 0 8px; }
 .steps { padding-left: 0; list-style: none; counter-reset: step; }
 .steps li {
   counter-increment: step;
@@ -78,28 +79,18 @@ b { color: var(--text); }
 ul.features { padding-left: 20px; font-size: 0.9rem; color: var(--text-dim); }
 ul.features li { margin-bottom: 6px; }
 
-/* 手机端一键按钮 */
-.btn-launch {
-  display: block;
-  width: 100%;
+.btn-copy {
   background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: 8px;
-  padding: 14px;
-  font-size: 1rem;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  margin: 12px 0;
+  margin: 8px 0;
 }
-.btn-launch:hover { background: #3d6de0; }
-.btn-launch:active { transform: scale(0.98); }
-.launch-hint {
-  text-align: center;
-  color: var(--text-dim);
-  font-size: 0.85rem;
-  margin-top: 8px;
-}
+.btn-copy:active { transform: scale(0.97); }
 .toast {
   position: fixed;
   bottom: 40px;
@@ -116,14 +107,16 @@ ul.features li { margin-bottom: 6px; }
   z-index: 9999;
 }
 .toast.show { opacity: 1; }
-
-/* 桌面拖拽区 - 手机端隐藏 */
-.desktop-only { display: block; }
-.mobile-only { display: none; }
-@media (max-width: 768px) {
-  .desktop-only { display: none; }
-  .mobile-only { display: block; }
+.tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
 }
+.tag-ios { background: #2a2d3a; color: #aaa; }
+.tag-android { background: #2a2d3a; color: #aaa; }
 </style>
 </head>
 <body>
@@ -133,9 +126,8 @@ ul.features li { margin-bottom: 6px; }
   举报讨论本身（非回复）｜ Cookie 不离开浏览器，全程浏览器端运行
 </p>
 
-<!-- 电脑端 -->
-<div class="card desktop-only">
-  <h2>使用方法</h2>
+<div class="card">
+  <h2>电脑端</h2>
   <ol class="steps">
     <li>
       将下方按钮拖到浏览器书签栏：<br>
@@ -143,19 +135,40 @@ ul.features li { margin-bottom: 6px; }
       <div class="hint">（如果书签栏没显示，按 <b>Cmd+Shift+B</b> 或 <b>Ctrl+Shift+B</b> 显示书签栏）</div>
     </li>
     <li>打开 <a href="https://www.douban.com" target="_blank" style="color:var(--accent)">douban.com</a> 并确保已登录</li>
-    <li>
-      在豆瓣任意页面点击书签栏的 <b>"🔍 豆瓣投诉"</b><br>
-      <span class="hint">工具面板会出现在页面右上角，自动获取 Cookie，无需手动复制</span>
-    </li>
+    <li>在豆瓣任意页面点击书签栏的 <b>"🔍 豆瓣投诉"</b>，工具面板自动出现</li>
   </ol>
 </div>
 
-<!-- 手机端 -->
-<div class="card mobile-only">
-  <h2>使用方法</h2>
-  <p class="hint" style="margin-bottom:12px">点击按钮，会自动复制启动代码并跳转豆瓣，在豆瓣地址栏粘贴即可：</p>
-  <button class="btn-launch" onclick="launchMobile()">🔍 豆瓣投诉</button>
-  <p class="launch-hint">点击后 → 打开豆瓣 → 地址栏粘贴 → 回车</p>
+<div class="card">
+  <h2>手机端 <span class="hint" style="font-size:0.8rem">设置一次，以后去豆瓣点书签即可</span></h2>
+
+  <h3>第一步：复制启动代码</h3>
+  <button class="btn-copy" onclick="copyCode(this)">📋 复制代码</button>
+  <div class="hint">点上面按钮复制，后面要用</div>
+
+  <h3>第二步：在豆瓣创建书签 <span class="tag tag-ios">iOS Safari</span></h3>
+  <ol class="steps">
+    <li>打开 <a href="https://www.douban.com" target="_blank" style="color:var(--accent)">douban.com</a>（确保已登录）</li>
+    <li>点底部 <b>分享按钮</b>（方框+向上箭头），选 <b>"添加书签"</b></li>
+    <li>点底部 <b>书签按钮</b>（打开的书本图标），找到刚保存的书签</li>
+    <li>点右下角 <b>"编辑"</b>，点击刚保存的书签</li>
+    <li>将 <b>URL</b> 栏清空，粘贴刚才复制的代码</li>
+    <li>将 <b>标题</b> 改为"豆瓣投诉"，点"完成"</li>
+  </ol>
+
+  <h3>第二步：在豆瓣创建书签 <span class="tag tag-android">Android Chrome</span></h3>
+  <ol class="steps">
+    <li>打开 <a href="https://www.douban.com" target="_blank" style="color:var(--accent)">douban.com</a>（确保已登录）</li>
+    <li>点地址栏右侧 <b>星标</b> 添加书签，选"书签栏"</li>
+    <li>点右上角 <b>三点菜单</b> -> <b>书签</b> -> 找到刚保存的书签</li>
+    <li>点击该书签右侧 <b>三点</b> -> <b>"编辑"</b></li>
+    <li>将 <b>URL</b> 栏清空，粘贴刚才复制的代码，点"保存"</li>
+  </ol>
+
+  <h3>第三步：使用</h3>
+  <div class="hint" style="font-size:0.92rem; color:var(--text)">
+    以后每次使用：打开豆瓣任意页面 -> 点书签 -> 选"豆瓣投诉" -> 工具面板自动出现
+  </div>
 </div>
 
 <div class="card">
@@ -182,15 +195,11 @@ function showToast(msg) {
   setTimeout(function() { t.classList.remove('show'); }, 3000);
 }
 
-function launchMobile() {
+function copyCode(btn) {
   navigator.clipboard.writeText(BOOKMARK_CODE).then(function() {
-    showToast('已复制代码，正在跳转豆瓣…');
-    setTimeout(function() {
-      location.href = 'https://www.douban.com/group/';
-    }, 800);
-  }).catch(function() {
-    // 剪贴板失败，直接跳转
-    location.href = 'https://www.douban.com/group/';
+    btn.textContent = '✅ 已复制';
+    showToast('代码已复制，继续下一步');
+    setTimeout(function() { btn.textContent = '📋 复制代码'; }, 3000);
   });
 }
 </script>
