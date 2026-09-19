@@ -27,7 +27,6 @@ body {
 }
 h1 { font-size: 1.6rem; margin-bottom: 4px; }
 .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 32px; }
-.subtitle a { color: var(--accent); text-decoration: none; }
 .card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -75,37 +74,56 @@ h1 { font-size: 1.6rem; margin-bottom: 4px; }
 .bookmarklet:hover { background: #3d6de0; }
 .bookmarklet:active { cursor: grabbing; }
 .hint { color: var(--text-dim); font-size: 0.82rem; margin-top: 8px; }
-.code-block {
-  background: #0c0e14;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px;
-  margin-top: 8px;
-  position: relative;
-}
-.code-block code {
-  display: block;
-  font-family: "SF Mono", monospace;
-  font-size: 0.78rem;
-  color: #8ad08a;
-  word-break: break-all;
-  line-height: 1.5;
-}
-.btn-copy {
-  position: absolute;
-  top: 8px; right: 8px;
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  border-radius: 4px;
-  padding: 4px 10px;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-.btn-copy:hover { border-color: var(--accent); color: var(--text); }
 b { color: var(--text); }
 ul.features { padding-left: 20px; font-size: 0.9rem; color: var(--text-dim); }
 ul.features li { margin-bottom: 6px; }
+
+/* 手机端一键按钮 */
+.btn-launch {
+  display: block;
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 12px 0;
+}
+.btn-launch:hover { background: #3d6de0; }
+.btn-launch:active { transform: scale(0.98); }
+.launch-hint {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  margin-top: 8px;
+}
+.toast {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: 9999;
+}
+.toast.show { opacity: 1; }
+
+/* 桌面拖拽区 - 手机端隐藏 */
+.desktop-only { display: block; }
+.mobile-only { display: none; }
+@media (max-width: 768px) {
+  .desktop-only { display: none; }
+  .mobile-only { display: block; }
+}
 </style>
 </head>
 <body>
@@ -115,7 +133,8 @@ ul.features li { margin-bottom: 6px; }
   举报讨论本身（非回复）｜ Cookie 不离开浏览器，全程浏览器端运行
 </p>
 
-<div class="card">
+<!-- 电脑端 -->
+<div class="card desktop-only">
   <h2>使用方法</h2>
   <ol class="steps">
     <li>
@@ -123,14 +142,20 @@ ul.features li { margin-bottom: 6px; }
       <a class="bookmarklet" href="javascript:(function(){var s=document.createElement('script');s.src='https://if-wannable.github.io/batch_db_tousu/tool.js';s.onload=function(){this.remove()};document.head.appendChild(s);})();">🔍 豆瓣投诉</a>
       <div class="hint">（如果书签栏没显示，按 <b>Cmd+Shift+B</b> 或 <b>Ctrl+Shift+B</b> 显示书签栏）</div>
     </li>
-    <li>
-      打开 <a href="https://www.douban.com" target="_blank" style="color:var(--accent)">douban.com</a> 并确保已登录
-    </li>
+    <li>打开 <a href="https://www.douban.com" target="_blank" style="color:var(--accent)">douban.com</a> 并确保已登录</li>
     <li>
       在豆瓣任意页面点击书签栏的 <b>"🔍 豆瓣投诉"</b><br>
       <span class="hint">工具面板会出现在页面右上角，自动获取 Cookie，无需手动复制</span>
     </li>
   </ol>
+</div>
+
+<!-- 手机端 -->
+<div class="card mobile-only">
+  <h2>使用方法</h2>
+  <p class="hint" style="margin-bottom:12px">点击按钮，会自动复制启动代码并跳转豆瓣，在豆瓣地址栏粘贴即可：</p>
+  <button class="btn-launch" onclick="launchMobile()">🔍 豆瓣投诉</button>
+  <p class="launch-hint">点击后 → 打开豆瓣 → 地址栏粘贴 → 回车</p>
 </div>
 
 <div class="card">
@@ -145,27 +170,27 @@ ul.features li { margin-bottom: 6px; }
   </ul>
 </div>
 
-<div class="card">
-  <h2>备用：控制台方式</h2>
-  <p class="hint">如果书签方式不工作，可以在豆瓣页面 F12 控制台粘贴以下代码：</p>
-  <div class="code-block">
-    <code>var s=document.createElement('script');s.src='https://if-wannable.github.io/batch_db_tousu/tool.js';document.head.appendChild(s);</code>
-    <button class="btn-copy" onclick="copyCode(this)">复制</button>
-  </div>
-</div>
-
-<div class="card">
-  <h2>手机端使用</h2>
-  <p class="hint"><b>iPhone Safari</b>：设置 -> Safari -> 高级 -> 启用"网页检查器"，连接 Mac 后在 Mac Safari 开发菜单中粘贴代码</p>
-  <p class="hint"><b>Android Chrome</b>：在 douban.com 页面打开菜单 -> 分享 -> 复制链接，然后将 bookmarklet 的 javascript: 代码粘贴到地址栏</p>
-</div>
+<div class="toast" id="toast"></div>
 
 <script>
-function copyCode(btn) {
-  const code = btn.previousElementSibling.textContent;
-  navigator.clipboard.writeText(code).then(() => {
-    btn.textContent = '已复制';
-    setTimeout(() => { btn.textContent = '复制'; }, 2000);
+var BOOKMARK_CODE = "javascript:(function(){var s=document.createElement('script');s.src='https://if-wannable.github.io/batch_db_tousu/tool.js';s.onload=function(){this.remove()};document.head.appendChild(s);})();";
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 3000);
+}
+
+function launchMobile() {
+  navigator.clipboard.writeText(BOOKMARK_CODE).then(function() {
+    showToast('已复制代码，正在跳转豆瓣…');
+    setTimeout(function() {
+      location.href = 'https://www.douban.com/group/';
+    }, 800);
+  }).catch(function() {
+    // 剪贴板失败，直接跳转
+    location.href = 'https://www.douban.com/group/';
   });
 }
 </script>
