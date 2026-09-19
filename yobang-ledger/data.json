@@ -1,6 +1,6 @@
 {
   "song_id": "530004147",
-  "updated_at": "2026-09-19T07:09:05+08:00",
+  "updated_at": "2026-09-19T09:08:39+08:00",
   "info": {
     "track_name": "红尘慌慌",
     "singer_name": "周深",
@@ -10,8 +10,8 @@
   "current_issue": "202637",
   "current": {
     "chartsIssue": "202637",
-    "updateTime": 1789771800000,
-    "nextUpdateTime": "2026.09.19 07:15",
+    "updateTime": 1789779000000,
+    "nextUpdateTime": "2026.09.19 09:15",
     "chartsIssueStartTime": "2026.09.14",
     "chartsIssueEndTime": "2026.09.20",
     "curRank": 201,
@@ -20,7 +20,7 @@
     "sameIndex": 0,
     "rankThanPre": 0,
     "indexThanPre": "0.00",
-    "indexThanPreRank": "0.33",
+    "indexThanPreRank": "0.08",
     "isHistoryHighestRank": null,
     "isHistoryHighestUniIndex": null,
     "historyHighestRank": 1,
@@ -19373,6 +19373,15 @@
         "uniIndex": "0.00",
         "curRank": 201,
         "nextUpdateTime": "2026.09.19 07:15",
+        "dims": [],
+        "comment_total": null
+      },
+      {
+        "at": "2026-09-19T09:05:00+08:00",
+        "chartsIssue": "202637",
+        "uniIndex": "0.00",
+        "curRank": 201,
+        "nextUpdateTime": "2026.09.19 09:15",
         "dims": [],
         "comment_total": null
       }
