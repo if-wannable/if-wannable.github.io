@@ -33,7 +33,6 @@ const els = {
   adminSearchResults: document.getElementById('adminSearchResults'),
   adminSaveBtn: document.getElementById('adminSaveBtn'),
   clearSongSelect: document.getElementById('clearSongSelect'),
-  clearUniIdInput: document.getElementById('clearUniIdInput'),
   clearStartInput: document.getElementById('clearStartInput'),
   clearEndInput: document.getElementById('clearEndInput'),
   clearSnapsBtn: document.getElementById('clearSnapsBtn'),
@@ -675,6 +674,7 @@ function closeRank() {
 }
 
 let adminState = { enabled: true, tracks: [] };
+let snapFiles = [];
 
 function renderAdmin() {
   els.adminEnableBtn.textContent = adminState.enabled ? '已启用' : '已停止';
@@ -691,16 +691,44 @@ function renderAdmin() {
     });
   });
 
+  renderClearSelect();
+}
+
+function renderClearSelect() {
+  const nameMap = {};
+  adminState.tracks.forEach(t => { nameMap[String(t.uniId)] = t.name; });
   const prev = els.clearSongSelect.value;
-  els.clearSongSelect.innerHTML = adminState.tracks.map(t =>
-    `<option value="${t.uniId}">${t.name || t.uniId}</option>`
-  ).join('');
-  if (prev && adminState.tracks.some(t => String(t.uniId) === prev)) {
+  els.clearSongSelect.innerHTML = snapFiles.map(s => {
+    const id = String(s.uniId);
+    return `<option value="${id}">${nameMap[id] || id}（${s.count} 条）</option>`;
+  }).join('') || '<option value="">暂无快照</option>';
+  if (prev && snapFiles.some(s => String(s.uniId) === prev)) {
     els.clearSongSelect.value = prev;
-  } else if (adminState.tracks.length && state.id && adminState.tracks.some(t => String(t.uniId) === state.id)) {
+  } else if (snapFiles.length && state.id && snapFiles.some(s => String(s.uniId) === state.id)) {
     els.clearSongSelect.value = state.id;
-  } else if (adminState.tracks.length) {
-    els.clearSongSelect.value = adminState.tracks[0].uniId;
+  } else if (snapFiles.length) {
+    els.clearSongSelect.value = snapFiles[0].uniId;
+  }
+  snapFiles.forEach(s => {
+    const id = String(s.uniId);
+    if (!nameMap[id]) {
+      fetchSongName(id).then(name => {
+        if (name) {
+          const opt = els.clearSongSelect.querySelector(`option[value="${id}"]`);
+          if (opt) opt.textContent = `${name}（${s.count} 条）`;
+        }
+      });
+    }
+  });
+}
+
+async function fetchSongName(uniId) {
+  try {
+    const r = await fetch(`${API_BASE}/${uniId}/info`, { cache: 'no-store' });
+    const j = await r.json();
+    return (j.code === '0' && j.data && j.data.trackName) ? j.data.trackName : null;
+  } catch {
+    return null;
   }
 }
 
@@ -723,17 +751,30 @@ async function getAdminKey() {
   return key;
 }
 
+async function adminGet() {
+  try {
+    const r = await fetch(SCF_URL_DEFAULT, { headers: { 'X-Admin-Key': adminKey } });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
 async function openAdmin() {
   const key = await getAdminKey();
   if (key === null) return;
   adminKey = key;
   els.adminModal.style.display = 'flex';
-  const cfg = await loadConfig();
-  if (cfg) {
+  const data = await adminGet();
+  if (data) {
     adminState = {
-      enabled: !!cfg.enabled,
-      tracks: (cfg.tracks || []).map(t => ({ uniId: String(t.uniId), name: t.name || '' })),
+      enabled: !!data.enabled,
+      tracks: (data.tracks || []).map(t => ({ uniId: String(t.uniId), name: t.name || '' })),
     };
+    snapFiles = data.snaps || [];
+  } else {
+    snapFiles = [];
   }
   renderAdmin();
 }
@@ -768,11 +809,10 @@ function closeAdmin() {
 }
 
 function getClearTarget() {
-  const manual = els.clearUniIdInput.value.trim();
-  if (manual) return { uniId: manual, name: manual };
   const sel = els.clearSongSelect;
   if (!sel.value) return null;
-  return { uniId: sel.value, name: sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : sel.value };
+  const name = (sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : sel.value).replace(/（\d+ 条）$/, '');
+  return { uniId: sel.value, name };
 }
 
 async function doClearSnaps(target, startMs, endMs) {

@@ -240,7 +240,28 @@ def handle_http(event):
 
     if method == "GET":
         cfg = read_config()
-        return _resp({"enabled": bool(cfg.get("enabled")), "tracks": cfg.get("tracks") or []})
+        gist = gist_get()
+        files = {name: f.get("content", "") or "" for name, f in gist.get("files", {}).items()}
+        snaps = []
+        for name in sorted(files):
+            if name.startswith("yobang-snap-") and name.endswith(".json"):
+                uni_id = name[len("yobang-snap-"):-len(".json")]
+                try:
+                    arr = json.loads(files[name] or "[]")
+                    if not isinstance(arr, list):
+                        arr = []
+                except Exception:
+                    arr = []
+                snaps.append({
+                    "uniId": uni_id,
+                    "count": len(arr),
+                    "latestAt": arr[-1].get("at") if arr else None,
+                })
+        return _resp({
+            "enabled": bool(cfg.get("enabled")),
+            "tracks": cfg.get("tracks") or [],
+            "snaps": snaps,
+        })
 
     if method == "POST":
         try:
