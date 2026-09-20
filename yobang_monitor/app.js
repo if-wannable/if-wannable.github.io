@@ -21,7 +21,6 @@ const els = {
   trendMode: document.getElementById('trendMode'),
   dayFilter: document.getElementById('dayFilter'),
   trendCanvas: document.getElementById('trendCanvas'),
-  growthCanvas: document.getElementById('growthCanvas'),
   thead: document.getElementById('thead'),
   tbody: document.getElementById('tbody'),
   rowCount: document.getElementById('rowCount'),
@@ -43,9 +42,6 @@ document.body.appendChild(tooltipEl);
 
 let _trendSnaps = [];
 let _trendXOf = null;
-
-let _growthDemos = [];
-let _growthLayout = null;
 
 function dimsOf(issue) {
   const all = (issue && issue.classifyIndices) || [];
@@ -175,7 +171,6 @@ function render() {
   renderDayFilter();
   renderTable();
   drawTrend();
-  drawGrowth();
 }
 
 function card(label, value, foot, color, small) {
@@ -300,10 +295,6 @@ function plotSize(canvas, snaps, baseW) {
   return { ctx, w, h };
 }
 
-function seriesOf(snap) {
-  return [snap.uniIndex, ...(snap.dims || []).map(d => (d ? d.index : 0))];
-}
-
 function drawSmooth(ctx, pts) {
   ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -403,7 +394,14 @@ function drawTrend() {
   const latest = snaps[n - 1];
   const legend = series.map(sr => {
     const v = sr.values[n - 1];
-    return `<span class="legend"><i style="background:${sr.color}"></i>${sr.name} <b>${isDelta ? (v >= 0 ? '+' : '') + v.toFixed(2) : v}</b></span>`;
+    const valueStr = isDelta ? (v >= 0 ? '+' : '') + v.toFixed(2) : String(v);
+    let deltaHtml = '';
+    if (!isDelta && n >= 2) {
+      const d = parseFloat((sr.values[n - 1] - sr.values[n - 2]).toFixed(2));
+      const col = d > 0 ? 'var(--green)' : d < 0 ? 'var(--red)' : 'var(--muted)';
+      deltaHtml = `<span style="color:${col};margin-left:2px">(${d >= 0 ? '+' : ''}${d.toFixed(2)})</span>`;
+    }
+    return `<span class="legend"><i style="background:${sr.color}"></i>${sr.name} <b>${valueStr}</b>${deltaHtml}</span>`;
   }).join('');
   const legendEl = document.getElementById('trendLegend');
   if (legendEl) legendEl.innerHTML = `${n} 个快照 &nbsp;·&nbsp; ` + legend;
@@ -416,24 +414,34 @@ function showTrendTooltip(snap, idx, cx, cy) {
   const timeStr = fmtTime(snap.at);
 
   let uniVal = snap.uniIndex;
+  let uniDeltaHtml = '';
   if (isDelta) {
     const d = prev ? parseFloat((snap.uniIndex - prev.uniIndex).toFixed(2)) : null;
     uniVal = d === null ? '—' : (d >= 0 ? '+' : '') + d.toFixed(2);
+  } else if (prev) {
+    const d = parseFloat((snap.uniIndex - prev.uniIndex).toFixed(2));
+    const col = d > 0 ? 'var(--green)' : d < 0 ? 'var(--red)' : 'var(--muted)';
+    uniDeltaHtml = `<span style="color:${col};margin-left:4px">(${d >= 0 ? '+' : ''}${d.toFixed(2)})</span>`;
   }
 
   const dimsHtml = (snap.dims || []).map((dim, di) => {
     let v = dim.index;
+    let dHtml = '';
     if (isDelta) {
       const prevDim = prev && prev.dims ? prev.dims[di] : null;
       const d = prevDim ? parseFloat((dim.index - prevDim.index).toFixed(2)) : null;
       v = d === null ? '—' : (d >= 0 ? '+' : '') + d.toFixed(2);
+    } else if (prev && prev.dims && prev.dims[di]) {
+      const d = parseFloat((dim.index - prev.dims[di].index).toFixed(2));
+      const col = d > 0 ? 'var(--green)' : d < 0 ? 'var(--red)' : 'var(--muted)';
+      dHtml = `<span style="color:${col};margin-left:4px">(${d >= 0 ? '+' : ''}${d.toFixed(2)})</span>`;
     }
-    return `<div class="tt-row"><i style="background:${DIM_COLORS[di % DIM_COLORS.length]}"></i><span>${dim.name}</span><b>${v}</b></div>`;
+    return `<div class="tt-row"><i style="background:${DIM_COLORS[di % DIM_COLORS.length]}"></i><span>${dim.name}</span><b>${v}</b>${dHtml}</div>`;
   }).join('');
 
   tooltipEl.innerHTML = `
     <div class="tt-title">${dateStr} ${timeStr}</div>
-    <div class="tt-rank">排名 #${snap.rank} · 指数 <b>${uniVal}</b></div>
+    <div class="tt-rank">排名 #${snap.rank} · 指数 <b>${uniVal}</b>${uniDeltaHtml}</div>
     ${dimsHtml}`;
   tooltipEl.style.display = 'block';
   const tw = tooltipEl.offsetWidth;
@@ -459,132 +467,12 @@ els.trendCanvas.addEventListener('mousemove', e => {
 
 els.trendCanvas.addEventListener('mouseleave', () => { tooltipEl.style.display = 'none'; });
 
-function showGrowthTooltip(demo, cx, cy) {
-  const { names, colors } = _growthLayout;
-  const timeStr = fmtTime(demo.at);
-  const rows = demo.deltas.map((delta, di) => {
-    const sign = delta >= 0 ? '+' : '';
-    const col = delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : 'var(--muted)';
-    return `<div class="tt-row"><i style="background:${colors[di]}"></i><span>${names[di]}</span><b style="color:${col}">${sign}${delta.toFixed(2)}</b></div>`;
-  }).join('');
-  tooltipEl.innerHTML = `<div class="tt-title">${timeStr} 涨幅</div>${rows}`;
-  tooltipEl.style.display = 'block';
-  const tw = tooltipEl.offsetWidth;
-  const th = tooltipEl.offsetHeight;
-  let x = cx + 14, y = cy + 14;
-  if (x + tw > window.innerWidth) x = cx - tw - 10;
-  if (y + th > window.innerHeight) y = cy - th - 10;
-  tooltipEl.style.left = Math.max(4, x) + 'px';
-  tooltipEl.style.top = Math.max(4, y) + 'px';
-}
-
-els.growthCanvas.addEventListener('mousemove', e => {
-  if (!_growthDemos.length || !_growthLayout) return;
-  const rect = els.growthCanvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const { pad, slot } = _growthLayout;
-  const i = Math.floor((mx - pad.left) / slot);
-  if (i < 0 || i >= _growthDemos.length) { tooltipEl.style.display = 'none'; return; }
-  showGrowthTooltip(_growthDemos[i], e.clientX, e.clientY);
-});
-
-els.growthCanvas.addEventListener('mouseleave', () => { tooltipEl.style.display = 'none'; });
-
 function niceStep(range, count) {
   const raw = range / count;
   const mag = Math.pow(10, Math.floor(Math.log10(Math.abs(raw) || 1)));
   const n = raw / mag;
   const f = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
   return f * mag;
-}
-
-function drawGrowth() {
-  const canvas = els.growthCanvas;
-  const snaps = daySnaps();
-  const containerW = canvas.parentElement.clientWidth || 900;
-  const demos = snaps.map((s, i) => {
-    if (i === 0) return null;
-    return { at: s.at, deltas: seriesOf(s).map((v, si) => parseFloat((v - seriesOf(snaps[i - 1])[si]).toFixed(2))) };
-  }).filter(Boolean);
-  _growthDemos = demos;
-  _growthLayout = null;
-
-  const h = 180;
-  const ratio = window.devicePixelRatio || 1;
-  const slotW = 56;
-  const w = Math.max(containerW, demos.length * slotW + 80);
-  canvas.style.width = w + 'px';
-  canvas.style.height = h + 'px';
-  canvas.width = Math.round(w * ratio);
-  canvas.height = Math.round(h * ratio);
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  ctx.fillStyle = '#f8faf9';
-  ctx.fillRect(0, 0, w, h);
-
-  if (!demos.length) {
-    ctx.fillStyle = '#8a9a91';
-    ctx.font = '13px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText('快照不足，多抓几次后展示时段涨幅', w / 2, h / 2);
-    return;
-  }
-
-  const names = ['总指数', ...(snaps[0].dims || []).map(d => d.name)];
-  const colors = [UNI_COLOR, ...(snaps[0].dims || []).map((_, i) => DIM_COLORS[i % DIM_COLORS.length])];
-  const D = names.length;
-
-  const maxAbs = Math.max(0.01, ...demos.flatMap(d => d.deltas.map(Math.abs)));
-  const pad = { top: 22, right: 16, bottom: 50, left: 54 };
-  const iw = w - pad.left - pad.right;
-  const ih = h - pad.top - pad.bottom;
-  const zeroY = pad.top + ih / 2;
-
-  ctx.strokeStyle = 'rgba(22,116,71,0.3)';
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath(); ctx.moveTo(pad.left, zeroY); ctx.lineTo(pad.left + iw, zeroY); ctx.stroke();
-  ctx.setLineDash([]);
-
-  ctx.fillStyle = '#8a9a91';
-  ctx.font = '10px system-ui';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('+' + maxAbs.toFixed(2), pad.left - 6, pad.top);
-  ctx.fillText('0', pad.left - 6, zeroY);
-  ctx.fillText('-' + maxAbs.toFixed(2), pad.left - 6, pad.top + ih);
-
-  const slot = iw / demos.length;
-  const barW = Math.max(5, Math.min(14, slot / D));
-  _growthLayout = { pad, slot, names, colors };
-
-  demos.forEach((demo, i) => {
-    const cx = pad.left + (i + 0.5) * slot;
-    const gx = cx - (D * barW) / 2;
-    demo.deltas.forEach((delta, di) => {
-      const bh = Math.max(1, (Math.abs(delta) / maxAbs) * (ih / 2));
-      const pos = delta >= 0;
-      ctx.fillStyle = colors[di] + (pos ? 'cc' : '88');
-      const bx = gx + di * barW;
-      ctx.fillRect(bx + 1, pos ? zeroY - bh : zeroY, barW - 2, bh);
-    });
-    ctx.fillStyle = '#8a9a91';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText(fmtTime(demo.at), cx, pad.top + ih + 5);
-  });
-
-  ctx.font = '10px system-ui';
-  const legendY = pad.top + ih + 20;
-  let lx = pad.left;
-  names.forEach((name, di) => {
-    ctx.fillStyle = colors[di];
-    ctx.fillRect(lx, legendY, 7, 7);
-    ctx.fillStyle = '#8a9a91';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(name, lx + 10, legendY);
-    lx += 10 + ctx.measureText(name).width + 14;
-  });
 }
 
 function loadSong(input) {
