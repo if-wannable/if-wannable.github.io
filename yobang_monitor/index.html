@@ -101,6 +101,10 @@
         <label for="scfUrlInput">SCF 地址（API 网关）</label>
         <input id="scfUrlInput" type="text" placeholder="https://service-xxx.gz.apigw.tencentcs.com/release/xxx">
       </div>
+      <div class="admin-row">
+        <label for="adminKeyInput">管理员密钥（与 SCF 环境变量 ADMIN_KEY 一致；留空则无需）</label>
+        <input id="adminKeyInput" type="password" autocomplete="off" placeholder="可选">
+      </div>
       <div class="admin-row admin-toggle">
         <span>定时抓取开关</span>
         <button id="adminEnableBtn" class="toggle" type="button">已启用</button>

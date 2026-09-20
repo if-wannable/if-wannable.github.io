@@ -4,6 +4,7 @@ const GIST_ID = 'b153fed7b323ef2c10c230f12bd67142';
 const GIST_USER = 'if-wannable';
 const CONFIG_FILENAME = 'yobang-monitor-config.json';
 const ADMIN_SCF_URL_KEY = 'yobang-monitor-scf-url';
+const ADMIN_KEY_KEY = 'yobang-monitor-admin-key';
 const SCF_URL_DEFAULT = 'https://1468756186-litz82qhu8.ap-shanghai.tencentscf.com';
 const MIN_PX_PER_SNAP = 48;
 
@@ -27,6 +28,7 @@ const els = {
   adminModal: document.getElementById('adminModal'),
   adminClose: document.getElementById('adminClose'),
   scfUrlInput: document.getElementById('scfUrlInput'),
+  adminKeyInput: document.getElementById('adminKeyInput'),
   adminEnableBtn: document.getElementById('adminEnableBtn'),
   adminTrackList: document.getElementById('adminTrackList'),
   adminSearchInput: document.getElementById('adminSearchInput'),
@@ -667,6 +669,7 @@ function renderAdmin() {
 async function openAdmin() {
   els.adminModal.style.display = 'flex';
   els.scfUrlInput.value = localStorage.getItem(ADMIN_SCF_URL_KEY) || SCF_URL_DEFAULT;
+  els.adminKeyInput.value = localStorage.getItem(ADMIN_KEY_KEY) || '';
   const cfg = await loadConfig();
   if (cfg) {
     adminState = {
@@ -687,10 +690,14 @@ async function saveAdmin() {
   const url = els.scfUrlInput.value.trim();
   if (!url) { alert('请先填写 SCF 地址'); return; }
   localStorage.setItem(ADMIN_SCF_URL_KEY, url);
+  const key = els.adminKeyInput.value.trim();
+  if (key) localStorage.setItem(ADMIN_KEY_KEY, key);
+  const headers = { 'Content-Type': 'application/json' };
+  if (key) headers['X-Admin-Key'] = key;
   try {
     const r = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ enabled: adminState.enabled, tracks: adminState.tracks }),
     });
     const json = await r.json().catch(() => ({}));
