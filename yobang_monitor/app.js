@@ -210,6 +210,13 @@ function deltaHtml(v) {
   return `<span class="delta ${cls}">${sign}${v.toFixed(2)}</span>`;
 }
 
+function deltaParenHtml(v) {
+  if (v === null || v === undefined) return '';
+  const cls = v > 0 ? 'up' : v < 0 ? 'down' : 'flat';
+  const sign = v > 0 ? '+' : '';
+  return `<span class="delta ${cls}">(${sign}${v.toFixed(2)})</span>`;
+}
+
 function updateRange(d) {
   if (!d.nextUpdateTime) return d.dynamic ? '—' : '已结算';
   const parts = String(d.nextUpdateTime).split(' ');
@@ -286,11 +293,16 @@ function renderTable() {
   els.tbody.innerHTML = snaps.map((s, i) => {
     const prev = snaps[i - 1];
     const uniDelta = prev ? parseFloat((s.uniIndex - prev.uniIndex).toFixed(2)) : null;
+    const dimCells = s.dims.map((d, di) => {
+      const prevDim = prev && prev.dims ? prev.dims[di] : null;
+      const dv = prevDim ? parseFloat((d.index - prevDim.index).toFixed(2)) : null;
+      return `<td>${d.index}${dv === null ? '' : ' ' + deltaParenHtml(dv)}</td>`;
+    }).join('');
     return `<tr>
       <td>${new Date(s.at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
       <td>#${s.rank}</td>
       <td>${s.uniIndex}</td>
-      ${s.dims.map(d => `<td>${d.index}</td>`).join('')}
+      ${dimCells}
       <td>${uniDelta === null ? '' : deltaHtml(uniDelta)}</td>
     </tr>`;
   }).join('');
