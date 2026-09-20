@@ -33,9 +33,11 @@ const els = {
   adminSearchResults: document.getElementById('adminSearchResults'),
   adminSaveBtn: document.getElementById('adminSaveBtn'),
   clearSongSelect: document.getElementById('clearSongSelect'),
+  clearUniIdInput: document.getElementById('clearUniIdInput'),
   clearStartInput: document.getElementById('clearStartInput'),
   clearEndInput: document.getElementById('clearEndInput'),
   clearSnapsBtn: document.getElementById('clearSnapsBtn'),
+  clearAllSnapsBtn: document.getElementById('clearAllSnapsBtn'),
   searchInput: document.getElementById('searchInput'),
   searchResults: document.getElementById('searchResults'),
   cards: document.getElementById('cards'),
@@ -765,29 +767,44 @@ function closeAdmin() {
   els.adminModal.style.display = 'none';
 }
 
-async function clearSnaps() {
-  const uniId = els.clearSongSelect.value;
-  if (!uniId) { alert('请先选择歌曲'); return; }
-  const start = els.clearStartInput.value ? new Date(els.clearStartInput.value).getTime() : null;
-  const end = els.clearEndInput.value ? new Date(els.clearEndInput.value).getTime() : null;
-  const name = els.clearSongSelect.options[els.clearSongSelect.selectedIndex]
-    ? els.clearSongSelect.options[els.clearSongSelect.selectedIndex].text : uniId;
-  if (!confirm('确定清除「' + name + '」该时间段的快照？')) return;
+function getClearTarget() {
+  const manual = els.clearUniIdInput.value.trim();
+  if (manual) return { uniId: manual, name: manual };
+  const sel = els.clearSongSelect;
+  if (!sel.value) return null;
+  return { uniId: sel.value, name: sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : sel.value };
+}
+
+async function doClearSnaps(target, startMs, endMs) {
+  if (!target) { alert('请选择或输入歌曲'); return; }
+  const rangeText = (startMs === null && endMs === null) ? '全部' : '该时间段';
+  if (!confirm('确定清除「' + target.name + '」' + rangeText + '的快照？')) return;
   const headers = { 'Content-Type': 'application/json' };
   if (adminKey) headers['X-Admin-Key'] = adminKey;
   try {
     const r = await fetch(SCF_URL_DEFAULT, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ action: 'clearSnaps', uniId, startMs: start, endMs: end }),
+      body: JSON.stringify({ action: 'clearSnaps', uniId: target.uniId, startMs, endMs }),
     });
     const json = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(json.error || 'HTTP ' + r.status);
     alert('已清除 ' + json.removed + ' 条快照，剩余 ' + json.remaining + ' 条');
-    if (state.id === uniId) loadRemoteSnaps();
+    if (state.id === target.uniId) loadRemoteSnaps();
   } catch (e) {
     alert('清除失败：' + e.message);
   }
+}
+
+async function clearSnaps() {
+  const target = getClearTarget();
+  const start = els.clearStartInput.value ? new Date(els.clearStartInput.value).getTime() : null;
+  const end = els.clearEndInput.value ? new Date(els.clearEndInput.value).getTime() : null;
+  await doClearSnaps(target, start, end);
+}
+
+async function clearAllSnaps() {
+  await doClearSnaps(getClearTarget(), null, null);
 }
 
 let adminSearchTimer = null;
@@ -826,6 +843,7 @@ els.adminModal.addEventListener('click', e => { if (e.target === els.adminModal)
 els.adminEnableBtn.addEventListener('click', () => { adminState.enabled = !adminState.enabled; renderAdmin(); });
 els.adminSaveBtn.addEventListener('click', saveAdmin);
 els.clearSnapsBtn.addEventListener('click', clearSnaps);
+els.clearAllSnapsBtn.addEventListener('click', clearAllSnaps);
 els.adminSearchInput.addEventListener('input', () => {
   clearTimeout(adminSearchTimer);
   const kw = els.adminSearchInput.value.trim();
