@@ -19,6 +19,7 @@ const els = {
   searchResults: document.getElementById('searchResults'),
   cards: document.getElementById('cards'),
   trendMode: document.getElementById('trendMode'),
+  dayFilter: document.getElementById('dayFilter'),
   trendCanvas: document.getElementById('trendCanvas'),
   growthCanvas: document.getElementById('growthCanvas'),
   thead: document.getElementById('thead'),
@@ -31,6 +32,7 @@ const state = {
   issues: [],
   current: null,
   selected: null,
+  selectedDay: null,
   snaps: [],
   trendMode: 'score',
 };
@@ -41,6 +43,9 @@ document.body.appendChild(tooltipEl);
 
 let _trendSnaps = [];
 let _trendXOf = null;
+
+let _growthDemos = [];
+let _growthLayout = null;
 
 function dimsOf(issue) {
   const all = (issue && issue.classifyIndices) || [];
@@ -129,9 +134,45 @@ function issueSnaps(issue) {
   return state.snaps.filter(s => s.issue === id);
 }
 
+function dayKey(iso) {
+  const d = new Date(iso);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function dayLabel(key) {
+  const parts = key.split('-').map(Number);
+  return parts[1] + '/' + parts[2];
+}
+
+function availableDays() {
+  return [...new Set(issueSnaps(state.selected || {}).map(s => dayKey(s.at)))].sort();
+}
+
+function effectiveDay() {
+  const days = availableDays();
+  if (!days.length) return null;
+  if (!state.selectedDay || !days.includes(state.selectedDay)) return days[days.length - 1];
+  return state.selectedDay;
+}
+
+function daySnaps() {
+  const snaps = issueSnaps(state.selected || {}).sort((a, b) => new Date(a.at) - new Date(b.at));
+  const day = effectiveDay();
+  return day ? snaps.filter(s => dayKey(s.at) === day) : snaps;
+}
+
+function renderDayFilter() {
+  const days = availableDays();
+  const current = effectiveDay();
+  els.dayFilter.innerHTML = days.map(d =>
+    `<option value="${d}"${d === current ? ' selected' : ''}>${dayLabel(d)}</option>`
+  ).join('');
+}
+
 function render() {
   renderCards();
   renderIssues();
+  renderDayFilter();
   renderTable();
   drawTrend();
   drawGrowth();
@@ -216,13 +257,14 @@ function renderIssues() {
   els.issueList.querySelectorAll('[data-issue]').forEach(el => {
     el.addEventListener('click', () => {
       state.selected = state.issues.find(i => i.chartsIssue === el.dataset.issue) || state.current;
+      state.selectedDay = null;
       render();
     });
   });
 }
 
 function renderTable() {
-  const snaps = issueSnaps(state.selected || {}).sort((a, b) => new Date(a.at) - new Date(b.at));
+  const snaps = daySnaps();
   if (!snaps.length) {
     els.thead.innerHTML = '';
     els.tbody.innerHTML = '<tr><td colspan="99">暂无快照，等待 SCF 定时抓取（每 10 分钟）</td></tr>';
@@ -269,7 +311,7 @@ function drawSmooth(ctx, pts) {
 
 function drawTrend() {
   const canvas = els.trendCanvas;
-  const snaps = issueSnaps(state.selected || {}).sort((a, b) => new Date(a.at) - new Date(b.at));
+  const snaps = daySnaps();
   _trendSnaps = snaps;
   _trendXOf = null;
   const containerW = canvas.parentElement.clientWidth || 900;
@@ -417,6 +459,37 @@ els.trendCanvas.addEventListener('mousemove', e => {
 
 els.trendCanvas.addEventListener('mouseleave', () => { tooltipEl.style.display = 'none'; });
 
+function showGrowthTooltip(demo, cx, cy) {
+  const { names, colors } = _growthLayout;
+  const timeStr = fmtTime(demo.at);
+  const rows = demo.deltas.map((delta, di) => {
+    const sign = delta >= 0 ? '+' : '';
+    const col = delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : 'var(--muted)';
+    return `<div class="tt-row"><i style="background:${colors[di]}"></i><span>${names[di]}</span><b style="color:${col}">${sign}${delta.toFixed(2)}</b></div>`;
+  }).join('');
+  tooltipEl.innerHTML = `<div class="tt-title">${timeStr} 涨幅</div>${rows}`;
+  tooltipEl.style.display = 'block';
+  const tw = tooltipEl.offsetWidth;
+  const th = tooltipEl.offsetHeight;
+  let x = cx + 14, y = cy + 14;
+  if (x + tw > window.innerWidth) x = cx - tw - 10;
+  if (y + th > window.innerHeight) y = cy - th - 10;
+  tooltipEl.style.left = Math.max(4, x) + 'px';
+  tooltipEl.style.top = Math.max(4, y) + 'px';
+}
+
+els.growthCanvas.addEventListener('mousemove', e => {
+  if (!_growthDemos.length || !_growthLayout) return;
+  const rect = els.growthCanvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const { pad, slot } = _growthLayout;
+  const i = Math.floor((mx - pad.left) / slot);
+  if (i < 0 || i >= _growthDemos.length) { tooltipEl.style.display = 'none'; return; }
+  showGrowthTooltip(_growthDemos[i], e.clientX, e.clientY);
+});
+
+els.growthCanvas.addEventListener('mouseleave', () => { tooltipEl.style.display = 'none'; });
+
 function niceStep(range, count) {
   const raw = range / count;
   const mag = Math.pow(10, Math.floor(Math.log10(Math.abs(raw) || 1)));
@@ -427,12 +500,14 @@ function niceStep(range, count) {
 
 function drawGrowth() {
   const canvas = els.growthCanvas;
-  const snaps = issueSnaps(state.selected || {}).sort((a, b) => new Date(a.at) - new Date(b.at));
+  const snaps = daySnaps();
   const containerW = canvas.parentElement.clientWidth || 900;
   const demos = snaps.map((s, i) => {
     if (i === 0) return null;
     return { at: s.at, deltas: seriesOf(s).map((v, si) => parseFloat((v - seriesOf(snaps[i - 1])[si]).toFixed(2))) };
   }).filter(Boolean);
+  _growthDemos = demos;
+  _growthLayout = null;
 
   const h = 180;
   const ratio = window.devicePixelRatio || 1;
@@ -480,6 +555,7 @@ function drawGrowth() {
 
   const slot = iw / demos.length;
   const barW = Math.max(5, Math.min(14, slot / D));
+  _growthLayout = { pad, slot, names, colors };
 
   demos.forEach((demo, i) => {
     const cx = pad.left + (i + 0.5) * slot;
@@ -520,6 +596,7 @@ function loadSong(input) {
   state.issues = [];
   state.current = null;
   state.selected = null;
+  state.selectedDay = null;
   loadSnaps();
   render();
   fetchData();
@@ -591,6 +668,10 @@ els.trendMode.addEventListener('click', e => {
   state.trendMode = btn.dataset.mode;
   els.trendMode.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
   drawTrend();
+});
+els.dayFilter.addEventListener('change', () => {
+  state.selectedDay = els.dayFilter.value || null;
+  render();
 });
 els.searchInput.addEventListener('input', () => {
   clearTimeout(searchTimer);
