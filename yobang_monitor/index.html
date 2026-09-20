@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>由你榜监控</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand">
+        <div class="brand-title">由你榜监控</div>
+        <div class="brand-subtitle">Uni Chart Monitor</div>
+      </div>
+      <div class="rail-label">往期分数 · 历史榜期</div>
+      <div class="issue-list" id="issueList"></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="field search-box">
+          <label for="searchInput">搜索歌曲（歌名 / 歌手）</label>
+          <input id="searchInput" type="text" autocomplete="off" spellcheck="false" placeholder="输入歌名或歌手…">
+          <div class="search-results" id="searchResults"></div>
+        </div>
+        <div class="field">
+          <label for="idInput">歌曲 uniId（可粘贴完整链接）</label>
+          <div class="row">
+            <input id="idInput" type="text" autocomplete="off" spellcheck="false" placeholder="输入 uniId 或粘贴完整链接">
+            <button id="loadBtn" class="btn">载入</button>
+          </div>
+        </div>
+        <div class="actions">
+          <span id="lastSync" class="sync">等待首次获取…</span>
+          <button id="refreshBtn" class="btn">刷新</button>
+          <button id="exportBtn" class="btn ghost">导出 CSV</button>
+        </div>
+      </header>
+
+      <section class="cards" id="cards"></section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h1>分数趋势</h1>
+          <div class="mode" id="trendMode">
+            <button class="active" data-mode="score">实时分数</button>
+            <button data-mode="delta">区间涨幅</button>
+          </div>
+        </div>
+        <div class="scroll"><canvas id="trendCanvas"></canvas></div>
+        <div class="trend-legend" id="trendLegend"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h1>分时段涨幅</h1>
+          <span class="hint">各维度 · 每 10 分钟一格（本榜每 10 分钟更新）</span>
+        </div>
+        <div class="scroll"><canvas id="growthCanvas"></canvas></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h1>快照日志</h1>
+          <span class="hint" id="rowCount"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead id="thead"></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
