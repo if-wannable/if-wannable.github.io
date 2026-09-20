@@ -1,6 +1,7 @@
 const API_BASE = 'https://yobang.tencentmusic.com/unichartsapi/v1/songs';
 const STORAGE_KEY = 'yobang-monitor-v1';
 const GIST_ID = 'b153fed7b323ef2c10c230f12bd67142';
+const GIST_USER = 'if-wannable';
 const MIN_PX_PER_SNAP = 48;
 
 const DIM_COLORS = ['#167447', '#2c6f99', '#a97619', '#c9553d', '#5b6abf'];
@@ -67,13 +68,14 @@ function loadSnaps() {
   }
 }
 
+function gistRawUrl(filename) {
+  return `https://gist.githubusercontent.com/${GIST_USER}/${GIST_ID}/raw/${filename}?_=${Date.now()}`;
+}
+
 async function loadRemoteSnaps() {
   if (!state.id) return;
   try {
-    const g = await (await fetch(`https://api.github.com/gists/${GIST_ID}?_=${Date.now()}`, { cache: 'no-store' })).json();
-    const f = g.files && g.files[`yobang-snap-${state.id}.json`];
-    if (!f || !f.raw_url) return;
-    const raw = await (await fetch(f.raw_url, { cache: 'no-store' })).json();
+    const raw = await (await fetch(gistRawUrl(`yobang-snap-${state.id}.json`), { cache: 'no-store' })).json();
     const remote = (Array.isArray(raw) ? raw : []).map(normalizeSnap);
     if (!remote.length) return;
     const byAt = new Map(state.snaps.map(s => [s.issue + '@' + s.at, s]));
