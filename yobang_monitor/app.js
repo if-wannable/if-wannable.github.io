@@ -127,9 +127,7 @@ async function loadDefaultSong() {
   }
 }
 
-async function loadMonitorList() {
-  const cfg = await loadConfig();
-  const tracks = (cfg && Array.isArray(cfg.tracks)) ? cfg.tracks : [];
+function renderMonitorList(tracks) {
   els.monitorList.innerHTML = tracks.map(t => {
     const id = String(t.uniId);
     const active = id === state.id ? ' active' : '';
@@ -144,6 +142,11 @@ async function loadMonitorList() {
       if (id) { els.idInput.value = id; loadSong(id); }
     });
   });
+}
+
+async function loadMonitorList() {
+  const cfg = await loadConfig();
+  renderMonitorList((cfg && Array.isArray(cfg.tracks)) ? cfg.tracks : []);
 }
 
 async function fetchData() {
@@ -741,7 +744,7 @@ async function saveAdmin() {
     if (!r.ok) throw new Error(json.error || 'HTTP ' + r.status);
     alert('已保存');
     loadDefaultSong();
-    loadMonitorList();
+    renderMonitorList(adminState.tracks);
   } catch (e) {
     alert('保存失败：' + e.message);
   }
