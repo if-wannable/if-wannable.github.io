@@ -3,6 +3,7 @@ const STORAGE_KEY = 'yobang-monitor-v1';
 const GIST_ID = 'b153fed7b323ef2c10c230f12bd67142';
 const GIST_USER = 'if-wannable';
 const CONFIG_FILENAME = 'yobang-monitor-config.json';
+const ADMIN_SCF_URL_KEY = 'yobang-monitor-scf-url';
 const MIN_PX_PER_SNAP = 48;
 
 const DIM_COLORS = ['#167447', '#2c6f99', '#a97619', '#c9553d', '#5b6abf'];
@@ -21,6 +22,15 @@ const els = {
   rankList: document.getElementById('rankList'),
   rankClose: document.getElementById('rankClose'),
   rankIssueTitle: document.getElementById('rankIssueTitle'),
+  adminBtn: document.getElementById('adminBtn'),
+  adminModal: document.getElementById('adminModal'),
+  adminClose: document.getElementById('adminClose'),
+  scfUrlInput: document.getElementById('scfUrlInput'),
+  adminEnableBtn: document.getElementById('adminEnableBtn'),
+  adminTrackList: document.getElementById('adminTrackList'),
+  adminSearchInput: document.getElementById('adminSearchInput'),
+  adminSearchResults: document.getElementById('adminSearchResults'),
+  adminSaveBtn: document.getElementById('adminSaveBtn'),
   searchInput: document.getElementById('searchInput'),
   searchResults: document.getElementById('searchResults'),
   cards: document.getElementById('cards'),
@@ -94,17 +104,21 @@ async function loadRemoteSnaps() {
   }
 }
 
-async function loadDefaultSong() {
+async function loadConfig() {
   try {
-    const cfg = await (await fetch(gistRawUrl(CONFIG_FILENAME), { cache: 'no-store' })).json();
-    const tracks = (cfg && cfg.enabled && Array.isArray(cfg.tracks)) ? cfg.tracks : [];
-    const first = tracks.find(t => t && t.uniId) || null;
-    if (first) {
-      els.idInput.value = String(first.uniId);
-      loadSong(String(first.uniId));
-    }
-  } catch (e) {
-    console.warn('load default song failed:', e);
+    return await (await fetch(gistRawUrl(CONFIG_FILENAME), { cache: 'no-store' })).json();
+  } catch {
+    return null;
+  }
+}
+
+async function loadDefaultSong() {
+  const cfg = await loadConfig();
+  const tracks = (cfg && cfg.enabled && Array.isArray(cfg.tracks)) ? cfg.tracks : [];
+  const first = tracks.find(t => t && t.uniId) || null;
+  if (first) {
+    els.idInput.value = String(first.uniId);
+    loadSong(String(first.uniId));
   }
 }
 
@@ -631,6 +645,89 @@ function closeRank() {
   els.rankModal.style.display = 'none';
 }
 
+let adminState = { enabled: true, tracks: [] };
+
+function renderAdmin() {
+  els.adminEnableBtn.textContent = adminState.enabled ? '已启用' : '已停止';
+  els.adminEnableBtn.classList.toggle('on', adminState.enabled);
+  els.adminTrackList.innerHTML = adminState.tracks.length
+    ? adminState.tracks.map((t, i) =>
+        `<div class="admin-track"><span>${t.name || t.uniId}</span><span class="muted">${t.uniId}</span><button class="admin-remove" data-i="${i}">移除</button></div>`
+      ).join('')
+    : '<div class="muted">暂无歌曲，请添加</div>';
+  els.adminTrackList.querySelectorAll('.admin-remove').forEach(b => {
+    b.addEventListener('click', () => {
+      adminState.tracks.splice(+b.dataset.i, 1);
+      renderAdmin();
+    });
+  });
+}
+
+async function openAdmin() {
+  els.adminModal.style.display = 'flex';
+  els.scfUrlInput.value = localStorage.getItem(ADMIN_SCF_URL_KEY) || '';
+  const cfg = await loadConfig();
+  if (cfg) {
+    adminState = {
+      enabled: !!cfg.enabled,
+      tracks: (cfg.tracks || []).map(t => ({ uniId: String(t.uniId), name: t.name || '' })),
+    };
+  }
+  renderAdmin();
+}
+
+function addAdminTrack(uniId, name) {
+  if (adminState.tracks.some(t => t.uniId === String(uniId))) return;
+  adminState.tracks.push({ uniId: String(uniId), name: name || '' });
+  renderAdmin();
+}
+
+async function saveAdmin() {
+  const url = els.scfUrlInput.value.trim();
+  if (!url) { alert('请先填写 SCF 地址'); return; }
+  localStorage.setItem(ADMIN_SCF_URL_KEY, url);
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: adminState.enabled, tracks: adminState.tracks }),
+    });
+    const json = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(json.error || 'HTTP ' + r.status);
+    alert('已保存');
+    loadDefaultSong();
+  } catch (e) {
+    alert('保存失败：' + e.message);
+  }
+}
+
+function closeAdmin() {
+  els.adminModal.style.display = 'none';
+}
+
+let adminSearchTimer = null;
+async function adminSearch(keyword) {
+  try {
+    const r = await fetch(`${API_BASE}/search?keyword=${encodeURIComponent(keyword)}&source=2&pageNo=0&pageSize=10`, { cache: 'no-store' });
+    const json = await r.json();
+    if (json.code !== '0') throw new Error();
+    const list = (json.data && json.data.content) || [];
+    els.adminSearchResults.innerHTML = list.slice(0, 8).map(s =>
+      `<div class="sr-item" data-id="${s.uniTrackId}" data-name="${(s.trackName || '').replace(/"/g, '')}"><span class="sr-name">${s.trackName}</span><span class="sr-singer">${s.singerNames || ''}</span></div>`
+    ).join('');
+    els.adminSearchResults.style.display = list.length ? 'block' : 'none';
+    els.adminSearchResults.querySelectorAll('.sr-item').forEach(el => {
+      el.addEventListener('click', () => {
+        addAdminTrack(el.dataset.id, el.dataset.name);
+        els.adminSearchInput.value = '';
+        els.adminSearchResults.style.display = 'none';
+      });
+    });
+  } catch {
+    els.adminSearchResults.style.display = 'none';
+  }
+}
+
 els.loadBtn.addEventListener('click', () => loadSong(els.idInput.value));
 els.idInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadSong(els.idInput.value); });
 els.refreshBtn.addEventListener('click', () => { fetchData(); loadRemoteSnaps(); });
@@ -638,6 +735,17 @@ els.exportBtn.addEventListener('click', exportCSV);
 els.rankBtn.addEventListener('click', openRank);
 els.rankClose.addEventListener('click', closeRank);
 els.rankModal.addEventListener('click', e => { if (e.target === els.rankModal) closeRank(); });
+els.adminBtn.addEventListener('click', openAdmin);
+els.adminClose.addEventListener('click', closeAdmin);
+els.adminModal.addEventListener('click', e => { if (e.target === els.adminModal) closeAdmin(); });
+els.adminEnableBtn.addEventListener('click', () => { adminState.enabled = !adminState.enabled; renderAdmin(); });
+els.adminSaveBtn.addEventListener('click', saveAdmin);
+els.adminSearchInput.addEventListener('input', () => {
+  clearTimeout(adminSearchTimer);
+  const kw = els.adminSearchInput.value.trim();
+  if (!kw) { els.adminSearchResults.style.display = 'none'; return; }
+  adminSearchTimer = setTimeout(() => adminSearch(kw), 350);
+});
 els.trendMode.addEventListener('click', e => {
   const btn = e.target.closest('button');
   if (!btn) return;

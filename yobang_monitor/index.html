@@ -17,6 +17,10 @@
         <span>当前榜单</span>
         <span class="rank-toggle-sub">Top 10</span>
       </button>
+      <button id="adminBtn" class="rank-toggle" type="button">
+        <span>管理监控</span>
+        <span class="rank-toggle-sub">Monitor</span>
+      </button>
       <div class="rail-label">往期分数 · 历史榜期</div>
       <div class="issue-list" id="issueList"></div>
     </aside>
@@ -84,6 +88,33 @@
         <button id="rankClose" class="close-btn" type="button">×</button>
       </div>
       <div class="rank-list" id="rankList"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="adminModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>管理监控</h2>
+        <button id="adminClose" class="close-btn" type="button">×</button>
+      </div>
+      <div class="admin-row">
+        <label for="scfUrlInput">SCF 地址（API 网关）</label>
+        <input id="scfUrlInput" type="text" placeholder="https://service-xxx.gz.apigw.tencentcs.com/release/xxx">
+      </div>
+      <div class="admin-row admin-toggle">
+        <span>定时抓取开关</span>
+        <button id="adminEnableBtn" class="toggle" type="button">已启用</button>
+      </div>
+      <div class="admin-section">监控歌曲列表</div>
+      <div class="admin-track-list" id="adminTrackList"></div>
+      <div class="admin-section">添加歌曲（搜索并点击加入）</div>
+      <div class="admin-search">
+        <input id="adminSearchInput" type="text" autocomplete="off" placeholder="输入歌名或歌手…">
+        <div class="search-results" id="adminSearchResults"></div>
+      </div>
+      <div class="admin-actions">
+        <button id="adminSaveBtn" class="btn" type="button">保存配置</button>
+      </div>
     </div>
   </div>
 
