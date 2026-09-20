@@ -32,7 +32,7 @@ const els = {
   adminSearchInput: document.getElementById('adminSearchInput'),
   adminSearchResults: document.getElementById('adminSearchResults'),
   adminSaveBtn: document.getElementById('adminSaveBtn'),
-  clearUniIdInput: document.getElementById('clearUniIdInput'),
+  clearSongSelect: document.getElementById('clearSongSelect'),
   clearStartInput: document.getElementById('clearStartInput'),
   clearEndInput: document.getElementById('clearEndInput'),
   clearSnapsBtn: document.getElementById('clearSnapsBtn'),
@@ -688,6 +688,18 @@ function renderAdmin() {
       renderAdmin();
     });
   });
+
+  const prev = els.clearSongSelect.value;
+  els.clearSongSelect.innerHTML = adminState.tracks.map(t =>
+    `<option value="${t.uniId}">${t.name || t.uniId}</option>`
+  ).join('');
+  if (prev && adminState.tracks.some(t => String(t.uniId) === prev)) {
+    els.clearSongSelect.value = prev;
+  } else if (adminState.tracks.length && state.id && adminState.tracks.some(t => String(t.uniId) === state.id)) {
+    els.clearSongSelect.value = state.id;
+  } else if (adminState.tracks.length) {
+    els.clearSongSelect.value = adminState.tracks[0].uniId;
+  }
 }
 
 let adminKey = null;
@@ -714,7 +726,6 @@ async function openAdmin() {
   if (key === null) return;
   adminKey = key;
   els.adminModal.style.display = 'flex';
-  els.clearUniIdInput.value = state.id || '';
   const cfg = await loadConfig();
   if (cfg) {
     adminState = {
@@ -755,11 +766,13 @@ function closeAdmin() {
 }
 
 async function clearSnaps() {
-  const uniId = els.clearUniIdInput.value.trim();
-  if (!uniId) { alert('请输入歌曲 uniId'); return; }
+  const uniId = els.clearSongSelect.value;
+  if (!uniId) { alert('请先选择歌曲'); return; }
   const start = els.clearStartInput.value ? new Date(els.clearStartInput.value).getTime() : null;
   const end = els.clearEndInput.value ? new Date(els.clearEndInput.value).getTime() : null;
-  if (!confirm('确定清除 ' + uniId + ' 该时间段的快照？')) return;
+  const name = els.clearSongSelect.options[els.clearSongSelect.selectedIndex]
+    ? els.clearSongSelect.options[els.clearSongSelect.selectedIndex].text : uniId;
+  if (!confirm('确定清除「' + name + '」该时间段的快照？')) return;
   const headers = { 'Content-Type': 'application/json' };
   if (adminKey) headers['X-Admin-Key'] = adminKey;
   try {
