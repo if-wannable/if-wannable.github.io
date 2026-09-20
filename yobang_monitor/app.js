@@ -16,6 +16,11 @@ const els = {
   refreshBtn: document.getElementById('refreshBtn'),
   exportBtn: document.getElementById('exportBtn'),
   issueList: document.getElementById('issueList'),
+  rankBtn: document.getElementById('rankBtn'),
+  rankModal: document.getElementById('rankModal'),
+  rankList: document.getElementById('rankList'),
+  rankClose: document.getElementById('rankClose'),
+  rankIssueTitle: document.getElementById('rankIssueTitle'),
   searchInput: document.getElementById('searchInput'),
   searchResults: document.getElementById('searchResults'),
   cards: document.getElementById('cards'),
@@ -573,10 +578,66 @@ function exportCSV() {
   a.click();
 }
 
+async function openRank() {
+  els.rankModal.style.display = 'flex';
+  els.rankList.innerHTML = '<div class="rank-loading">加载中…</div>';
+  els.rankIssueTitle.textContent = '';
+  try {
+    const r = await fetch(`${API_BASE}/charts/dynamic?offset=0&limit=10&platform=website`, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const json = await r.json();
+    if (json.code !== '0') throw new Error(json.msg || '接口错误');
+    const data = json.data || {};
+    const list = data.chartsList || [];
+    els.rankIssueTitle.textContent = data.issueTitle ? '· ' + data.issueTitle : '';
+    renderRankList(list);
+  } catch (e) {
+    els.rankList.innerHTML = '<div class="rank-loading">加载失败：' + e.message + '</div>';
+  }
+}
+
+function renderRankList(list) {
+  els.rankList.innerHTML = list.slice(0, 10).map(item => {
+    const rank = item.rank;
+    const rc = item.rankChange || 0;
+    const uc = parseFloat(item.uniChange || 0);
+    const rankCls = rank <= 3 ? ' top' + rank : '';
+    const rcHtml = rc > 0
+      ? `<span class="rc up">▲${rc}</span>`
+      : rc < 0 ? `<span class="rc down">▼${Math.abs(rc)}</span>` : '<span class="rc flat">—</span>';
+    const ucHtml = `<span class="rc ${uc > 0 ? 'up' : uc < 0 ? 'down' : 'flat'}">${uc >= 0 ? '+' : ''}${uc.toFixed(2)}</span>`;
+    return `<div class="rank-item" data-id="${item.uniTrackId}">
+      <div class="rank-no${rankCls}">${rank}</div>
+      <img class="rank-cover" src="${item.coverImages || ''}" alt="">
+      <div class="rank-info">
+        <div class="rank-name">${item.songName}</div>
+        <div class="rank-singer">${item.singerName || ''}</div>
+      </div>
+      <div class="rank-score">${item.uniIndex}</div>
+      <div class="rank-changes"><span title="名次变化">${rcHtml}</span><span title="指数变化">${ucHtml}</span></div>
+    </div>`;
+  }).join('');
+
+  els.rankList.querySelectorAll('.rank-item').forEach(el => {
+    el.addEventListener('click', () => {
+      closeRank();
+      const id = el.dataset.id;
+      if (id) { els.idInput.value = id; loadSong(id); }
+    });
+  });
+}
+
+function closeRank() {
+  els.rankModal.style.display = 'none';
+}
+
 els.loadBtn.addEventListener('click', () => loadSong(els.idInput.value));
 els.idInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadSong(els.idInput.value); });
 els.refreshBtn.addEventListener('click', () => { fetchData(); loadRemoteSnaps(); });
 els.exportBtn.addEventListener('click', exportCSV);
+els.rankBtn.addEventListener('click', openRank);
+els.rankClose.addEventListener('click', closeRank);
+els.rankModal.addEventListener('click', e => { if (e.target === els.rankModal) closeRank(); });
 els.trendMode.addEventListener('click', e => {
   const btn = e.target.closest('button');
   if (!btn) return;

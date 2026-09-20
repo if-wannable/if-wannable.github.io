@@ -13,6 +13,10 @@
         <div class="brand-title">由你榜监控</div>
         <div class="brand-subtitle">Uni Chart Monitor</div>
       </div>
+      <button id="rankBtn" class="rank-toggle" type="button">
+        <span>当前榜单</span>
+        <span class="rank-toggle-sub">Top 10</span>
+      </button>
       <div class="rail-label">往期分数 · 历史榜期</div>
       <div class="issue-list" id="issueList"></div>
     </aside>
@@ -70,6 +74,17 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <div class="modal" id="rankModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>当前榜单</h2>
+        <span class="hint" id="rankIssueTitle"></span>
+        <button id="rankClose" class="close-btn" type="button">×</button>
+      </div>
+      <div class="rank-list" id="rankList"></div>
+    </div>
   </div>
 
   <script src="./app.js"></script>
