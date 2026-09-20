@@ -2,6 +2,7 @@ const API_BASE = 'https://yobang.tencentmusic.com/unichartsapi/v1/songs';
 const STORAGE_KEY = 'yobang-monitor-v1';
 const GIST_ID = 'b153fed7b323ef2c10c230f12bd67142';
 const GIST_USER = 'if-wannable';
+const CONFIG_FILENAME = 'yobang-monitor-config.json';
 const MIN_PX_PER_SNAP = 48;
 
 const DIM_COLORS = ['#167447', '#2c6f99', '#a97619', '#c9553d', '#5b6abf'];
@@ -85,6 +86,20 @@ async function loadRemoteSnaps() {
     render();
   } catch (e) {
     console.warn('load remote snaps failed:', e);
+  }
+}
+
+async function loadDefaultSong() {
+  try {
+    const cfg = await (await fetch(gistRawUrl(CONFIG_FILENAME), { cache: 'no-store' })).json();
+    const tracks = (cfg && cfg.enabled && Array.isArray(cfg.tracks)) ? cfg.tracks : [];
+    const first = tracks.find(t => t && t.uniId) || null;
+    if (first) {
+      els.idInput.value = String(first.uniId);
+      loadSong(String(first.uniId));
+    }
+  } catch (e) {
+    console.warn('load default song failed:', e);
   }
 }
 
@@ -574,3 +589,4 @@ document.addEventListener('click', e => {
 
 loadSnaps();
 render();
+loadDefaultSong();
