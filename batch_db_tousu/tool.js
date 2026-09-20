@@ -117,7 +117,7 @@
       #db-jb-tool .le .detail{margin-left:0;width:100%;text-align:left}
     }
     #db-jb-tool * { box-sizing:border-box; margin:0; padding:0; }
-    #db-jb-tool h2 { font-size:15px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
+    #db-jb-tool h2 { font-size:15px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; color:#fff; }
     #db-jb-tool .ck-info { font-size:11px; color:#888; margin-bottom:8px; font-family:monospace; }
     #db-jb-tool textarea { width:100%; min-height:70px; background:#0f1117; border:1px solid #2a2d3a; border-radius:4px; color:#e0e0e8; padding:8px; font-size:14px; resize:vertical; margin-bottom:8px; }
     #db-jb-tool textarea:focus, #db-jb-tool select:focus { outline:none; border-color:#4e7ef3; }
