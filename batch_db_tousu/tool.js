@@ -1,5 +1,5 @@
-/* 豆瓣批量投诉工具 - bookmarklet 注入脚本
- * 在 douban.com 页面运行，自动获取 cookie，直接调用豆瓣 API
+/* db批量投诉工具 - bookmarklet 注入脚本
+ * 在 douban.com 页面运行，自动获取 cookie，直接调用db API
  * 举报讨论本身（非回复），使用 /misc/audit_report 接口
  */
 (function () {
@@ -16,7 +16,7 @@
     return;
   }
 
-  // ── 举报理由（来自豆瓣 API /rexxar/api/v2/report/reasons?types=content） ──
+  // ── 举报理由（来自db API /rexxar/api/v2/report/reasons?types=content） ──
   const REASONS = [
     {name:"引战", id:7},
     {name:"广告", id:0},
@@ -158,10 +158,10 @@
 
   const ck = getCk();
   overlay.innerHTML = `
-    <h2>豆瓣批量投诉
+    <h2>db批量投诉
       <button class="close-btn" onclick="document.getElementById('db-jb-tool').remove()">&times;</button>
     </h2>
-    <div class="ck-info">ck: ${ck || '❌ 未找到 ck，请确保已登录豆瓣'}</div>
+    <div class="ck-info">ck: ${ck || '❌ 未找到 ck，请确保已登录db'}</div>
 
     <textarea id="db-jb-urls" placeholder="每行一个讨论链接（会自动跳过空行和纯文字）&#10;https://www.douban.com/group/topic/XXXXXX/&#10;也支持 doubanapp/dispatch 格式"></textarea>
     <div class="row">
