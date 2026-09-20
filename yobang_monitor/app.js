@@ -18,6 +18,7 @@ const els = {
   refreshBtn: document.getElementById('refreshBtn'),
   exportBtn: document.getElementById('exportBtn'),
   issueList: document.getElementById('issueList'),
+  monitorList: document.getElementById('monitorList'),
   rankBtn: document.getElementById('rankBtn'),
   rankModal: document.getElementById('rankModal'),
   rankList: document.getElementById('rankList'),
@@ -121,6 +122,25 @@ async function loadDefaultSong() {
     els.idInput.value = String(first.uniId);
     loadSong(String(first.uniId));
   }
+}
+
+async function loadMonitorList() {
+  const cfg = await loadConfig();
+  const tracks = (cfg && Array.isArray(cfg.tracks)) ? cfg.tracks : [];
+  els.monitorList.innerHTML = tracks.map(t => {
+    const id = String(t.uniId);
+    const active = id === state.id ? ' active' : '';
+    return `<div class="monitor-item${active}" data-id="${id}">
+      <span class="monitor-name">${t.name || id}</span>
+      <span class="monitor-id">${id}</span>
+    </div>`;
+  }).join('') || '<div class="monitor-empty">暂无监控歌曲</div>';
+  els.monitorList.querySelectorAll('.monitor-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.dataset.id;
+      if (id) { els.idInput.value = id; loadSong(id); }
+    });
+  });
 }
 
 async function fetchData() {
@@ -699,6 +719,7 @@ async function saveAdmin() {
     if (!r.ok) throw new Error(json.error || 'HTTP ' + r.status);
     alert('已保存');
     loadDefaultSong();
+    loadMonitorList();
   } catch (e) {
     alert('保存失败：' + e.message);
   }
@@ -774,3 +795,4 @@ document.addEventListener('click', e => {
 loadSnaps();
 render();
 loadDefaultSong();
+loadMonitorList();

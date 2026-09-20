@@ -70,6 +70,25 @@ html, body {
 .issue-dates { font-size: 11px; color: var(--muted); }
 .issue.empty { color: var(--muted); cursor: default; }
 
+.monitor-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.monitor-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--panel-2);
+  font-size: 13px;
+}
+.monitor-item:hover { border-color: var(--muted); }
+.monitor-item.active { border-color: var(--green); background: #1d2b26; }
+.monitor-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.monitor-id { color: var(--muted); font-size: 11px; }
+.monitor-empty { color: var(--muted); font-size: 12px; padding: 4px 2px; }
+
 .main { flex: 1; min-width: 0; padding: 20px 24px; }
 
 .topbar {
