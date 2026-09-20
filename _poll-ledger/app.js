@@ -1,4 +1,4 @@
-const STORAGE_KEY = "douban-poll-ledger-v3";
+const STORAGE_KEY = "db-poll-ledger-v3";
 
 const sampleCsv = `captured_at,topic_id,poll_id,participant_count,result_visible,option_id,option,votes,percent,note
 2026-07-14T10:31:18+08:00,493741132,10258668,3559,true,32843356,anna 刘耀文,905,25,已登录/已投票后可查看结果
@@ -6,7 +6,7 @@ const sampleCsv = `captured_at,topic_id,poll_id,participant_count,result_visible
 2026-07-14T10:31:18+08:00,493741132,10258668,3559,true,32843358,牙雾笑主 陈浚铭,757,21,已登录/已投票后可查看结果
 2026-07-14T10:31:18+08:00,493741132,10258668,3559,true,32843359,杨梅饮 马嘉祺,773,22,已登录/已投票后可查看结果
 2026-07-14T10:31:18+08:00,493741132,10258668,3559,true,32843360,章若楠 丁程鑫,712,20,已登录/已投票后可查看结果
-2026-07-14T10:31:18+08:00,493741132,10258668,3559,true,32843361,Cd 冷却中贺峻霖,279,8,已登录/已投票后可查看结果
+2026-07-14T10:31:18+08:00,493741132,10258668,3559,true,32843361,Cd 冷却中he,279,8,已登录/已投票后可查看结果
 2026-07-14T10:31:18+08:00,493741132,10258668,3559,true,32843362,ahdkewn白敬亭,841,24,已登录/已投票后可查看结果
 2026-07-14T10:31:18+08:00,493741132,10258668,3559,true,32843363,睡着了也困鞠婧祎,667,19,已登录/已投票后可查看结果
 2026-07-14T10:31:18+08:00,493741132,10258668,3559,true,32843364,芝麻酱饼张极,209,6,已登录/已投票后可查看结果
@@ -215,7 +215,7 @@ function loadStored() {
 }
 
 async function fetchCsv() {
-  for (const path of ["../douban_poll_log.csv", "./douban_poll_log.csv"]) {
+  for (const path of ["../db_poll_log.csv", "./db_poll_log.csv"]) {
     try {
       const res = await fetch(path, { cache: "no-store" });
       if (res.ok) {
@@ -1101,7 +1101,7 @@ function exportDataCsv() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `douban_poll_log_${Date.now()}.csv`;
+  a.download = `db_poll_log_${Date.now()}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }

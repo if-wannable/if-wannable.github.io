@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>抖音关键词搜索检索</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px;
+  background: linear-gradient(135deg, #f7fff7 0%, #edf9ef 50%, #dff3e2 100%);
+  min-height: 100vh;
+  line-height: 1.6;
+  color: #273444;
+}
+.box {
+  background: rgba(255,255,255,0.97);
+  padding: 20px 18px;
+  border-radius: 18px;
+  border: 2px solid #d8f0dc;
+  box-shadow: 0 6px 24px rgba(52,168,83,0.11);
+}
+.main-title {
+  text-align: center;
+  font-size: clamp(17px, 4.2vw, 26px);
+  color: #34a853;
+  margin: 0 0 4px;
+}
+.subtitle {
+  text-align: center;
+  font-size: 13px;
+  color: #5f8f69;
+  margin: 0 0 14px;
+}
+label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #3a5c40;
+  margin-bottom: 4px;
+}
+input[type=text] {
+  width: 100%;
+  padding: 12px 12px;
+  margin-bottom: 12px;
+  border: 1.5px solid #cde8d1;
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: inherit;
+  background: #fafffe;
+  color: #273444;
+  -webkit-appearance: none;
+}
+input[type=text]:focus {
+  outline: none;
+  border-color: #34a853;
+  box-shadow: 0 0 0 3px rgba(52,168,83,0.13);
+}
+::placeholder { color: rgba(52,168,83,0.38); }
+button {
+  width: 100%;
+  padding: 12px 10px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #34a853;
+  color: white;
+  font-size: 16px;
+  font-family: inherit;
+  font-weight: 600;
+  transition: background 0.18s, transform 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+button:active { background: #2a7d40; transform: scale(0.98); }
+button:disabled { background: #9fcca8; cursor: not-allowed; transform: none; }
+#status {
+  font-size: 13px;
+  margin: 8px 0 0;
+  min-height: 18px;
+  text-align: center;
+}
+#status.ok { color: #34a853; }
+#status.err { color: #e53935; }
+.section {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1.5px solid #e0f2e4;
+}
+h3 { color: #34a853; margin: 0 0 12px; font-size: 16px; }
+.result-page {
+  margin-bottom: 20px;
+}
+.result-page-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #2a7d40;
+  margin: 0 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed #cde8d1;
+}
+.card {
+  border: 1.5px solid #e2f0e6;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: #fbfefb;
+}
+.card .row { margin-bottom: 6px; }
+.card .row:last-child { margin-bottom: 0; }
+.card .lab {
+  display: inline-block;
+  min-width: 44px;
+  font-size: 12px;
+  color: #7aaa82;
+  vertical-align: top;
+}
+.card .title {
+  font-weight: 600;
+  color: #273444;
+  font-size: 15px;
+  word-break: break-word;
+}
+.card .desc {
+  color: #555;
+  font-size: 13px;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.card .author { color: #8a8a8a; font-size: 12px; }
+.card a {
+  color: #34a853;
+  font-size: 13px;
+  word-break: break-all;
+  text-decoration: none;
+}
+.card a:active { color: #2a7d40; }
+.link-copy {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 10px;
+  font-size: 12px;
+  border: 1px solid #c2e8cc;
+  background: #eaf6ec;
+  color: #34a853;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.footer { text-align: center; margin-top: 22px; color: #7aaa82; font-size: 12px; }
+.footer a { color: #34a853; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1 class="main-title">抖音关键词搜索检索</h1>
+  <div class="subtitle">输入关键词，检索前三页视频标题、文案与链接</div>
+
+  <label for="keyword">搜索关键词：</label>
+  <input type="text" id="keyword" placeholder="例如：美食 / he / 演唱会" autocomplete="off">
+
+  <button id="searchBtn" onclick="doSearch()">搜索</button>
+  <p id="status"></p>
+
+  <div class="section" id="resultSection" hidden>
+    <h3>检索结果</h3>
+    <div id="results"></div>
+  </div>
+
+  <div class="footer">
+    数据由第三方搜索接口提供，仅供检索参考。<br>
+    <a href="index.html">← 返回举报链接生成器</a>
+  </div>
+</div>
+
+<script>
+// ⚠️ 部署后把这里改成你的搜索后端地址（腾讯云 SCF 触发器地址）
+//    例如：'https://xxx.ap-shanghai.tencentscf.com'
+const SEARCH_API = 'https://YOUR_SCF_DOMAIN.ap-shanghai.tencentscf.com';
+
+const MAX_PAGES = 3;
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function setStatus(msg, cls) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = cls || '';
+}
+
+function doSearch() {
+  const keyword = document.getElementById('keyword').value.trim();
+  if (!keyword) { setStatus('请输入关键词。', 'err'); return; }
+
+  if (!SEARCH_API || SEARCH_API.indexOf('YOUR_SCF_DOMAIN') !== -1) {
+    setStatus('搜索后端未配置，请先部署 douyin/scf/search.py 并把 SEARCH_API 填成你的地址。', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = true;
+  btn.textContent = '正在检索…';
+  setStatus('正在检索「' + keyword + '」的前三页结果，请稍候…', '');
+
+  const qs = new URLSearchParams({
+    action: 'search',
+    keyword: keyword,
+    pages: String(MAX_PAGES),
+  });
+
+  fetch(SEARCH_API + '?' + qs.toString())
+    .then(function (res) {
+      if (!res.ok) throw new Error('服务返回 ' + res.status);
+      return res.json();
+    })
+    .then(function (data) {
+      if (data && data.code !== 0) throw new Error(data.message || ('错误码 ' + data.code));
+      render(data);
+      const n = (data.items || []).length;
+      setStatus('检索完成，共 ' + n + ' 条结果。', 'ok');
+    })
+    .catch(function (e) {
+      setStatus('检索失败：' + e.message, 'err');
+      document.getElementById('resultSection').hidden = true;
+    })
+    .finally(function () {
+      btn.disabled = false;
+      btn.textContent = '搜索';
+    });
+}
+
+function render(data) {
+  const items = data.items || [];
+  const section = document.getElementById('resultSection');
+  const box = document.getElementById('results');
+
+  if (!items.length) {
+    section.hidden = false;
+    box.innerHTML = '<p style="color:#888;text-align:center">没有检索到结果。</p>';
+    return;
+  }
+
+  // 按页分组（后端返回每项带 page 字段）
+  const pages = {};
+  items.forEach(function (it) {
+    const p = it.page || 1;
+    (pages[p] = pages[p] || []).push(it);
+  });
+
+  let html = '';
+  Object.keys(pages).sort(function (a, b) { return a - b; }).forEach(function (p) {
+    html += '<div class="result-page">';
+    html += '<p class="result-page-title">第 ' + p + ' 页（' + pages[p].length + ' 条）</p>';
+    pages[p].forEach(function (it) {
+      html += cardHtml(it);
+    });
+    html += '</div>';
+  });
+
+  section.hidden = false;
+  box.innerHTML = html;
+}
+
+function cardHtml(it) {
+  const title = esc(it.title || it.desc || '');
+  const desc = esc(it.desc || '');
+  const url = esc(it.url || '');
+  const author = esc(it.author || '');
+  return (
+    '<div class="card">' +
+      '<div class="row"><span class="lab">标题</span><span class="title">' + title + '</span></div>' +
+      (desc ? '<div class="row"><span class="lab">文案</span><span class="desc">' + desc + '</span></div>' : '') +
+      (author ? '<div class="row"><span class="lab">作者</span><span class="author">' + author + '</span></div>' : '') +
+      (url ? '<div class="row"><span class="lab">链接</span><a href="' + url + '" target="_blank" rel="noopener">' + url + '</a><span class="link-copy" onclick="copyLink(this)">复制</span></div>' : '') +
+    '</div>'
+  );
+}
+
+function copyLink(el) {
+  const a = el.previousElementSibling;
+  if (!a) return;
+  const text = a.textContent || a.getAttribute('href') || '';
+  const done = function () { el.textContent = '已复制'; setTimeout(function () { el.textContent = '复制'; }, 1500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(function () { fallback(); });
+  } else { fallback(); }
+  function fallback() {
+    const t = document.createElement('textarea');
+    t.value = text; document.body.appendChild(t); t.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(t);
+  }
+}
+
+document.getElementById('keyword').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') doSearch();
+});
+</script>
+</body>
+</html>

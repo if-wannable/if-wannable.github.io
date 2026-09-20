@@ -19,14 +19,14 @@
   
   
   
-<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="css/style.css">
 
   
-<link rel="stylesheet" href="/css/custom.css">
+<link rel="stylesheet" href="css/custom.css">
 
   
     
-<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+<link rel="stylesheet" href="fancybox/jquery.fancybox.min.css">
 
   
   
@@ -42,11 +42,11 @@
   <div id="header-outer" class="outer">
     <div id="header-title" class="inner">
       <h1 id="logo-wrap">
-        <a href="/" id="logo">摘豆子工作室</a>
+        <a href="./" id="logo">摘豆子工作室</a>
       </h1>
       
         <h2 id="subtitle-wrap">
-          <a href="/" id="subtitle">🦙</a>
+          <a href="./" id="subtitle">🦙</a>
         </h2>
       
     </div>
@@ -54,7 +54,7 @@
       <nav id="main-nav">
         <a id="main-nav-toggle" class="nav-icon"><span class="fa fa-bars"></span></a>
         
-          <a class="main-nav-link" href="/">Home</a>
+          <a class="main-nav-link" href="./">Home</a>
         
         
       </nav>
@@ -94,29 +94,29 @@
   <button id="batch-delete-btn" style="background: #ff6b6b; color: white; border: none; padding: 6px 16px; border-radius: 20px; font-size: 0.85em; cursor: pointer; display: none;">🗑️ 一键删除</button>
 </div>
 
-<!-- 豆瓣卡贴任务 -->
+<!-- db卡贴任务 -->
 <div class="module-card" data-section="card" style="padding: 20px;">
   <h3 style="font-size: 1.1em; font-weight: 600; color: var(--secondary); margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">
-    <span>🃏</span> 豆瓣卡贴
+    <span>🃏</span> db卡贴
   </h3>
   <div id="card-tasks"></div>
   <button class="add-task-btn" style="margin-top: 15px; background: #f0f8ed; color: #7eb86e; border: 1px dashed #add5a2; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85em; display: none;">+ 新增任务</button>
 </div>
 
-<!-- 豆瓣顶帖任务 -->
+<!-- db顶帖任务 -->
 <div class="module-card" data-section="bump" style="padding: 20px;">
   <h3 style="font-size: 1.1em; font-weight: 600; color: var(--secondary); margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">
-    <span>📋</span> 豆瓣顶帖
+    <span>📋</span> db顶帖
     <button class="batch-del-btn" data-section="bump" style="margin-left: auto; background: #ff6b6b; color: white; border: none; padding: 4px 12px; border-radius: 15px; font-size: 0.75em; cursor: pointer; display: none;">🗑️ 一键删除</button>
   </h3>
   <div id="bump-tasks"></div>
   <button class="add-task-btn" style="margin-top: 15px; background: #f0f8ed; color: #7eb86e; border: 1px dashed #add5a2; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85em; display: none;">+ 新增任务</button>
 </div>
 
-<!-- 豆瓣咔主页 -->
+<!-- db咔主页 -->
 <div class="module-card" data-section="home" style="padding: 20px;">
   <h3 style="font-size: 1.1em; font-weight: 600; color: var(--secondary); margin: 0 0 15px 0; display: flex; align-items: center; gap: 8px;">
-    <span>🏠</span> 豆瓣咔主页
+    <span>🏠</span> db咔主页
   </h3>
   <div id="home-tasks"></div>
   <button class="add-task-btn" style="margin-top: 15px; background: #f0f8ed; color: #7eb86e; border: 1px dashed #add5a2; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85em; display: none;">+ 新增任务</button>
@@ -587,7 +587,7 @@ document.getElementById('refresh-btn').onclick = () => {
 };
 
 document.getElementById('export-btn').onclick = () => {
-  const sectionNames = { card: '豆瓣卡贴', bump: '豆瓣顶帖', home: '豆瓣咔主页', other: '其余任务' };
+  const sectionNames = { card: 'db卡贴', bump: 'db顶帖', home: 'db咔主页', other: '其余任务' };
   let output = '';
   ['card', 'bump', 'home', 'other'].forEach(section => {
     const tasks = TASKS_CONFIG[section] || [];
@@ -662,24 +662,24 @@ loadTasksFromGist(true, refresh);
     </div>
     <nav id="mobile-nav">
   
-    <a href="/" class="mobile-nav-link">Home</a>
+    <a href="./" class="mobile-nav-link">Home</a>
   
   
 </nav>
     
 
 
-<script src="/js/jquery-3.6.4.min.js"></script>
+<script src="js/jquery-3.6.4.min.js"></script>
 
 
 
   
-<script src="/fancybox/jquery.fancybox.min.js"></script>
+<script src="fancybox/jquery.fancybox.min.js"></script>
 
 
 
 
-<script src="/js/script.js"></script>
+<script src="js/script.js"></script>
 
 
 
