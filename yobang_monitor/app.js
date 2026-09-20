@@ -3,7 +3,7 @@ const STORAGE_KEY = 'yobang-monitor-v1';
 const GIST_ID = 'b153fed7b323ef2c10c230f12bd67142';
 const GIST_USER = 'if-wannable';
 const CONFIG_FILENAME = 'yobang-monitor-config.json';
-const ADMIN_KEY_KEY = 'yobang-monitor-admin-key';
+const ADMIN_KEY_SESSION_KEY = 'yobang-monitor-adminkey';
 const SCF_URL_DEFAULT = 'https://1468756186-litz82qhu8.ap-shanghai.tencentscf.com';
 const MIN_PX_PER_SNAP = 48;
 
@@ -27,7 +27,6 @@ const els = {
   adminBtn: document.getElementById('adminBtn'),
   adminModal: document.getElementById('adminModal'),
   adminClose: document.getElementById('adminClose'),
-  adminKeyInput: document.getElementById('adminKeyInput'),
   adminEnableBtn: document.getElementById('adminEnableBtn'),
   adminTrackList: document.getElementById('adminTrackList'),
   adminSearchInput: document.getElementById('adminSearchInput'),
@@ -684,9 +683,30 @@ function renderAdmin() {
   });
 }
 
+let adminKey = null;
+
+function verifyAdminKey(key) {
+  return fetch(SCF_URL_DEFAULT, { headers: { 'X-Admin-Key': key } })
+    .then(r => r.ok)
+    .catch(() => false);
+}
+
+async function getAdminKey() {
+  const cached = sessionStorage.getItem(ADMIN_KEY_SESSION_KEY);
+  if (cached) return cached;
+  const key = (window.prompt('请输入管理员密钥') || '').trim();
+  if (!key) return null;
+  const ok = await verifyAdminKey(key);
+  if (!ok) { alert('密钥错误'); return null; }
+  sessionStorage.setItem(ADMIN_KEY_SESSION_KEY, key);
+  return key;
+}
+
 async function openAdmin() {
+  const key = await getAdminKey();
+  if (key === null) return;
+  adminKey = key;
   els.adminModal.style.display = 'flex';
-  els.adminKeyInput.value = localStorage.getItem(ADMIN_KEY_KEY) || '';
   const cfg = await loadConfig();
   if (cfg) {
     adminState = {
@@ -704,13 +724,10 @@ function addAdminTrack(uniId, name) {
 }
 
 async function saveAdmin() {
-  const url = SCF_URL_DEFAULT;
-  const key = els.adminKeyInput.value.trim();
-  if (key) localStorage.setItem(ADMIN_KEY_KEY, key);
   const headers = { 'Content-Type': 'application/json' };
-  if (key) headers['X-Admin-Key'] = key;
+  if (adminKey) headers['X-Admin-Key'] = adminKey;
   try {
-    const r = await fetch(url, {
+    const r = await fetch(SCF_URL_DEFAULT, {
       method: 'POST',
       headers,
       body: JSON.stringify({ enabled: adminState.enabled, tracks: adminState.tracks }),
