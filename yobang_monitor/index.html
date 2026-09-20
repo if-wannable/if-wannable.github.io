@@ -110,6 +110,20 @@
         <input id="adminSearchInput" type="text" autocomplete="off" placeholder="输入歌名或歌手…">
         <div class="search-results" id="adminSearchResults"></div>
       </div>
+      <div class="admin-section">清除快照（一段时间）</div>
+      <div class="admin-row">
+        <label for="clearUniIdInput">歌曲 uniId</label>
+        <input id="clearUniIdInput" type="text" placeholder="548948065">
+      </div>
+      <div class="admin-row">
+        <label for="clearStartInput">开始时间（可选）</label>
+        <input id="clearStartInput" type="datetime-local">
+      </div>
+      <div class="admin-row">
+        <label for="clearEndInput">结束时间（可选）</label>
+        <input id="clearEndInput" type="datetime-local">
+      </div>
+      <button id="clearSnapsBtn" class="btn ghost" type="button">清除该时间段快照</button>
       <div class="admin-actions">
         <button id="adminSaveBtn" class="btn" type="button">保存配置</button>
       </div>

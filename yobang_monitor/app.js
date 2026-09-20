@@ -32,6 +32,10 @@ const els = {
   adminSearchInput: document.getElementById('adminSearchInput'),
   adminSearchResults: document.getElementById('adminSearchResults'),
   adminSaveBtn: document.getElementById('adminSaveBtn'),
+  clearUniIdInput: document.getElementById('clearUniIdInput'),
+  clearStartInput: document.getElementById('clearStartInput'),
+  clearEndInput: document.getElementById('clearEndInput'),
+  clearSnapsBtn: document.getElementById('clearSnapsBtn'),
   searchInput: document.getElementById('searchInput'),
   searchResults: document.getElementById('searchResults'),
   cards: document.getElementById('cards'),
@@ -707,6 +711,7 @@ async function openAdmin() {
   if (key === null) return;
   adminKey = key;
   els.adminModal.style.display = 'flex';
+  els.clearUniIdInput.value = state.id || '';
   const cfg = await loadConfig();
   if (cfg) {
     adminState = {
@@ -746,6 +751,29 @@ function closeAdmin() {
   els.adminModal.style.display = 'none';
 }
 
+async function clearSnaps() {
+  const uniId = els.clearUniIdInput.value.trim();
+  if (!uniId) { alert('请输入歌曲 uniId'); return; }
+  const start = els.clearStartInput.value ? new Date(els.clearStartInput.value).getTime() : null;
+  const end = els.clearEndInput.value ? new Date(els.clearEndInput.value).getTime() : null;
+  if (!confirm('确定清除 ' + uniId + ' 该时间段的快照？')) return;
+  const headers = { 'Content-Type': 'application/json' };
+  if (adminKey) headers['X-Admin-Key'] = adminKey;
+  try {
+    const r = await fetch(SCF_URL_DEFAULT, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action: 'clearSnaps', uniId, startMs: start, endMs: end }),
+    });
+    const json = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(json.error || 'HTTP ' + r.status);
+    alert('已清除 ' + json.removed + ' 条快照，剩余 ' + json.remaining + ' 条');
+    if (state.id === uniId) loadRemoteSnaps();
+  } catch (e) {
+    alert('清除失败：' + e.message);
+  }
+}
+
 let adminSearchTimer = null;
 async function adminSearch(keyword) {
   try {
@@ -781,6 +809,7 @@ els.adminClose.addEventListener('click', closeAdmin);
 els.adminModal.addEventListener('click', e => { if (e.target === els.adminModal) closeAdmin(); });
 els.adminEnableBtn.addEventListener('click', () => { adminState.enabled = !adminState.enabled; renderAdmin(); });
 els.adminSaveBtn.addEventListener('click', saveAdmin);
+els.clearSnapsBtn.addEventListener('click', clearSnaps);
 els.adminSearchInput.addEventListener('input', () => {
   clearTimeout(adminSearchTimer);
   const kw = els.adminSearchInput.value.trim();

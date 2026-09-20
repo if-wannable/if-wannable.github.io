@@ -185,6 +185,46 @@ def _read_body(event):
     return body
 
 
+def clear_snaps(body):
+    uni_id = str(body.get("uniId", "")).strip()
+    if not uni_id:
+        return _resp({"error": "uniId 不能为空"}, 400)
+    start_ms = body.get("startMs")
+    end_ms = body.get("endMs")
+
+    gist = gist_get()
+    files = {name: f.get("content", "") or "" for name, f in gist.get("files", {}).items()}
+    snap_file = "yobang-snap-" + uni_id + ".json"
+    try:
+        existing = json.loads(files.get(snap_file, "") or "[]")
+        if not isinstance(existing, list):
+            existing = []
+    except Exception:
+        existing = []
+
+    def ts(s):
+        try:
+            return datetime.fromisoformat(str(s.get("at", "")).replace("Z", "+00:00")).timestamp() * 1000
+        except Exception:
+            return None
+
+    def keep(s):
+        t = ts(s)
+        if t is None:
+            return True
+        if start_ms is not None and t < start_ms:
+            return True
+        if end_ms is not None and t > end_ms:
+            return True
+        return False
+
+    filtered = [s for s in existing if keep(s)]
+    removed = len(existing) - len(filtered)
+    if removed:
+        gist_patch({snap_file: json.dumps(filtered, ensure_ascii=False)})
+    return _resp({"ok": True, "removed": removed, "remaining": len(filtered)})
+
+
 def handle_http(event):
     if not TOKEN:
         return _resp({"error": "SCF 未配置 GITHUB_TOKEN"}, 500)
@@ -207,6 +247,8 @@ def handle_http(event):
             body = json.loads(_read_body(event) or "{}")
         except Exception:
             return _resp({"error": "请求体不是合法 JSON"}, 400)
+        if body.get("action") == "clearSnaps":
+            return clear_snaps(body)
         enabled = bool(body.get("enabled"))
         tracks = []
         for t in body.get("tracks") or []:
