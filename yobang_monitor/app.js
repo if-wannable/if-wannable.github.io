@@ -183,6 +183,20 @@ function fmtTime(iso) {
   return new Date(iso).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 }
 
+function fmtDateLocal(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function fmtStartLabel(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return `${d.getMonth() + 1}/${d.getDate()} ${fmtTime(iso)}`;
+}
+
 function isDynamic(issue) {
   return !!issue.dynamic;
 }
@@ -336,7 +350,7 @@ function renderTable() {
     return;
   }
   const dims = snaps[0].dims || [];
-  els.thead.innerHTML = '<tr><th>时间</th><th>排名</th><th>由你指数</th>' + dims.map(d => `<th>${d.name}</th>`).join('') + '<th>总分涨幅</th></tr>';
+  els.thead.innerHTML = '<tr><th>时间</th><th>排名</th><th>由你指数</th>' + dims.map(d => `<th>${d.name}</th>`).join('') + '</tr>';
   els.tbody.innerHTML = snaps.map((s, i) => {
     const prev = snaps[i - 1];
     const uniDelta = prev ? parseFloat((s.uniIndex - prev.uniIndex).toFixed(2)) : null;
@@ -348,9 +362,8 @@ function renderTable() {
     return `<tr>
       <td>${new Date(s.at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
       <td>#${s.rank}</td>
-      <td>${s.uniIndex}</td>
+      <td>${s.uniIndex}${uniDelta === null ? '' : ' ' + deltaParenHtml(uniDelta)}</td>
       ${dimCells}
-      <td>${uniDelta === null ? '' : deltaHtml(uniDelta)}</td>
     </tr>`;
   }).join('');
   els.rowCount.textContent = snaps.length + ' 条';
@@ -694,32 +707,48 @@ function renderAdmin() {
   renderClearSelect();
 }
 
+function snapOptionLabel(s, nameMap) {
+  const id = String(s.uniId);
+  const name = nameMap[id] || id;
+  const start = fmtStartLabel(s.firstAt);
+  return `${name}（${s.count} 条${start ? ' · 起始 ' + start : ''}）`;
+}
+
+function syncClearStart() {
+  const id = els.clearSongSelect.value;
+  const s = snapFiles.find(x => String(x.uniId) === id);
+  els.clearStartInput.value = (s && s.firstAt) ? fmtDateLocal(s.firstAt) : '';
+}
+
 function renderClearSelect() {
   const nameMap = {};
   adminState.tracks.forEach(t => { nameMap[String(t.uniId)] = t.name; });
+  const files = snapFiles.filter(s => s.count > 0);
   const prev = els.clearSongSelect.value;
-  els.clearSongSelect.innerHTML = snapFiles.map(s => {
+  els.clearSongSelect.innerHTML = files.map(s => {
     const id = String(s.uniId);
-    return `<option value="${id}">${nameMap[id] || id}（${s.count} 条）</option>`;
+    return `<option value="${id}">${snapOptionLabel(s, nameMap)}</option>`;
   }).join('') || '<option value="">暂无快照</option>';
-  if (prev && snapFiles.some(s => String(s.uniId) === prev)) {
+  if (prev && files.some(s => String(s.uniId) === prev)) {
     els.clearSongSelect.value = prev;
-  } else if (snapFiles.length && state.id && snapFiles.some(s => String(s.uniId) === state.id)) {
+  } else if (files.length && state.id && files.some(s => String(s.uniId) === state.id)) {
     els.clearSongSelect.value = state.id;
-  } else if (snapFiles.length) {
-    els.clearSongSelect.value = snapFiles[0].uniId;
+  } else if (files.length) {
+    els.clearSongSelect.value = files[0].uniId;
   }
-  snapFiles.forEach(s => {
+  files.forEach(s => {
     const id = String(s.uniId);
     if (!nameMap[id]) {
       fetchSongName(id).then(name => {
         if (name) {
+          nameMap[id] = name;
           const opt = els.clearSongSelect.querySelector(`option[value="${id}"]`);
-          if (opt) opt.textContent = `${name}（${s.count} 条）`;
+          if (opt) opt.textContent = snapOptionLabel(s, nameMap);
         }
       });
     }
   });
+  syncClearStart();
 }
 
 async function fetchSongName(uniId) {
@@ -811,7 +840,7 @@ function closeAdmin() {
 function getClearTarget() {
   const sel = els.clearSongSelect;
   if (!sel.value) return null;
-  const name = (sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : sel.value).replace(/（\d+ 条）$/, '');
+  const name = (sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : sel.value).replace(/（[^）]*）$/, '');
   return { uniId: sel.value, name };
 }
 
@@ -884,6 +913,7 @@ els.adminEnableBtn.addEventListener('click', () => { adminState.enabled = !admin
 els.adminSaveBtn.addEventListener('click', saveAdmin);
 els.clearSnapsBtn.addEventListener('click', clearSnaps);
 els.clearAllSnapsBtn.addEventListener('click', clearAllSnaps);
+els.clearSongSelect.addEventListener('change', syncClearStart);
 els.adminSearchInput.addEventListener('input', () => {
   clearTimeout(adminSearchTimer);
   const kw = els.adminSearchInput.value.trim();

@@ -255,6 +255,7 @@ def handle_http(event):
                 snaps.append({
                     "uniId": uni_id,
                     "count": len(arr),
+                    "firstAt": arr[0].get("at") if arr else None,
                     "latestAt": arr[-1].get("at") if arr else None,
                 })
         return _resp({
