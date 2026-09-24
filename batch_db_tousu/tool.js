@@ -239,6 +239,12 @@
     #db-jb-tool .le .detail { color:#808b83; margin-left:auto; }
     #db-jb-tool .close-btn { background:transparent; border:none; color:#808b83; font-size:20px; cursor:pointer; padding:0 4px; min-width:32px; min-height:32px; box-shadow:none; }
     #db-jb-tool .close-btn:hover { color:#b77f7f; }
+    #db-jb-tool .collapse-btn { background:transparent; border:none; color:#718077; font-size:16px; cursor:pointer; padding:0 5px; min-width:28px; box-shadow:none; }
+    #db-jb-tool .collapse-btn:hover { background:rgba(169,202,168,.2); }
+    #db-jb-tool.collapsed > :not(h2):not(.compact-keep) { display:none !important; }
+    #db-jb-tool .compact-keep { display:none; }
+    #db-jb-tool.collapsed.compact-active .compact-keep { display:block; }
+    #db-jb-tool .compact-status { color:#718077; font-size:11px; padding:2px 2px 8px; }
     #db-jb-tool .hidden { display:none !important; }
     #db-jb-tool .tabs { display:flex; gap:4px; margin:-2px 0 12px; padding-bottom:8px; border-bottom:1px solid rgba(214,228,211,.8); }
     #db-jb-tool .tab { background:transparent; color:#808b83; border:0; border-bottom:2px solid transparent; border-radius:0; padding:5px 10px; box-shadow:none; }
@@ -251,7 +257,10 @@
   const ck = getCk();
   overlay.innerHTML = `
     <h2>db批量投诉
+      <span>
+        <button class="collapse-btn" id="db-jb-collapse" type="button" title="收起面板">−</button>
       <button class="close-btn" onclick="document.getElementById('db-jb-tool').remove()">&times;</button>
+      </span>
     </h2>
     <div class="ck-info">ck: ${ck || '❌ 未找到 ck，请确保已登录db'}</div>
 
@@ -330,14 +339,15 @@
       <button id="db-jb-stop" class="danger" disabled>停止</button>
     </div>
 
-    <div class="progress-bar" id="db-jb-pbar" style="display:none">
+    <div class="progress-bar compact-keep" id="db-jb-pbar" style="display:none">
       <div class="progress-fill" id="db-jb-pfill"></div>
     </div>
-    <div class="stats" id="db-jb-stats" style="display:none">
+    <div class="stats compact-keep" id="db-jb-stats" style="display:none">
       <span>总计<b id="db-jb-total">0</b></span>
       <span>成功<b class="ok" id="db-jb-done">0</b></span>
       <span>失败<b class="no" id="db-jb-fail">0</b></span>
     </div>
+    <div class="compact-status compact-keep" id="db-jb-status">未开始</div>
     <div class="log" id="db-jb-log"></div>
   `;
   document.body.appendChild(overlay);
@@ -347,6 +357,15 @@
 
   // ── 拖动面板（标题栏） ──
   const dragHandle = overlay.querySelector('h2');
+  const collapseBtn = document.getElementById('db-jb-collapse');
+  let collapsed = false;
+  collapseBtn.onclick = function (e) {
+    e.stopPropagation();
+    collapsed = !collapsed;
+    overlay.classList.toggle('collapsed', collapsed);
+    this.textContent = collapsed ? '+' : '−';
+    this.title = collapsed ? '展开面板' : '收起面板';
+  };
   let dragging = false;
   let dragPointerId = null;
   let dragOffsetX = 0;
@@ -681,6 +700,8 @@
       if (!proceed) return;
     }
     stopped = false;
+    overlay.classList.add('compact-active');
+    document.getElementById('db-jb-status').textContent = '运行中：准备提交 ' + estimatedRequests + ' 条举报请求';
 
     this.disabled = true;
     document.getElementById('db-jb-stop').disabled = false;
@@ -704,6 +725,7 @@
       document.getElementById('db-jb-total').textContent = total;
       document.getElementById('db-jb-done').textContent = done;
       document.getElementById('db-jb-fail').textContent = failed;
+      document.getElementById('db-jb-status').textContent = '运行中：已完成 ' + requestCount + '/' + estimatedRequests + ' 条请求';
 
       // 规范化 URL
       const targetUrl = reportTarget === 'user' ? normalizeUserUrl(rawUrl) : normalizeUrl(rawUrl);
@@ -720,6 +742,7 @@
           if (stopped) break;
           if (requestCount > 0 && requestCount % batchLimit === 0) {
             addLog(log, 'ok', '', '已完成 ' + requestCount + ' 条举报请求，暂停 ' + (restDelay / 1000) + ' 秒后继续');
+            document.getElementById('db-jb-status').textContent = '暂停中：已完成 ' + requestCount + '/' + estimatedRequests + ' 条请求';
             if (restDelay > 0) await new Promise(r => setTimeout(r, restDelay));
             if (stopped) break;
           }
@@ -738,6 +761,7 @@
           const data = await reportResp.json().catch(() => ({ raw: '' }));
           const success = reportResp.status === 200 && data.result !== 'error' && !data.error;
           requestCount++;
+          document.getElementById('db-jb-status').textContent = '运行中：已完成 ' + requestCount + '/' + estimatedRequests + ' 条请求';
           if (success) {
             reasonDone++;
           } else {
@@ -768,6 +792,7 @@
     document.getElementById('db-jb-pfill').textContent = '100%';
     document.getElementById('db-jb-done').textContent = done;
     document.getElementById('db-jb-fail').textContent = failed;
+    document.getElementById('db-jb-status').textContent = stopped ? '已停止：完成 ' + requestCount + '/' + estimatedRequests + ' 条请求' : '已完成：成功 ' + done + '，失败 ' + failed;
     document.getElementById('db-jb-start').disabled = false;
     document.getElementById('db-jb-stop').disabled = true;
   };
