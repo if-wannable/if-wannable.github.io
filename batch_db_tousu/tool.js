@@ -336,6 +336,8 @@
     </div>
     <div class="row">
       <button id="db-jb-start" disabled>开始投诉</button>
+      <button id="db-jb-pause" class="secondary" disabled>暂停</button>
+      <button id="db-jb-resume" class="secondary" disabled>恢复</button>
       <button id="db-jb-stop" class="danger" disabled>停止</button>
     </div>
 
@@ -686,6 +688,35 @@
 
   // ── 批量处理 ──
   let stopped = false;
+  let paused = false;
+  let resumeWaiters = [];
+
+  function waitIfPaused() {
+    if (!paused) return Promise.resolve();
+    return new Promise((resolve) => resumeWaiters.push(resolve));
+  }
+
+  async function sleepWithPause(ms) {
+    let left = ms;
+    while (left > 0) {
+      await waitIfPaused();
+      const step = Math.min(left, 250);
+      await new Promise(r => setTimeout(r, step));
+      left -= step;
+    }
+  }
+
+  function setPauseState(isPaused) {
+    paused = isPaused;
+    document.getElementById('db-jb-pause').disabled = isPaused;
+    document.getElementById('db-jb-resume').disabled = !isPaused;
+    document.getElementById('db-jb-status').textContent = isPaused ? '已暂停：等待恢复' : '运行中';
+    if (!isPaused) {
+      const waiters = resumeWaiters;
+      resumeWaiters = [];
+      waiters.forEach(resolve => resolve());
+    }
+  }
 
   document.getElementById('db-jb-start').onclick = async function () {
     const urls = getUrls();
@@ -700,11 +731,15 @@
       if (!proceed) return;
     }
     stopped = false;
+    paused = false;
+    resumeWaiters = [];
     overlay.classList.add('compact-active');
     document.getElementById('db-jb-status').textContent = '运行中：准备提交 ' + estimatedRequests + ' 条举报请求';
 
     this.disabled = true;
     document.getElementById('db-jb-stop').disabled = false;
+    document.getElementById('db-jb-pause').disabled = false;
+    document.getElementById('db-jb-resume').disabled = true;
     document.getElementById('db-jb-pbar').style.display = 'block';
     document.getElementById('db-jb-stats').style.display = 'flex';
     document.getElementById('db-jb-log').innerHTML = '';
@@ -739,11 +774,12 @@
         let reasonDone = 0;
         let lastError = '';
         for (let j = 0; j < reasons.length; j++) {
+          await waitIfPaused();
           if (stopped) break;
           if (requestCount > 0 && requestCount % batchLimit === 0) {
             addLog(log, 'ok', '', '已完成 ' + requestCount + ' 条举报请求，暂停 ' + (restDelay / 1000) + ' 秒后继续');
             document.getElementById('db-jb-status').textContent = '暂停中：已完成 ' + requestCount + '/' + estimatedRequests + ' 条请求';
-            if (restDelay > 0) await new Promise(r => setTimeout(r, restDelay));
+            if (restDelay > 0) await sleepWithPause(restDelay);
             if (stopped) break;
           }
           // 接口一次接受一个 reason；组合理由按预设顺序逐个提交
@@ -770,7 +806,7 @@
 
           const adaptiveDelay = Math.min(delay + Math.floor(requestCount / batchLimit) * 100, 1800);
           if (adaptiveDelay > 0 && (j < reasons.length - 1 || i < urls.length - 1)) {
-            await new Promise(r => setTimeout(r, adaptiveDelay));
+            await sleepWithPause(adaptiveDelay);
           }
         }
 
@@ -794,11 +830,31 @@
     document.getElementById('db-jb-fail').textContent = failed;
     document.getElementById('db-jb-status').textContent = stopped ? '已停止：完成 ' + requestCount + '/' + estimatedRequests + ' 条请求' : '已完成：成功 ' + done + '，失败 ' + failed;
     document.getElementById('db-jb-start').disabled = false;
+    document.getElementById('db-jb-pause').disabled = true;
+    document.getElementById('db-jb-resume').disabled = true;
     document.getElementById('db-jb-stop').disabled = true;
+    paused = false;
+    resumeWaiters.forEach(resolve => resolve());
+    resumeWaiters = [];
+  };
+
+  document.getElementById('db-jb-pause').onclick = function () {
+    if (!document.getElementById('db-jb-start').disabled) return;
+    setPauseState(true);
+  };
+
+  document.getElementById('db-jb-resume').onclick = function () {
+    if (!paused) return;
+    setPauseState(false);
   };
 
   document.getElementById('db-jb-stop').onclick = function () {
     stopped = true;
+    paused = false;
+    resumeWaiters.forEach(resolve => resolve());
+    resumeWaiters = [];
+    document.getElementById('db-jb-pause').disabled = true;
+    document.getElementById('db-jb-resume').disabled = true;
     this.disabled = true;
   };
 
