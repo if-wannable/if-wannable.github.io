@@ -689,6 +689,7 @@
   // ── 批量处理 ──
   let stopped = false;
   let paused = false;
+  let pauseVersion = 0;
   let resumeWaiters = [];
 
   function waitIfPaused() {
@@ -699,35 +700,48 @@
   function waitUntilDeadline(deadline) {
     return new Promise((resolve) => {
       let timer = null;
+      const version = pauseVersion;
       function cleanup() {
         if (timer) clearTimeout(timer);
         document.removeEventListener('visibilitychange', check);
+        document.removeEventListener('db-jb-pause-change', check);
       }
       function check() {
+        if (version !== pauseVersion) {
+          cleanup();
+          resolve(false);
+          return;
+        }
         const remaining = deadline - Date.now();
         if (remaining <= 0) {
           cleanup();
-          resolve();
+          resolve(true);
           return;
         }
         // 后台页面的定时器可能被节流；回到前台时 visibilitychange 会立即重新检查。
         timer = setTimeout(check, Math.min(remaining, 1000));
       }
       document.addEventListener('visibilitychange', check);
+      document.addEventListener('db-jb-pause-change', check);
       check();
     });
   }
 
   async function sleepWithPause(ms) {
-    const deadline = Date.now() + ms;
-    while (Date.now() < deadline) {
+    let remaining = ms;
+    while (remaining > 0) {
       await waitIfPaused();
-      await waitUntilDeadline(Math.min(deadline, Date.now() + 1000));
+      const started = Date.now();
+      const finished = await waitUntilDeadline(started + remaining);
+      remaining = Math.max(0, remaining - (Date.now() - started));
+      if (!finished) await waitIfPaused();
     }
   }
 
   function setPauseState(isPaused) {
     paused = isPaused;
+    pauseVersion++;
+    document.dispatchEvent(new Event('db-jb-pause-change'));
     document.getElementById('db-jb-pause').disabled = isPaused;
     document.getElementById('db-jb-resume').disabled = !isPaused;
     document.getElementById('db-jb-status').textContent = isPaused ? '已暂停：等待恢复' : '运行中';
@@ -752,6 +766,7 @@
     }
     stopped = false;
     paused = false;
+    pauseVersion++;
     resumeWaiters = [];
     overlay.classList.add('compact-active');
     document.getElementById('db-jb-status').textContent = '运行中：准备提交 ' + estimatedRequests + ' 条举报请求';
