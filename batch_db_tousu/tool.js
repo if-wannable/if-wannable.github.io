@@ -160,7 +160,7 @@
   overlay.style.cssText = [
     'position:fixed', 'top:5px', 'right:5px',
     'width:460px', 'max-width:calc(100vw - 10px)', 'max-height:90vh', 'overflow-y:auto',
-    'background:rgba(247,252,245,.92)', 'border:1px solid rgba(255,255,255,.84)', 'border-radius:15px',
+    'background:#f5fbf3', 'border:1px solid #d8ead4', 'border-radius:15px',
     'padding:14px', 'z-index:999999',
     'color:#4a554d', 'font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif', 'font-size:13px',
     'box-shadow:0 5px 18px rgba(70,85,72,0.11)',
