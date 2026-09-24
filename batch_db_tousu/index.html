@@ -6,33 +6,76 @@
 <title>db批量投诉工具</title>
 <style>
 :root {
-  --bg: #0f1117;
-  --card: #1a1d29;
-  --border: #2a2d3a;
-  --accent: #4e7ef3;
-  --text: #e0e0e8;
-  --text-dim: #888;
-  --success: #4caf50;
-  --radius: 8px;
+  --bg: #eaf6e7;
+  --card: rgba(255, 255, 255, .84);
+  --border: #d8ead4;
+  --accent: #a9caa8;
+  --accent-dark: #94b994;
+  --text: #4a554d;
+  --text-dim: #808b83;
+  --success: #86a98a;
+  --radius: 14px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: #e3f1df; }
 body {
   font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.7;
-  padding: 24px;
-  max-width: 680px;
-  margin: 0 auto;
+  padding: 28px;
+  width: min(620px, calc(100% - 32px));
+  max-width: 620px;
+  margin: 28px auto;
+  min-height: calc(100vh - 56px);
+  background: rgba(255, 255, 255, .18);
+  border: 1px solid rgba(255, 255, 255, .34);
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(61, 112, 68, .08);
+  position: relative;
+  overflow-x: hidden;
 }
-h1 { font-size: 1.6rem; margin-bottom: 4px; color: #fff; }
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 42% 58% 55% 45%;
+  filter: blur(20px);
+}
+body::before {
+  width: 260px;
+  height: 180px;
+  top: -55px;
+  right: -70px;
+  background: rgba(255, 255, 255, .28);
+}
+body::after {
+  width: 210px;
+  height: 150px;
+  bottom: 30px;
+  left: -80px;
+  background: rgba(151, 190, 146, .13);
+}
+h1 { font-size: 1.6rem; margin-bottom: 4px; color: #526257; letter-spacing: .02em; }
 .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 32px; }
 .card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: rgba(255, 255, 255, .72);
+  border: 1px solid rgba(198, 227, 191, .72);
+  border-radius: 18px;
   padding: 24px;
   margin-bottom: 16px;
+  box-shadow: 0 3px 12px rgba(61, 112, 68, .08);
+}
+.card::before {
+  content: "";
+  display: block;
+  width: 34px;
+  height: 4px;
+  margin-bottom: 14px;
+  border-radius: 3px;
+  background: #d4e9d0;
 }
 .card h2 { font-size: 1.1rem; margin-bottom: 16px; }
 .steps { padding-left: 0; list-style: none; counter-reset: step; }
@@ -70,11 +113,12 @@ h1 { font-size: 1.6rem; margin-bottom: 4px; color: #fff; }
   user-select: none;
   margin: 8px 0;
   transition: background 0.2s;
+  box-shadow: 0 5px 12px rgba(71, 124, 80, .2);
 }
-.bookmarklet:hover { background: #3d6de0; }
+.bookmarklet:hover { background: var(--accent-dark); }
 .bookmarklet:active { cursor: grabbing; }
 .hint { color: var(--text-dim); font-size: 0.82rem; margin-top: 8px; }
-b { color: var(--text); }
+b { color: #315d3b; }
 ul.features { padding-left: 20px; font-size: 0.9rem; color: var(--text-dim); }
 ul.features li { margin-bottom: 6px; }
 </style>
@@ -103,13 +147,32 @@ ul.features li { margin-bottom: 6px; }
   <h2>功能说明</h2>
   <ul class="features">
     <li><b>举报对象</b>：讨论本身（原始帖），非回复</li>
-    <li><b>举报理由</b>：两级下拉选择（大类 -> 小类），所有讨论共用同一理由</li>
+    <li><b>用户投诉</b>：可切换到用户投诉 Tab，批量处理用户主页并支持单选/多选理由</li>
+    <li><b>举报理由</b>：支持单理由，以及 black_pool 中的三种多理由组合</li>
+    <li><b>小驼组合拳</b>：侮辱谩骂、挂人引战、网暴谩骂、诱导不良行为</li>
+    <li><b>小兔组合拳</b>：引战、饭圈干扰舆论、侮辱谩骂</li>
+    <li><b>富贵组合拳</b>：网暴歧视、人身攻击、饭圈造谣爆料</li>
     <li><b>链接格式</b>：支持标准 URL 和 doubanapp/dispatch 格式</li>
-    <li><b>批量输入</b>：每行一个 URL，或上传 CSV/TXT 文件</li>
+    <li><b>批量输入</b>：在文本框中每行粘贴一个 URL</li>
     <li><b>进度显示</b>：进度条 + 成功/失败统计 + 逐条日志</li>
-    <li><b>限速</b>：默认 800ms 间隔防风控</li>
+    <li><b>限速</b>：默认 800ms 间隔；每 20 条举报请求暂停 30 秒，并自动递增间隔</li>
   </ul>
 </div>
+
+<div class="card">
+  <h2>本地查看工具面板</h2>
+  <p class="hint">打开后显示完整举报面板，可查看单选、组合举报和拖动效果。本地模式只模拟提交，不会访问豆瓣。</p>
+  <a class="bookmarklet" href="?demo=1">打开工具面板</a>
+</div>
+
+<script>
+  if (new URLSearchParams(location.search).get('demo') === '1') {
+    var s = document.createElement('script');
+    s.src = 'tool.js';
+    s.onload = function () { this.remove(); };
+    document.head.appendChild(s);
+  }
+</script>
 
 </body>
 </html>
