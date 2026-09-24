@@ -696,13 +696,33 @@
     return new Promise((resolve) => resumeWaiters.push(resolve));
   }
 
+  function waitUntilDeadline(deadline) {
+    return new Promise((resolve) => {
+      let timer = null;
+      function cleanup() {
+        if (timer) clearTimeout(timer);
+        document.removeEventListener('visibilitychange', check);
+      }
+      function check() {
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) {
+          cleanup();
+          resolve();
+          return;
+        }
+        // 后台页面的定时器可能被节流；回到前台时 visibilitychange 会立即重新检查。
+        timer = setTimeout(check, Math.min(remaining, 1000));
+      }
+      document.addEventListener('visibilitychange', check);
+      check();
+    });
+  }
+
   async function sleepWithPause(ms) {
-    let left = ms;
-    while (left > 0) {
+    const deadline = Date.now() + ms;
+    while (Date.now() < deadline) {
       await waitIfPaused();
-      const step = Math.min(left, 250);
-      await new Promise(r => setTimeout(r, step));
-      left -= step;
+      await waitUntilDeadline(Math.min(deadline, Date.now() + 1000));
     }
   }
 
