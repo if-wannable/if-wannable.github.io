@@ -159,20 +159,5 @@ ul.features li { margin-bottom: 6px; }
   </ul>
 </div>
 
-<div class="card">
-  <h2>本地查看工具面板</h2>
-  <p class="hint">打开后显示完整举报面板，可查看单选、组合举报和拖动效果。本地模式只模拟提交，不会访问豆瓣。</p>
-  <a class="bookmarklet" href="?demo=1">打开工具面板</a>
-</div>
-
-<script>
-  if (new URLSearchParams(location.search).get('demo') === '1') {
-    var s = document.createElement('script');
-    s.src = 'tool.js';
-    s.onload = function () { this.remove(); };
-    document.head.appendChild(s);
-  }
-</script>
-
 </body>
 </html>

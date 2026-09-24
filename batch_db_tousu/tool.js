@@ -11,9 +11,7 @@
 
   // 检查域名
   var host = location.hostname;
-  var isLocalDemo = (host === 'localhost' || host === '127.0.0.1') &&
-    new URLSearchParams(location.search).get('demo') === '1';
-  if (host !== 'www.douban.com' && host !== 'douban.com' && !isLocalDemo) {
+  if (host !== 'www.douban.com' && host !== 'douban.com') {
     alert('请在 www.douban.com 页面使用本工具。\n如果是手机，请在浏览器设置中切换到"桌面版"或"电脑版"网站。');
     return;
   }
@@ -122,6 +120,23 @@
     {name:"水军养号", id:79}, {name:"AI造假", id:80}, {name:"其他AI违规信息", id:81},
     {name:"垃圾豆邮", id:82},
   ];
+  const USER_REASON_GROUPS = [
+    {name:"广告", id:0}, {name:"色情低俗", subs:[["色情低俗",1],["低俗内容",26],["色情作品",27],["色情导流",28],["色情交易",29],["其他色情低俗信息",30]]},
+    {name:"违法违规", subs:[["违法违规",2],["涉嫌欺诈",50],["涉枪涉爆",51],["毒品危险品",52],["邪教相关",53],["非法交易",54],["恐怖血腥",55],["赌博内容",56],["教唆犯罪",57],["其他违法违规信息",59],["封建迷信",67],["非法外链",75]]},
+    {name:"辱骂攻击", subs:[["辱骂攻击",3],["侮辱谩骂",37],["人身攻击",38]]},
+    {name:"垃圾信息", subs:[["垃圾豆邮",4],["垃圾私信",5],["刷屏",12],["折叠回复反馈",76]]},
+    {name:"引战", id:7}, {name:"账号与隐私", subs:[["冒充我或他人的豆瓣帐号",8],["泄露他人隐私",9],["泄露隐私",41]]},
+    {name:"影响评分公正性", id:10}, {name:"与作品或讨论区主题无关", id:11},
+    {name:"政治相关", subs:[["政治相关",13],["政治制度",20],["历史虚无",21],["民族仇恨",22],["分裂言论",23],["煽动言论",24],["其他政治有害信息",25]]},
+    {name:"涉未成年人", subs:[["涉未成年人",14],["涉未成年人",43],["诱导不良行为",60],["欺凌霸凌",61],["儿童邪典",62],["儿童色情",63],["泄露隐私",64],["其他涉未成年人有害信息",65]]},
+    {name:"饭圈乱象", subs:[["饭圈乱象",15],["鼓动粉丝攀比",44],["网络水军",45],["干扰舆论",46],["造谣爆料",47],["挂人引战",48],["内容来源不明",49]]},
+    {name:"网络暴力/网络戾气", subs:[["网络暴力/网络戾气",16],["歧视偏见",39],["谩骂攻击",40],["煽动性言论",42],["其他网暴信息",74],["开盒行为",77],["我被网暴",78]]},
+    {name:"涉重大灾难的不当言论", id:17}, {name:"算法推荐类违规信息", id:18},
+    {name:"不实信息", subs:[["不实信息",19],["疫情类不实信息",31],["科普类不实信息",32],["社会谣言",33],["时政谣言",34],["虚假新闻",35],["其他不实信息",36]]},
+    {name:"自媒体乱象", subs:[["冒充机构媒体及特定职业",66],["其他仿冒信息",68]]},
+    {name:"涉重大赛事", subs:[["违规营销",69],["造谣传谣",70],["未经授权",71],["假冒仿冒",72],["其他不良信息",73]]},
+    {name:"AI乱象", subs:[["AI造假",80],["其他AI违规信息",81]]}, {name:"未授权下载资源", id:6}, {name:"水军养号", id:79},
+  ];
 
   // ── 提取 ck ──
   function getCk() {
@@ -160,7 +175,7 @@
   overlay.style.cssText = [
     'position:fixed', 'top:5px', 'right:5px',
     'width:460px', 'max-width:calc(100vw - 10px)', 'max-height:90vh', 'overflow-y:auto',
-    'background:#f5fbf3', 'border:1px solid #d8ead4', 'border-radius:15px',
+    'background:#edf7eb', 'border:1px solid #c9dfc5', 'border-radius:15px',
     'padding:14px', 'z-index:999999',
     'color:#4a554d', 'font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif', 'font-size:13px',
     'box-shadow:0 5px 18px rgba(70,85,72,0.11)',
@@ -233,12 +248,12 @@
   style.textContent = css;
   document.head.appendChild(style);
 
-  const ck = isLocalDemo ? 'local-demo-ck' : getCk();
+  const ck = getCk();
   overlay.innerHTML = `
     <h2>db批量投诉
       <button class="close-btn" onclick="document.getElementById('db-jb-tool').remove()">&times;</button>
     </h2>
-    <div class="ck-info">${isLocalDemo ? '本地演示模式：不会发送真实举报请求' : 'ck: ' + (ck || '❌ 未找到 ck，请确保已登录db')}</div>
+    <div class="ck-info">ck: ${ck || '❌ 未找到 ck，请确保已登录db'}</div>
 
     <div class="tabs">
       <button class="tab active" type="button" data-tab="topic">讨论投诉</button>
@@ -284,13 +299,17 @@
         <label class="mode-option"><input type="radio" name="db-jb-user-mode" value="custom">多选</label>
       </div>
       <div class="row" id="db-jb-user-single">
-        <label>理由</label>
-        <select id="db-jb-user-select"><option value="">请选择</option></select>
+        <label>大类</label>
+        <select id="db-jb-user-parent"><option value="">请选择</option></select>
+        <label id="db-jb-user-lsub" class="hidden">小类</label>
+        <select id="db-jb-user-sub" class="hidden"><option value="">请选择</option></select>
       </div>
       <div class="row hidden" id="db-jb-user-custom">
         <div class="custom-controls">
-          <label>理由</label>
-          <select id="db-jb-user-custom-select"><option value="">请选择</option></select>
+          <label>大类</label>
+          <select id="db-jb-user-custom-parent"><option value="">请选择</option></select>
+          <label id="db-jb-user-custom-lsub" class="hidden">小类</label>
+          <select id="db-jb-user-custom-sub" class="hidden"><option value="">请选择</option></select>
           <button id="db-jb-user-custom-add" class="secondary" type="button">加入理由</button>
         </div>
         <div class="custom-list" id="db-jb-user-custom-list"></div>
@@ -304,7 +323,7 @@
       <span class="rate-hint">条请求</span>
       <label>暂停</label>
       <input type="number" id="db-jb-rest-delay" value="30" min="0" max="3600" step="5" class="rate-input"> 秒
-      <span class="rate-hint">每批后间隔自动递增 200ms，最高 2000ms</span>
+      <span class="rate-hint">每批后间隔自动递增 100ms，最高 1800ms</span>
     </div>
     <div class="row">
       <button id="db-jb-start" disabled>开始投诉</button>
@@ -363,14 +382,15 @@
   document.addEventListener('pointercancel', stopDragging);
 
   const selPreset = document.getElementById('db-jb-preset');
-  const userSelect = document.getElementById('db-jb-user-select');
-  const userCustomSelect = document.getElementById('db-jb-user-custom-select');
-  for (const r of USER_REASONS) {
+  const userParent = document.getElementById('db-jb-user-parent');
+  const userSub = document.getElementById('db-jb-user-sub');
+  const userCustomParent = document.getElementById('db-jb-user-custom-parent');
+  const userCustomSub = document.getElementById('db-jb-user-custom-sub');
+  for (const r of USER_REASON_GROUPS) {
     const a = document.createElement('option');
-    a.value = String(r.id); a.textContent = r.name;
-    userSelect.appendChild(a);
-    const b = a.cloneNode(true);
-    userCustomSelect.appendChild(b);
+    a.value = r.name; a.textContent = r.name;
+    userParent.appendChild(a);
+    userCustomParent.appendChild(a.cloneNode(true));
   }
   for (const p of COMBO_PRESETS) {
     const opt = document.createElement('option');
@@ -413,8 +433,26 @@
     checkReady();
   }
   document.querySelectorAll('input[name="db-jb-user-mode"]').forEach((el) => { el.onchange = updateUserReasonMode; });
-  userSelect.onchange = checkReady;
-  userCustomSelect.onchange = checkReady;
+  function fillUserSub(parent, sub, label) {
+    const group = USER_REASON_GROUPS.find(x => x.name === parent.value);
+    sub.innerHTML = '<option value="">请选择</option>';
+    if (group && group.subs) {
+      sub.classList.remove('hidden');
+      label.classList.remove('hidden');
+      group.subs.forEach((item) => {
+        const opt = document.createElement('option');
+        opt.value = String(item[1]); opt.textContent = item[0];
+        sub.appendChild(opt);
+      });
+    } else {
+      sub.classList.add('hidden');
+      label.classList.add('hidden');
+    }
+  }
+  userParent.onchange = function () { fillUserSub(userParent, userSub, document.getElementById('db-jb-user-lsub')); checkReady(); };
+  userSub.onchange = checkReady;
+  userCustomParent.onchange = function () { fillUserSub(userCustomParent, userCustomSub, document.getElementById('db-jb-user-custom-lsub')); checkReady(); };
+  userCustomSub.onchange = checkReady;
 
   function renderUserReasons() {
     const list = document.getElementById('db-jb-user-custom-list');
@@ -427,11 +465,21 @@
     });
   }
   document.getElementById('db-jb-user-custom-add').onclick = function () {
-    const reason = USER_REASONS.find(x => String(x.id) === userCustomSelect.value);
+    const group = USER_REASON_GROUPS.find(x => x.name === userCustomParent.value);
+    let reason = null;
+    if (group && group.subs) {
+      const item = group.subs.find(x => String(x[1]) === userCustomSub.value);
+      if (item) reason = { id: item[1], name: group.name + ' / ' + item[0] };
+    } else if (group && group.id !== undefined) {
+      reason = { id: group.id, name: group.name };
+    }
     if (!reason) return;
     userReasons.push(reason);
     renderUserReasons();
-    userCustomSelect.value = '';
+    userCustomParent.value = '';
+    userCustomSub.innerHTML = '<option value="">请选择</option>';
+    userCustomSub.classList.add('hidden');
+    document.getElementById('db-jb-user-custom-lsub').classList.add('hidden');
     checkReady();
   };
 
@@ -592,7 +640,14 @@
     if (reportTarget === 'user') {
       const mode = document.querySelector('input[name="db-jb-user-mode"]:checked').value;
       if (mode === 'custom') return userReasons;
-      const reason = USER_REASONS.find(x => String(x.id) === userSelect.value);
+      const group = USER_REASON_GROUPS.find(x => x.name === userParent.value);
+      let reason = null;
+      if (group && group.subs) {
+        const item = group.subs.find(x => String(x[1]) === userSub.value);
+        if (item) reason = { id: item[1], name: group.name + ' / ' + item[0] };
+      } else if (group && group.id !== undefined) {
+        reason = { id: group.id, name: group.name };
+      }
       return reason ? [reason] : [];
     }
     const mode = document.querySelector('input[name="db-jb-mode"]:checked').value;
@@ -669,26 +724,19 @@
             if (stopped) break;
           }
           // 接口一次接受一个 reason；组合理由按预设顺序逐个提交
-          let data = {};
-          let success = false;
-          if (isLocalDemo) {
-            await new Promise(r => setTimeout(r, 120));
-            success = true;
-          } else {
-            const reportResp = await fetch('https://www.douban.com/misc/audit_report', {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({
-                resp_type: 'c_dict',
-                reason: String(reasons[j].id),
-                url: targetUrl,
-                ck: ck,
-              }),
-            });
-            data = await reportResp.json().catch(() => ({ raw: '' }));
-            success = reportResp.status === 200 && data.result !== 'error' && !data.error;
-          }
+          const reportResp = await fetch('https://www.douban.com/misc/audit_report', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              resp_type: 'c_dict',
+              reason: String(reasons[j].id),
+              url: targetUrl,
+              ck: ck,
+            }),
+          });
+          const data = await reportResp.json().catch(() => ({ raw: '' }));
+          const success = reportResp.status === 200 && data.result !== 'error' && !data.error;
           requestCount++;
           if (success) {
             reasonDone++;
@@ -696,7 +744,7 @@
             lastError = data.error || data.message || JSON.stringify(data).slice(0, 100);
           }
 
-          const adaptiveDelay = Math.min(delay + Math.floor(requestCount / batchLimit) * 200, 2000);
+          const adaptiveDelay = Math.min(delay + Math.floor(requestCount / batchLimit) * 100, 1800);
           if (adaptiveDelay > 0 && (j < reasons.length - 1 || i < urls.length - 1)) {
             await new Promise(r => setTimeout(r, adaptiveDelay));
           }
