@@ -850,7 +850,8 @@
           let data = {};
           try { data = responseText ? JSON.parse(responseText) : {}; } catch (parseError) { data = { raw: responseText }; }
           const success = reportResp.status === 200 && data.result !== 'error' && !data.error;
-          if (isInvalidReportResponse(reportResp.status, responseText, data)) {
+          const invalidResponse = isInvalidReportResponse(reportResp.status, responseText, data);
+          if (invalidResponse) {
             invalidUrls.add(targetUrl);
             updateInvalid();
           }
@@ -860,7 +861,7 @@
             reasonDone++;
           } else {
             const responseSummary = data.error || data.message || data.raw || JSON.stringify(data);
-            lastError = 'HTTP ' + reportResp.status + (responseSummary ? '：' + responseSummary.replace(/\s+/g, ' ').slice(0, 160) : '：响应为空');
+            lastError = (invalidResponse ? '失效判定：' : '') + 'HTTP ' + reportResp.status + (responseSummary ? '：' + responseSummary.replace(/\s+/g, ' ').slice(0, 160) : '：响应为空');
           }
 
           const adaptiveDelay = Math.min(delay + Math.floor(requestCount / batchLimit) * 100, 1800);
