@@ -817,6 +817,7 @@
       try {
         let reasonDone = 0;
         let lastError = '';
+        let targetInvalid = false;
         for (let j = 0; j < reasons.length; j++) {
           await waitIfPaused();
           if (stopped) break;
@@ -852,6 +853,7 @@
           const success = reportResp.status === 200 && data.result !== 'error' && !data.error;
           const invalidResponse = isInvalidReportResponse(reportResp.status, responseText, data);
           if (invalidResponse) {
+            targetInvalid = true;
             invalidUrls.add(targetUrl);
             updateInvalid();
           }
@@ -872,7 +874,8 @@
 
         if (reasonDone === reasons.length) {
           done++;
-          addLog(log, 'ok', targetUrl, reasons.length > 1 ? 'OK ' + reasonDone + '/' + reasons.length : 'OK');
+          const validNote = targetInvalid ? ' · 失效判定' : '';
+          addLog(log, 'ok', targetUrl, (reasons.length > 1 ? 'OK ' + reasonDone + '/' + reasons.length : 'OK') + validNote);
         } else {
           failed++;
           addLog(log, 'no', targetUrl, '成功 ' + reasonDone + '/' + reasons.length + (lastError ? '：' + lastError : ''));
@@ -941,7 +944,7 @@
     if (status === 404 || status === 410) return true;
     const text = [responseText, data && data.error, data && data.message, data && data.raw]
       .filter(Boolean).join(' ').replace(/\s+/g, ' ');
-    if (status === 403) return true;
+    if (status === 403 || /access denied|访问被拒绝|拒绝访问/i.test(text)) return true;
     return /你没有权限访问这个页面|内容已被删除|此内容已被删除|已被管理员删除|帖子已被删除|该话题已被删除|主题不存在|内容不存在|页面不存在|你访问的页面飘走了/i.test(text);
   }
 
