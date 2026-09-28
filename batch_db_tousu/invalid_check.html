@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>豆瓣内容失效检测</title>
+<style>
+  :root{--bg:#eaf6e7;--card:rgba(255,255,255,.86);--line:#cfe4cb;--text:#4a554d;--green:#91b994;--bad:#b77f7f;--muted:#819087}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+  main{width:min(760px,calc(100% - 32px));margin:32px auto;padding:24px;background:var(--card);border:1px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:0 5px 18px rgba(70,85,72,.1)}
+  h1{margin:0 0 6px;color:#526257;font-size:20px}.hint{color:var(--muted);font-size:12px;margin:0 0 16px}
+  textarea,input{width:100%;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.82);color:var(--text);padding:9px;font:inherit}
+  textarea{min-height:150px;resize:vertical}.cookie{margin-top:10px;min-height:64px;font-size:12px}
+  button{margin-top:12px;border:0;border-radius:7px;background:var(--green);color:white;padding:9px 18px;cursor:pointer}button.secondary{margin-left:8px;background:#b5cbb3;color:#fff}button:disabled{opacity:.5}
+  .cookie-status{display:inline-block;margin-left:8px;color:var(--muted);font-size:12px}
+  .summary{display:flex;gap:16px;flex-wrap:wrap;margin:18px 0 8px;color:var(--muted)}.summary b{color:var(--text)}
+  .groups{display:grid;gap:10px}.group{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.35)}.group-title{padding:8px 10px;font-size:13px;font-weight:600;background:rgba(255,255,255,.52)}.group-title small{font-weight:400;color:var(--muted);margin-left:5px}.group-items:empty::before{content:"暂无";display:block;padding:9px 10px;color:#a2ada4;font-size:12px}.item{padding:9px 10px;border-top:1px solid #e2eee0;font-size:12px}.url{word-break:break-all;color:#718f75}.reason{color:var(--muted);margin-left:6px}.dead{color:var(--bad)}.alive{color:#789c7d}.unknown{color:#a18769}
+</style>
+</head>
+<body><main>
+  <h1>豆瓣内容失效检测</h1>
+  <p class="hint">只读取页面，不提交举报。每行一个豆瓣讨论或用户主页链接；空行和纯文字会自动跳过。</p>
+  <textarea id="urls" placeholder="https://www.douban.com/group/topic/123456789/&#10;https://www.douban.com/doubanapp/dispatch?uri=%2Ftopic%2F123456789&#10;https://www.douban.com/people/296236297/"></textarea>
+  <textarea id="cookie" class="cookie" placeholder="可选：粘贴 Cookie（用于检测登录后可见内容，不会保存）"></textarea>
+  <button id="get-cookie" class="secondary">自动获取 Cookie</button><span id="cookie-status" class="cookie-status">需先加载本地扩展</span>
+  <br><button id="start">开始检测</button>
+  <div class="summary" id="summary"></div>
+  <div class="groups" id="groups">
+    <section class="group"><div class="group-title alive">有效 <small id="alive-count">0</small></div><div class="group-items" id="alive-items"></div></section>
+    <section class="group"><div class="group-title dead">已失效 <small id="dead-count">0</small></div><div class="group-items" id="dead-items"></div></section>
+    <section class="group"><div class="group-title unknown">无法判断 <small id="unknown-count">0</small></div><div class="group-items" id="unknown-items"></div></section>
+  </div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let cookieRequestId = 0;
+const cookieResponses = new Map();
+window.addEventListener('message', (event) => {
+  if (event.source !== window || !event.data || event.data.source !== 'dbt-ext') return;
+  if (event.data.id && cookieResponses.has(event.data.id)) {
+    cookieResponses.get(event.data.id)(event.data.result);
+    cookieResponses.delete(event.data.id);
+  }
+});
+function requestBrowserCookie(){
+  return new Promise((resolve, reject) => {
+    const id = 'cookie-' + (++cookieRequestId);
+    const timer = setTimeout(() => { cookieResponses.delete(id); reject(new Error('未检测到本地扩展')); }, 1800);
+    cookieResponses.set(id, (result) => { clearTimeout(timer); result && result.ok ? resolve(result.value || '') : reject(new Error(result && result.error || '读取失败')); });
+    window.postMessage({source:'dbt-page', id, type:'getCookieString'}, '*');
+  });
+}
+$('get-cookie').onclick = async () => {
+  $('get-cookie').disabled = true; $('cookie-status').textContent = '正在获取…';
+  try {
+    const value = await requestBrowserCookie();
+    if (!value) throw new Error('当前没有可用 Cookie');
+    $('cookie').value = value;
+    $('cookie-status').textContent = '已获取，仅保存在当前页面内存';
+  } catch (e) {
+    $('cookie-status').textContent = '自动获取失败，请手动粘贴 Cookie';
+  } finally { $('get-cookie').disabled = false; }
+};
+function links(text){return text.split(/[\r\n]+/).map(x=>x.trim()).filter(x=>/^https?:\/\/www\.douban\.com\/(group\/(?:[^/]+\/)?topic|topic|people)\//i.test(x)||/^https?:\/\/www\.douban\.com\/doubanapp\/dispatch\?/i.test(x));}
+function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+$("start").onclick=async()=>{
+  const list=links($("urls").value), cookie=$("cookie").value.trim();
+  if(!list.length){alert('没有识别到豆瓣链接');return;}
+  $("start").disabled=true; $("summary").textContent='检测中…';
+  for(const key of ['alive','dead','unknown']){document.getElementById(key+'-items').innerHTML='';document.getElementById(key+'-count').textContent='0';}
+  const counts={alive:0,dead:0,unknown:0};
+  const append=(status,label,url,httpStatus,reason)=>{
+    const key=Object.prototype.hasOwnProperty.call(counts,status)?status:'unknown';
+    counts[key]++;
+    document.getElementById(key+'-items').insertAdjacentHTML('beforeend','<div class="item"><span class="'+key+'">【'+esc(label)+'】</span><span class="url">'+esc(url)+'</span><span class="reason">HTTP '+(httpStatus||'-')+' · '+esc(reason)+'</span></div>');
+    document.getElementById(key+'-count').textContent=counts[key];
+    $("summary").innerHTML=`总数 <b>${list.length}</b>　已检测 <b>${counts.alive+counts.dead+counts.unknown}</b>　有效 <b class="alive">${counts.alive}</b>　已失效 <b class="dead">${counts.dead}</b>　无法判断 <b class="unknown">${counts.unknown}</b>`;
+  };
+  for(let i=0;i<list.length;i++){ const url=list[i];
+    try{
+      const r=await fetch('/api/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,cookie})});
+      const d=await r.json(); append(d.status,d.label,url,d.http_status,d.reason);
+    }catch(e){append('unknown','无法判断',url,0,String(e))}
+    if(i < list.length - 1) await new Promise(resolve=>setTimeout(resolve, 800));
+  }
+  $("start").disabled=false;
+};
+</script></body></html>

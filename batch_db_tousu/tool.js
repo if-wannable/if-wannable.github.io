@@ -348,6 +348,7 @@
       <span>总计<b id="db-jb-total">0</b></span>
       <span>成功<b class="ok" id="db-jb-done">0</b></span>
       <span>失败<b class="no" id="db-jb-fail">0</b></span>
+      <span>失效<b class="no" id="db-jb-invalid">0/0</b></span>
     </div>
     <div class="compact-status compact-keep" id="db-jb-status">未开始</div>
     <div class="log" id="db-jb-log"></div>
@@ -780,8 +781,13 @@
     document.getElementById('db-jb-log').innerHTML = '';
 
     let done = 0, failed = 0, requestCount = 0;
+    const invalidUrls = new Set();
     const total = urls.length;
     const log = document.getElementById('db-jb-log');
+    const updateInvalid = () => {
+      document.getElementById('db-jb-invalid').textContent = invalidUrls.size + '/' + total;
+    };
+    updateInvalid();
 
     for (let i = 0; i < urls.length; i++) {
       if (stopped) break;
@@ -795,6 +801,7 @@
       document.getElementById('db-jb-total').textContent = total;
       document.getElementById('db-jb-done').textContent = done;
       document.getElementById('db-jb-fail').textContent = failed;
+      updateInvalid();
       document.getElementById('db-jb-status').textContent = '运行中：已完成 ' + requestCount + '/' + estimatedRequests + ' 条请求';
 
       // 规范化 URL
@@ -818,25 +825,40 @@
             if (stopped) break;
           }
           // 接口一次接受一个 reason；组合理由按预设顺序逐个提交
+          const reportBody = reportTarget === 'user'
+            ? new URLSearchParams({
+                ck: ck,
+                url: targetUrl,
+                reason: String(reasons[j].id),
+                report_submit: '提交',
+              })
+            : new URLSearchParams({
+                resp_type: 'c_dict',
+                reason: String(reasons[j].id),
+                url: targetUrl,
+                ck: ck,
+              });
           const reportResp = await fetch('https://www.douban.com/misc/audit_report', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-              resp_type: 'c_dict',
-              reason: String(reasons[j].id),
-              url: targetUrl,
-              ck: ck,
-            }),
+            body: reportBody,
           });
-          const data = await reportResp.json().catch(() => ({ raw: '' }));
+          const responseText = await reportResp.text();
+          let data = {};
+          try { data = responseText ? JSON.parse(responseText) : {}; } catch (parseError) { data = { raw: responseText }; }
           const success = reportResp.status === 200 && data.result !== 'error' && !data.error;
+          if (isInvalidReportResponse(reportResp.status, responseText, data)) {
+            invalidUrls.add(targetUrl);
+            updateInvalid();
+          }
           requestCount++;
           document.getElementById('db-jb-status').textContent = '运行中：已完成 ' + requestCount + '/' + estimatedRequests + ' 条请求';
           if (success) {
             reasonDone++;
           } else {
-            lastError = data.error || data.message || JSON.stringify(data).slice(0, 100);
+            const responseSummary = data.error || data.message || data.raw || JSON.stringify(data);
+            lastError = 'HTTP ' + reportResp.status + (responseSummary ? '：' + responseSummary.replace(/\s+/g, ' ').slice(0, 160) : '：响应为空');
           }
 
           const adaptiveDelay = Math.min(delay + Math.floor(requestCount / batchLimit) * 100, 1800);
@@ -863,6 +885,7 @@
     document.getElementById('db-jb-pfill').textContent = '100%';
     document.getElementById('db-jb-done').textContent = done;
     document.getElementById('db-jb-fail').textContent = failed;
+    updateInvalid();
     document.getElementById('db-jb-status').textContent = stopped ? '已停止：完成 ' + requestCount + '/' + estimatedRequests + ' 条请求' : '已完成：成功 ' + done + '，失败 ' + failed;
     document.getElementById('db-jb-start').disabled = false;
     document.getElementById('db-jb-pause').disabled = true;
@@ -899,6 +922,13 @@
     div.innerHTML = `<span class="icon">${cls === 'ok' ? '✓' : '✗'}</span><span class="url">${url}</span><span class="detail">${detail}</span>`;
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
+  }
+
+  function isInvalidReportResponse(status, responseText, data) {
+    if (status === 404 || status === 410) return true;
+    const text = [responseText, data && data.error, data && data.message, data && data.raw]
+      .filter(Boolean).join(' ').replace(/\s+/g, ' ');
+    return /你没有权限访问这个页面|内容已被删除|此内容已被删除|已被管理员删除|帖子已被删除|该话题已被删除|主题不存在|内容不存在|页面不存在|你访问的页面飘走了/i.test(text);
   }
 
   checkReady();

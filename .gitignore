@@ -7,3 +7,4 @@ public/
 .deploy*/
 _multiconfig.yml
 .env
+db_tousu_local/accounts.txt
