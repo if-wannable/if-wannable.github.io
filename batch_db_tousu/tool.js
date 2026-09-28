@@ -236,6 +236,8 @@
     #db-jb-tool .le.ok .icon { color:#7f9c82; }
     #db-jb-tool .le.no .icon { color:#b77f7f; }
     #db-jb-tool .le .url { color:#718f75; word-break:break-all; }
+    #db-jb-tool .le .log-link { color:#5f9066; text-decoration:underline; text-underline-offset:2px; word-break:break-all; }
+    #db-jb-tool .le .log-link:hover { color:#3f7047; }
     #db-jb-tool .le .detail { color:#808b83; margin-left:auto; }
     #db-jb-tool .close-btn { background:transparent; border:none; color:#808b83; font-size:20px; cursor:pointer; padding:0 4px; min-width:32px; min-height:32px; box-shadow:none; }
     #db-jb-tool .close-btn:hover { color:#b77f7f; }
@@ -916,10 +918,20 @@
     this.disabled = true;
   };
 
+  function escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch];
+    });
+  }
+
   function addLog(log, cls, url, detail) {
     const div = document.createElement('div');
     div.className = 'le ' + cls;
-    div.innerHTML = `<span class="icon">${cls === 'ok' ? '✓' : '✗'}</span><span class="url">${url}</span><span class="detail">${detail}</span>`;
+    const safeUrl = escapeHtml(url);
+    const urlPart = /^https?:\/\//i.test(String(url || ''))
+      ? `<a class="log-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeUrl}</a>`
+      : safeUrl;
+    div.innerHTML = `<span class="icon">${cls === 'ok' ? '✓' : '✗'}</span><span class="url">${urlPart}</span><span class="detail">${escapeHtml(detail)}</span>`;
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
   }
@@ -928,6 +940,7 @@
     if (status === 404 || status === 410) return true;
     const text = [responseText, data && data.error, data && data.message, data && data.raw]
       .filter(Boolean).join(' ').replace(/\s+/g, ' ');
+    if (status === 403 && /access denied|访问被拒绝|拒绝访问/i.test(text)) return true;
     return /你没有权限访问这个页面|内容已被删除|此内容已被删除|已被管理员删除|帖子已被删除|该话题已被删除|主题不存在|内容不存在|页面不存在|你访问的页面飘走了/i.test(text);
   }
 
