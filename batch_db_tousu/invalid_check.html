@@ -11,6 +11,7 @@
   h1{margin:0 0 6px;color:#526257;font-size:20px}.hint{color:var(--muted);font-size:12px;margin:0 0 16px}
   textarea,input{width:100%;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.82);color:var(--text);padding:9px;font:inherit}
   textarea{min-height:150px;resize:vertical}.cookie{margin-top:10px;min-height:64px;font-size:12px}
+  .interval-row{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--muted);font-size:12px}.interval-row input{width:100px;padding:6px 8px}.interval-row span{font-size:12px}
   button{margin-top:12px;border:0;border-radius:7px;background:var(--green);color:white;padding:9px 18px;cursor:pointer}button.secondary{margin-left:8px;background:#b5cbb3;color:#fff}button:disabled{opacity:.5}
   .cookie-status{display:inline-block;margin-left:8px;color:var(--muted);font-size:12px}
   .summary{display:flex;gap:16px;flex-wrap:wrap;margin:18px 0 8px;color:var(--muted)}.summary b{color:var(--text)}
@@ -22,6 +23,7 @@
   <p class="hint">只读取页面，不提交举报。每行一个豆瓣讨论或用户主页链接；空行和纯文字会自动跳过。</p>
   <textarea id="urls" placeholder="https://www.douban.com/group/topic/123456789/&#10;https://www.douban.com/doubanapp/dispatch?uri=%2Ftopic%2F123456789&#10;https://www.douban.com/people/296236297/"></textarea>
   <textarea id="cookie" class="cookie" placeholder="可选：粘贴 Cookie（用于检测登录后可见内容，不会保存）"></textarea>
+  <div class="interval-row"><label for="interval">请求间隔</label><input id="interval" type="number" min="0" max="10000" step="100" value="800"><span>毫秒</span></div>
   <button id="get-cookie" class="secondary">自动获取 Cookie</button><span id="cookie-status" class="cookie-status">需先加载本地扩展</span>
   <br><button id="start">开始检测</button>
   <div class="summary" id="summary"></div>
@@ -65,6 +67,7 @@ function links(text){return text.split(/[\r\n]+/).map(x=>{const m=x.match(/https
 function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 $("start").onclick=async()=>{
   const list=links($("urls").value), cookie=$("cookie").value.trim();
+  const interval=Math.max(0,Math.min(10000,parseInt($("interval").value,10)||0));
   if(!list.length){alert('没有识别到豆瓣链接');return;}
   $("start").disabled=true; $("summary").textContent='检测中…';
   for(const key of ['alive','dead','unknown']){document.getElementById(key+'-items').innerHTML='';document.getElementById(key+'-count').textContent='0';}
@@ -82,7 +85,7 @@ $("start").onclick=async()=>{
       const r=await fetch('/api/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,cookie})});
       const d=await r.json(); append(d.status,d.label,url,d.http_status,d.reason,d);
     }catch(e){append('unknown','无法判断',url,0,String(e),{})}
-    if(i < list.length - 1) await new Promise(resolve=>setTimeout(resolve, 800));
+    if(i < list.length - 1 && interval > 0) await new Promise(resolve=>setTimeout(resolve, interval));
   }
   $("start").disabled=false;
 };
