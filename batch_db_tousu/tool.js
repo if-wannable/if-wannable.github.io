@@ -871,7 +871,9 @@
           if (success) {
             reasonDone++;
           } else {
-            lastError = '举报请求失败';
+            const responseSummary = (data.error || data.message || data.raw || '')
+              .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+            lastError = 'HTTP ' + reportResp.status + (responseSummary ? '：' + responseSummary : '：举报请求失败');
           }
 
           const adaptiveDelay = Math.min(delay + Math.floor(requestCount / batchLimit) * 100, 1800);
