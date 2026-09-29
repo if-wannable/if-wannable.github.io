@@ -818,6 +818,8 @@
         let reasonDone = 0;
         let lastError = '';
         let targetInvalid = false;
+        let lastHttpStatus = 0;
+        let lastResponseSummary = '';
         for (let j = 0; j < reasons.length; j++) {
           await waitIfPaused();
           if (stopped) break;
@@ -851,6 +853,9 @@
           const responseText = await reportResp.text();
           let data = {};
           try { data = responseText ? JSON.parse(responseText) : {}; } catch (parseError) { data = { raw: responseText }; }
+          lastHttpStatus = reportResp.status;
+          lastResponseSummary = (data.error || data.message || data.raw || JSON.stringify(data))
+            .replace(/s+/g, ' ').slice(0, 160);
           const success = reportResp.status === 200 && data.result !== 'error' && !data.error;
           const invalidResponse = isInvalidReportResponse(reportResp.status, responseText, data);
           if (invalidResponse) {
@@ -876,7 +881,8 @@
         if (reasonDone === reasons.length) {
           done++;
           const validNote = targetInvalid ? ' · 失效判定' : '';
-          addLog(log, 'ok', targetUrl, (reasons.length > 1 ? 'OK ' + reasonDone + '/' + reasons.length : 'OK') + validNote);
+          const responseNote = 'HTTP ' + lastHttpStatus + (lastResponseSummary ? '：' + lastResponseSummary : '');
+          addLog(log, 'ok', targetUrl, (reasons.length > 1 ? 'OK ' + reasonDone + '/' + reasons.length : 'OK') + ' · ' + responseNote + validNote);
         } else {
           failed++;
           addLog(log, 'no', targetUrl, '成功 ' + reasonDone + '/' + reasons.length + (lastError ? '：' + lastError : ''));
