@@ -841,7 +841,8 @@
                 url: targetUrl,
                 ck: ck,
               });
-          const reportResp = await fetch('https://www.douban.com/misc/audit_report', {
+          const reportEndpoint = location.origin + '/misc/audit_report';
+          const reportResp = await fetch(reportEndpoint, {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
