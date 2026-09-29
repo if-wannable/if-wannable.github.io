@@ -13,13 +13,42 @@ BLOCKED = re.compile(r"登录使用豆瓣|异常请求|验证码|没有权限|�
 SUPPORTED = re.compile(r"^https://www\.douban\.com/(?:group/(?:[^/]+/)?topic|topic|people)/", re.I)
 SHORT_URL = re.compile(r"^https?://t\.cn/", re.I)
 
+def clean_html(value):
+    value = re.sub(r"<script[\s\S]*?</script>|<style[\s\S]*?</style>", " ", value, flags=re.I)
+    value = re.sub(r"<br\s*/?>", "\n", value, flags=re.I)
+    value = re.sub(r"<[^>]+>", " ", value)
+    value = re.sub(r"\s+", " ", value)
+    return value.strip()
+
+def page_metadata(body):
+    title_match = re.search(r"<title[^>]*>([\s\S]*?)</title>", body, re.I)
+    title = clean_html(title_match.group(1)) if title_match else ""
+    content = ""
+    for pattern in (
+        r'<div[^>]+class="[^"]*topic-content[^"]*"[^>]*>([\s\S]*?)</div>\s*</div>',
+        r'<div[^>]+id="link-report"[^>]*>([\s\S]*?)</div>\s*</div>',
+    ):
+        match = re.search(pattern, body, re.I)
+        if match:
+            content = clean_html(match.group(1))
+            if content:
+                break
+    return {"title": title[:160], "content": content[:500]}
+
 def resolve_short_url(raw):
     value = raw.strip()
     if not SHORT_URL.match(value):
         return value
     req = Request(value, headers={"User-Agent": "Mozilla/5.0"})
-    with urlopen(req, timeout=15) as res:
-        return res.geturl()
+    try:
+        with urlopen(req, timeout=15) as res:
+            value = res.geturl()
+    except HTTPError as error:
+        value = error.geturl()
+    parsed = urlparse(value)
+    if parsed.netloc.lower() == "sec.douban.com" and parsed.path == "/b":
+        value = parse_qs(parsed.query).get("r", [""])[0]
+    return value
 
 def normalize_url(raw):
     """Return a directly fetchable Douban URL, including doubanapp dispatch URLs."""
@@ -30,6 +59,11 @@ def normalize_url(raw):
         except (HTTPError, URLError, TimeoutError):
             return ""
     parsed = urlparse(value)
+    if parsed.netloc.lower() == "m.douban.com":
+        value = "https://www.douban.com" + parsed.path
+        if parsed.query:
+            value += "?" + parsed.query
+        parsed = urlparse(value)
     if parsed.netloc.lower() != "www.douban.com":
         return ""
     if parsed.path == "/doubanapp/dispatch":
@@ -50,9 +84,10 @@ def check(url, cookie):
         with urlopen(req, timeout=15) as res:
             body = res.read(800000).decode("utf-8", "replace")
             code = res.status
-        if DEAD.search(body): return {"status":"dead","label":"已失效","reason":"页面包含删除/不存在提示","http_status":code}
-        if BLOCKED.search(body): return {"status":"unknown","label":"无法判断","reason":"登录、权限或风控页面","http_status":code}
-        return {"status":"alive","label":"有效","reason":"页面正常返回","http_status":code}
+        meta = page_metadata(body)
+        if DEAD.search(body): return {"status":"dead","label":"已失效","reason":"页面包含删除/不存在提示","http_status":code, **meta}
+        if BLOCKED.search(body): return {"status":"unknown","label":"无法判断","reason":"登录、权限或风控页面","http_status":code, **meta}
+        return {"status":"alive","label":"有效","reason":"页面正常返回","http_status":code, **meta}
     except HTTPError as e:
         if e.code in (404, 410): return {"status":"dead","label":"已失效","reason":"HTTP " + str(e.code),"http_status":e.code}
         if e.code == 403:

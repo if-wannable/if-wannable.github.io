@@ -14,7 +14,7 @@
   button{margin-top:12px;border:0;border-radius:7px;background:var(--green);color:white;padding:9px 18px;cursor:pointer}button.secondary{margin-left:8px;background:#b5cbb3;color:#fff}button:disabled{opacity:.5}
   .cookie-status{display:inline-block;margin-left:8px;color:var(--muted);font-size:12px}
   .summary{display:flex;gap:16px;flex-wrap:wrap;margin:18px 0 8px;color:var(--muted)}.summary b{color:var(--text)}
-  .groups{display:grid;gap:10px}.group{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.35)}.group-title{padding:8px 10px;font-size:13px;font-weight:600;background:rgba(255,255,255,.52)}.group-title small{font-weight:400;color:var(--muted);margin-left:5px}.group-items:empty::before{content:"暂无";display:block;padding:9px 10px;color:#a2ada4;font-size:12px}.item{padding:9px 10px;border-top:1px solid #e2eee0;font-size:12px}.url{word-break:break-all;color:#718f75}.reason{color:var(--muted);margin-left:6px}.dead{color:var(--bad)}.alive{color:#789c7d}.unknown{color:#a18769}
+  .groups{display:grid;gap:10px}.group{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.35)}.group-title{padding:8px 10px;font-size:13px;font-weight:600;background:rgba(255,255,255,.52)}.group-title small{font-weight:400;color:var(--muted);margin-left:5px}.group-items:empty::before{content:"暂无";display:block;padding:9px 10px;color:#a2ada4;font-size:12px}.item{padding:9px 10px;border-top:1px solid #e2eee0;font-size:12px}.url{word-break:break-all;color:#718f75}.reason{color:var(--muted);margin-left:6px}.preview{margin-top:5px;padding:6px 8px;border-left:3px solid #cfe4cb;color:#6f7f73;background:rgba(255,255,255,.5);line-height:1.55;word-break:break-word}.preview b{color:#5d6b61}.dead{color:var(--bad)}.alive{color:#789c7d}.unknown{color:#a18769}
 </style>
 </head>
 <body><main>
@@ -69,18 +69,19 @@ $("start").onclick=async()=>{
   $("start").disabled=true; $("summary").textContent='检测中…';
   for(const key of ['alive','dead','unknown']){document.getElementById(key+'-items').innerHTML='';document.getElementById(key+'-count').textContent='0';}
   const counts={alive:0,dead:0,unknown:0};
-  const append=(status,label,url,httpStatus,reason)=>{
+  const append=(status,label,url,httpStatus,reason,meta={})=>{
     const key=Object.prototype.hasOwnProperty.call(counts,status)?status:'unknown';
     counts[key]++;
-    document.getElementById(key+'-items').insertAdjacentHTML('beforeend','<div class="item"><span class="'+key+'">【'+esc(label)+'】</span><span class="url">'+esc(url)+'</span><span class="reason">HTTP '+(httpStatus||'-')+' · '+esc(reason)+'</span></div>');
+    const preview = meta.title || meta.content ? '<div class="preview">'+(meta.title ? '<div><b>标题：</b>'+esc(meta.title)+'</div>' : '')+(meta.content ? '<div><b>主楼：</b>'+esc(meta.content)+'</div>' : '')+'</div>' : '';
+    document.getElementById(key+'-items').insertAdjacentHTML('beforeend','<div class="item"><span class="'+key+'">【'+esc(label)+'】</span><span class="url">'+esc(url)+'</span><span class="reason">HTTP '+(httpStatus||'-')+' · '+esc(reason)+'</span>'+preview+'</div>');
     document.getElementById(key+'-count').textContent=counts[key];
     $("summary").innerHTML=`总数 <b>${list.length}</b>　已检测 <b>${counts.alive+counts.dead+counts.unknown}</b>　有效 <b class="alive">${counts.alive}</b>　已失效 <b class="dead">${counts.dead}</b>　无法判断 <b class="unknown">${counts.unknown}</b>`;
   };
   for(let i=0;i<list.length;i++){ const url=list[i];
     try{
       const r=await fetch('/api/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,cookie})});
-      const d=await r.json(); append(d.status,d.label,url,d.http_status,d.reason);
-    }catch(e){append('unknown','无法判断',url,0,String(e))}
+      const d=await r.json(); append(d.status,d.label,url,d.http_status,d.reason,d);
+    }catch(e){append('unknown','无法判断',url,0,String(e),{})}
     if(i < list.length - 1) await new Promise(resolve=>setTimeout(resolve, 800));
   }
   $("start").disabled=false;
