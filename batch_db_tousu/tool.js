@@ -856,8 +856,7 @@
                 url: targetUrl,
                 ck: ck,
               });
-          const reportEndpoint = location.origin + '/misc/audit_report';
-          const reportResp = await fetch(reportEndpoint, {
+          const reportResp = await fetch('https://www.douban.com/misc/audit_report', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -866,9 +865,7 @@
           const responseText = await reportResp.text();
           let data = {};
           try { data = responseText ? JSON.parse(responseText) : {}; } catch (parseError) { data = { raw: responseText }; }
-          const contentType = reportResp.headers.get('content-type') || '';
-          const isJsonResponse = /json/i.test(contentType) || /^\s*[\[{]/.test(responseText);
-          const success = reportResp.status === 200 && isJsonResponse && data.result !== 'error' && !data.error;
+          const success = reportResp.status === 200 && data.result !== 'error' && !data.error;
           requestCount++;
           document.getElementById('db-jb-status').textContent = '运行中：已完成 ' + requestCount + '/' + estimatedRequests + ' 条请求';
           if (success) {
