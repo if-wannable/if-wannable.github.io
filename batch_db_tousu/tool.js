@@ -350,7 +350,6 @@
       <span>总计<b id="db-jb-total">0</b></span>
       <span>成功<b class="ok" id="db-jb-done">0</b></span>
       <span>失败<b class="no" id="db-jb-fail">0</b></span>
-      <span>失效<b class="no" id="db-jb-invalid">0/0</b></span>
     </div>
     <div class="compact-status compact-keep" id="db-jb-status">未开始</div>
     <div class="log" id="db-jb-log"></div>
@@ -783,13 +782,8 @@
     document.getElementById('db-jb-log').innerHTML = '';
 
     let done = 0, failed = 0, requestCount = 0;
-    const invalidUrls = new Set();
     const total = urls.length;
     const log = document.getElementById('db-jb-log');
-    const updateInvalid = () => {
-      document.getElementById('db-jb-invalid').textContent = invalidUrls.size + '/' + total;
-    };
-    updateInvalid();
 
     for (let i = 0; i < urls.length; i++) {
       if (stopped) break;
@@ -803,7 +797,6 @@
       document.getElementById('db-jb-total').textContent = total;
       document.getElementById('db-jb-done').textContent = done;
       document.getElementById('db-jb-fail').textContent = failed;
-      updateInvalid();
       document.getElementById('db-jb-status').textContent = '运行中：已完成 ' + requestCount + '/' + estimatedRequests + ' 条请求';
 
       // 规范化 URL
@@ -817,9 +810,6 @@
       try {
         let reasonDone = 0;
         let lastError = '';
-        let targetInvalid = false;
-        let lastHttpStatus = 0;
-        let lastResponseSummary = '';
         for (let j = 0; j < reasons.length; j++) {
           await waitIfPaused();
           if (stopped) break;
@@ -853,26 +843,15 @@
           const responseText = await reportResp.text();
           let data = {};
           try { data = responseText ? JSON.parse(responseText) : {}; } catch (parseError) { data = { raw: responseText }; }
-          lastHttpStatus = reportResp.status;
           const contentType = reportResp.headers.get('content-type') || '';
           const isJsonResponse = /json/i.test(contentType) || /^\s*[\[{]/.test(responseText);
-          const readableResponse = (data.error || data.message || data.raw || JSON.stringify(data))
-            .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-          lastResponseSummary = (readableResponse || ('Content-Type: ' + contentType)).slice(0, 160);
           const success = reportResp.status === 200 && isJsonResponse && data.result !== 'error' && !data.error;
-          const invalidResponse = isInvalidReportResponse(reportResp.status, responseText, data);
-          if (invalidResponse) {
-            targetInvalid = true;
-            invalidUrls.add(targetUrl);
-            updateInvalid();
-          }
           requestCount++;
           document.getElementById('db-jb-status').textContent = '运行中：已完成 ' + requestCount + '/' + estimatedRequests + ' 条请求';
           if (success) {
             reasonDone++;
           } else {
-            const responseSummary = data.error || data.message || data.raw || JSON.stringify(data);
-            lastError = (invalidResponse ? '失效判定：' : '') + 'HTTP ' + reportResp.status + (responseSummary ? '：' + responseSummary.replace(/\s+/g, ' ').slice(0, 160) : '：响应为空');
+            lastError = '举报请求失败';
           }
 
           const adaptiveDelay = Math.min(delay + Math.floor(requestCount / batchLimit) * 100, 1800);
@@ -883,9 +862,7 @@
 
         if (reasonDone === reasons.length) {
           done++;
-          const validNote = targetInvalid ? ' · 失效判定' : '';
-          const responseNote = 'HTTP ' + lastHttpStatus + (lastResponseSummary ? '：' + lastResponseSummary : '');
-          addLog(log, 'ok', targetUrl, (reasons.length > 1 ? 'OK ' + reasonDone + '/' + reasons.length : 'OK') + ' · ' + responseNote + validNote);
+          addLog(log, 'ok', targetUrl, reasons.length > 1 ? 'OK ' + reasonDone + '/' + reasons.length : 'OK');
         } else {
           failed++;
           addLog(log, 'no', targetUrl, '成功 ' + reasonDone + '/' + reasons.length + (lastError ? '：' + lastError : ''));
@@ -901,7 +878,6 @@
     document.getElementById('db-jb-pfill').textContent = '100%';
     document.getElementById('db-jb-done').textContent = done;
     document.getElementById('db-jb-fail').textContent = failed;
-    updateInvalid();
     document.getElementById('db-jb-status').textContent = stopped ? '已停止：完成 ' + requestCount + '/' + estimatedRequests + ' 条请求' : '已完成：成功 ' + done + '，失败 ' + failed;
     document.getElementById('db-jb-start').disabled = false;
     document.getElementById('db-jb-pause').disabled = true;
@@ -948,14 +924,6 @@
     div.innerHTML = `<span class="icon">${cls === 'ok' ? '✓' : '✗'}</span><span class="url">${urlPart}</span><span class="detail">${escapeHtml(detail)}</span>`;
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
-  }
-
-  function isInvalidReportResponse(status, responseText, data) {
-    if (status === 404 || status === 410) return true;
-    const text = [responseText, data && data.error, data && data.message, data && data.raw]
-      .filter(Boolean).join(' ').replace(/\s+/g, ' ');
-    if (status === 403 || /access denied|访问被拒绝|拒绝访问/i.test(text)) return true;
-    return /你没有权限访问这个页面|内容已被删除|此内容已被删除|已被管理员删除|帖子已被删除|该话题已被删除|主题不存在|内容不存在|页面不存在|你访问的页面飘走了/i.test(text);
   }
 
   checkReady();
