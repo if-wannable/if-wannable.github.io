@@ -854,9 +854,12 @@
           let data = {};
           try { data = responseText ? JSON.parse(responseText) : {}; } catch (parseError) { data = { raw: responseText }; }
           lastHttpStatus = reportResp.status;
-          lastResponseSummary = (data.error || data.message || data.raw || JSON.stringify(data))
-            .replace(/s+/g, ' ').slice(0, 160);
-          const success = reportResp.status === 200 && data.result !== 'error' && !data.error;
+          const contentType = reportResp.headers.get('content-type') || '';
+          const isJsonResponse = /json/i.test(contentType) || /^\s*[\[{]/.test(responseText);
+          const readableResponse = (data.error || data.message || data.raw || JSON.stringify(data))
+            .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          lastResponseSummary = (readableResponse || ('Content-Type: ' + contentType)).slice(0, 160);
+          const success = reportResp.status === 200 && isJsonResponse && data.result !== 'error' && !data.error;
           const invalidResponse = isInvalidReportResponse(reportResp.status, responseText, data);
           if (invalidResponse) {
             targetInvalid = true;
