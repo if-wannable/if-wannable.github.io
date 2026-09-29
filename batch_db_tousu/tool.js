@@ -858,7 +858,7 @@
               });
           const reportResp = await fetch('https://www.douban.com/misc/audit_report', {
             method: 'POST',
-            credentials: 'same-origin',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: reportBody,
           });
