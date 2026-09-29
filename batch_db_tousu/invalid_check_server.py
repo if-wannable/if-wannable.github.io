@@ -23,10 +23,16 @@ def clean_html(value):
 def page_metadata(body):
     title_match = re.search(r"<title[^>]*>([\s\S]*?)</title>", body, re.I)
     title = clean_html(title_match.group(1)) if title_match else ""
+    if not title:
+        heading_match = re.search(r"<h1[^>]*>([\s\S]*?)</h1>", body, re.I)
+        title = clean_html(heading_match.group(1)) if heading_match else ""
     content = ""
     for pattern in (
+        r'<div[^>]+class="[^"]*topic-content[^"]*"[^>]*>([\s\S]*?)</div>',
         r'<div[^>]+class="[^"]*topic-content[^"]*"[^>]*>([\s\S]*?)</div>\s*</div>',
+        r'<div[^>]+class="[^"]*rich-content[^"]*"[^>]*>([\s\S]*?)</div>',
         r'<div[^>]+id="link-report"[^>]*>([\s\S]*?)</div>\s*</div>',
+        r'<div[^>]+class="[^"]*article[^"]*"[^>]*>([\s\S]*?)</div>',
     ):
         match = re.search(pattern, body, re.I)
         if match:
@@ -89,12 +95,13 @@ def check(url, cookie):
         if BLOCKED.search(body): return {"status":"unknown","label":"无法判断","reason":"登录、权限或风控页面","http_status":code, **meta}
         return {"status":"alive","label":"有效","reason":"页面正常返回","http_status":code, **meta}
     except HTTPError as e:
-        if e.code in (404, 410): return {"status":"dead","label":"已失效","reason":"HTTP " + str(e.code),"http_status":e.code}
+        body = e.read(300000).decode("utf-8", "replace")
+        meta = page_metadata(body)
+        if e.code in (404, 410): return {"status":"dead","label":"已失效","reason":"HTTP " + str(e.code),"http_status":e.code, **meta}
         if e.code == 403:
-            body = e.read(300000).decode("utf-8", "replace")
             if DEAD.search(body):
-                return {"status":"dead","label":"已失效","reason":"页面提示无权限访问","http_status":e.code}
-        return {"status":"unknown","label":"无法判断","reason":"HTTP " + str(e.code),"http_status":e.code}
+                return {"status":"dead","label":"已失效","reason":"页面提示无权限访问","http_status":e.code, **meta}
+        return {"status":"unknown","label":"无法判断","reason":"HTTP " + str(e.code),"http_status":e.code, **meta}
     except (URLError, TimeoutError) as e:
         return {"status":"unknown","label":"无法判断","reason":"网络或超时","http_status":0}
 
