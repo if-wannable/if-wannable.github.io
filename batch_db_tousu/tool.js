@@ -164,6 +164,19 @@
     return null;
   }
 
+  async function resolveShortUrl(url) {
+    if (!/^https?:\/\/t\.cn\//i.test(url)) return url;
+    const response = await fetch('http://127.0.0.1:8767/api/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!response.ok) throw new Error('短链接解析服务不可用');
+    const data = await response.json();
+    if (!data.url) throw new Error(data.error || '短链接无法解析');
+    return data.url;
+  }
+
   function normalizeUserUrl(url) {
     const m = url.match(/\/people\/(\d+)/);
     return m ? 'https://www.douban.com/people/' + m[1] + '/' : null;
@@ -626,8 +639,8 @@
     const urls = [];
     for (const line of text.split(/[\r\n]+/)) {
       const l = line.trim();
-      const m = l.match(/https?:\/\/[^\s,;"']+/);
-      if (m) urls.push(m[0]);
+      const m = l.match(/https?:\/\/[^\s,;"'<>]+/);
+      if (m) urls.push(m[0].replace(/[)\]}>，。；、]+$/g, ''));
       else if (l.startsWith('http')) urls.push(l);
     }
     return urls;
@@ -800,7 +813,17 @@
       document.getElementById('db-jb-status').textContent = '运行中：已完成 ' + requestCount + '/' + estimatedRequests + ' 条请求';
 
       // 规范化 URL
-      const targetUrl = reportTarget === 'user' ? normalizeUserUrl(rawUrl) : normalizeUrl(rawUrl);
+      let targetUrl;
+      try {
+        const resolvedUrl = /^https?:\/\/t\.cn\//i.test(rawUrl)
+          ? await resolveShortUrl(rawUrl)
+          : rawUrl;
+        targetUrl = reportTarget === 'user' ? normalizeUserUrl(resolvedUrl) : normalizeUrl(resolvedUrl);
+      } catch (resolveError) {
+        failed++;
+        addLog(log, 'no', rawUrl, '短链接解析失败：请启动本地检测服务');
+        continue;
+      }
       if (!targetUrl) {
         failed++;
         addLog(log, 'no', rawUrl, '无法识别目标链接');

@@ -11,10 +11,24 @@ ROOT = Path(__file__).resolve().parent
 DEAD = re.compile(r"内容已被删除|此内容已被删除|已被管理员删除|帖子已被删除|该话题已被删除|主题不存在|内容不存在|页面不存在|你访问的页面飘走了|你没有权限访问这个页面", re.I)
 BLOCKED = re.compile(r"登录使用豆瓣|异常请求|验证码|没有权限|无权访问|访问过于频繁", re.I)
 SUPPORTED = re.compile(r"^https://www\.douban\.com/(?:group/(?:[^/]+/)?topic|topic|people)/", re.I)
+SHORT_URL = re.compile(r"^https?://t\.cn/", re.I)
+
+def resolve_short_url(raw):
+    value = raw.strip()
+    if not SHORT_URL.match(value):
+        return value
+    req = Request(value, headers={"User-Agent": "Mozilla/5.0"})
+    with urlopen(req, timeout=15) as res:
+        return res.geturl()
 
 def normalize_url(raw):
     """Return a directly fetchable Douban URL, including doubanapp dispatch URLs."""
     value = raw.strip()
+    if SHORT_URL.match(value):
+        try:
+            value = resolve_short_url(value)
+        except (HTTPError, URLError, TimeoutError):
+            return ""
     parsed = urlparse(value)
     if parsed.netloc.lower() != "www.douban.com":
         return ""
@@ -50,17 +64,30 @@ def check(url, cookie):
         return {"status":"unknown","label":"无法判断","reason":"网络或超时","http_status":0}
 
 class Handler(BaseHTTPRequestHandler):
+    def _cors(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._cors()
+        self.end_headers()
+
     def do_GET(self):
         if self.path != "/": self.send_error(404); return
         data = (ROOT / "invalid_check.html").read_bytes()
-        self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data)
+        self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(data))); self._cors(); self.end_headers(); self.wfile.write(data)
+
     def do_POST(self):
-        if self.path != "/api/check": self.send_error(404); return
+        if self.path not in ("/api/check", "/api/resolve"): self.send_error(404); return
         try:
             n = int(self.headers.get("Content-Length", "0")); payload = json.loads(self.rfile.read(n))
-            result = check(payload.get("url", ""), payload.get("cookie", ""))
+            if self.path == "/api/resolve":
+                result = {"url": resolve_short_url(payload.get("url", ""))}
+            else:
+                result = check(payload.get("url", ""), payload.get("cookie", ""))
             out = json.dumps(result, ensure_ascii=False).encode()
-            self.send_response(200); self.send_header("Content-Type", "application/json; charset=utf-8"); self.send_header("Content-Length", str(len(out))); self.end_headers(); self.wfile.write(out)
+            self.send_response(200); self.send_header("Content-Type", "application/json; charset=utf-8"); self.send_header("Content-Length", str(len(out))); self._cors(); self.end_headers(); self.wfile.write(out)
         except Exception as e:
             self.send_error(400, "invalid request")
     def log_message(self, *_): pass

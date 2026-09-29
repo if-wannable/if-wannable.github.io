@@ -61,7 +61,7 @@ $('get-cookie').onclick = async () => {
     $('cookie-status').textContent = '自动获取失败，请手动粘贴 Cookie';
   } finally { $('get-cookie').disabled = false; }
 };
-function links(text){return text.split(/[\r\n]+/).map(x=>x.trim()).filter(x=>/^https?:\/\/www\.douban\.com\/(group\/(?:[^/]+\/)?topic|topic|people)\//i.test(x)||/^https?:\/\/www\.douban\.com\/doubanapp\/dispatch\?/i.test(x));}
+function links(text){return text.split(/[\r\n]+/).map(x=>{const m=x.match(/https?:\/\/[^\s,;"'<>]+/i);return m?m[0].replace(/[)\]}>，。；、]+$/g,''):''}).filter(x=>/^https?:\/\/www\.douban\.com\/(group\/(?:[^/]+\/)?topic|topic|people)\//i.test(x)||/^https?:\/\/www\.douban\.com\/doubanapp\/dispatch\?/i.test(x)||/^https?:\/\/t\.cn\//i.test(x));}
 function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 $("start").onclick=async()=>{
   const list=links($("urls").value), cookie=$("cookie").value.trim();
