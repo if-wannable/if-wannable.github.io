@@ -78,6 +78,7 @@ h1 { font-size: 1.6rem; margin-bottom: 4px; color: #526257; letter-spacing: .02e
   background: #d4e9d0;
 }
 .card h2 { font-size: 1.1rem; margin-bottom: 16px; }
+.card h3 { font-size: 0.98rem; margin: 16px 0 8px; color: #526257; }
 .steps { padding-left: 0; list-style: none; counter-reset: step; }
 .steps li {
   counter-increment: step;
@@ -105,18 +106,27 @@ h1 { font-size: 1.6rem; margin-bottom: 4px; color: #526257; letter-spacing: .02e
   background: var(--accent);
   color: #fff !important;
   text-decoration: none;
+  border: 0;
+  font-family: inherit;
   padding: 10px 24px;
   border-radius: 6px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: grab;
+  -webkit-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: element;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   margin: 8px 0;
   transition: background 0.2s;
   box-shadow: 0 5px 12px rgba(71, 124, 80, .2);
 }
 .bookmarklet:hover { background: var(--accent-dark); }
 .bookmarklet:active { cursor: grabbing; }
+.copy-btn { cursor: pointer; }
+.copy-btn:active { cursor: pointer; }
 .hint { color: var(--text-dim); font-size: 0.82rem; margin-top: 8px; }
 b { color: #315d3b; }
 ul.features { padding-left: 20px; font-size: 0.9rem; color: var(--text-dim); }
@@ -134,13 +144,32 @@ ul.features li { margin-bottom: 6px; }
   <h2>使用方法</h2>
   <ol class="steps">
     <li>
-      将下方按钮拖到浏览器书签栏：<br>
-      <a class="bookmarklet" href="javascript:(function(){var s=document.createElement('script');s.src='https://if-wannable.github.io/batch_db_tousu/tool.js';s.onload=function(){this.remove()};document.head.appendChild(s);})();">🔍 db投诉</a>
+      电脑 / 平板：将下方按钮拖到浏览器书签栏；手机请见下方「手机端安装」：<br>
+      <a class="bookmarklet" id="bk-main" href="javascript:(function(){var s=document.createElement('script');s.src='https://if-wannable.github.io/batch_db_tousu/tool.js';s.onload=function(){this.remove()};document.head.appendChild(s);})();">🔍 db投诉</a>
       <div class="hint">（如果书签栏没显示，按 <b>Cmd+Shift+B</b> 或 <b>Ctrl+Shift+B</b> 显示书签栏）</div>
     </li>
     <li>打开 <a href="https://www.douban.com" target="_blank" style="color:var(--accent)">douban.com</a> 并确保已登录</li>
     <li>在db任意页面点击书签栏的 <b>"🔍 db投诉"</b>，工具面板自动出现</li>
   </ol>
+</div>
+
+<div class="card">
+  <h2>手机端安装</h2>
+  <p style="font-size:.85rem;color:var(--text-dim);margin-bottom:10px">
+    平板可直接用电脑端拖拽方法；手机不能拖拽，用「复制代码 → 新建书签 → 粘贴」的方式：
+  </p>
+  <ol class="steps">
+    <li>先点下面按钮<b>复制投诉代码</b>：
+      <button class="bookmarklet copy-btn" id="copy-main" type="button">📋 复制投诉代码</button>
+    </li>
+    <li>打开手机浏览器，<b>随便进一个网页</b>（或当前页），点「收藏 / 加入书签」，名称填 <b>db投诉</b></li>
+    <li>到收藏夹里<b>编辑刚收藏的这一条</b>，把「网址 / 地址」整段删掉，粘贴刚复制的代码，保存</li>
+    <li>打开 <b>douban.com</b> 并登录，点收藏夹里这条「db投诉」即可运行</li>
+  </ol>
+  <div class="hint">
+    路径参考 —— iPhone Safari：书签 → 编辑；Android Chrome：⋮ → 书签 → 长按该条 → 修改。<br>
+    若浏览器不允许粘贴 javascript 开头的地址，可改用 Firefox 或「添加到主屏幕」再点击。
+  </div>
 </div>
 
 <div class="card">
@@ -158,6 +187,31 @@ ul.features li { margin-bottom: 6px; }
     <li><b>限速</b>：默认 800ms 间隔；每 20 条举报请求暂停 30 秒，并自动递增间隔</li>
   </ul>
 </div>
+
+<script>
+(function () {
+  var btn = document.getElementById('copy-main');
+  var main = document.getElementById('bk-main');
+  if (!btn || !main) return;
+  btn.addEventListener('click', function () {
+    var code = main.getAttribute('href');
+    function ok() { btn.textContent = '已复制 ✓ 去新建书签粘贴'; }
+    function fail() { btn.textContent = '复制失败，请长按下方按钮复制'; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(ok, fail);
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = code;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy') ? ok() : fail(); } catch (e) { fail(); }
+      ta.remove();
+    }
+  });
+})();
+</script>
 
 </body>
 </html>

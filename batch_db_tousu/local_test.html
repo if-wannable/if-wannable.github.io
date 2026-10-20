@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>本地测试 · db链接失效检测</title>
+<style>
+:root { --bg:#eaf6e7; --card:rgba(255,255,255,.78); --border:#cfe4cb; --text:#4a554d; --dim:#808b83; --accent:#a9caa8; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.7; padding:28px; width:min(680px,calc(100% - 32px)); margin:28px auto; }
+h1 { font-size:1.5rem; color:#526257; margin-bottom:4px; }
+.sub { color:var(--dim); font-size:.85rem; margin-bottom:24px; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:22px; margin-bottom:14px; }
+.card h2 { font-size:1.05rem; margin-bottom:12px; color:#526257; }
+.steps { padding-left:0; list-style:none; counter-reset:s; }
+.steps li { counter-increment:s; padding-left:34px; position:relative; margin-bottom:10px; font-size:.9rem; }
+.steps li::before { content:counter(s); position:absolute; left:0; top:1px; width:23px; height:23px; background:var(--accent); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.78rem; font-weight:700; }
+a.bk { display:inline-block; background:var(--accent); color:#fff !important; text-decoration:none; padding:10px 22px; border-radius:6px; font-weight:600; cursor:grab; user-select:none; margin:6px 0; }
+a.bk:hover { background:#94b994; }
+.hint { color:var(--dim); font-size:.8rem; margin-top:8px; }
+code { background:#fff; border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:.82rem; color:#5d6b61; }
+.status { font-size:.85rem; padding:10px 14px; border-radius:8px; margin-bottom:16px; }
+.status.ok { background:rgba(134,169,138,.15); border:1px solid var(--accent); color:#4c6b50; }
+.status.no { background:rgba(183,127,127,.12); border:1px solid #c58f8f; color:#8a5a5a; }
+</style>
+</head>
+<body>
+<h1>本地测试 · db链接失效检测</h1>
+<p class="sub">书签脚本从本机 <code>http://127.0.0.1:8010</code> 加载，检测逻辑仍在 douban.com 页面内运行（自动使用你已登录的 cookie）</p>
+
+<div class="status" id="status">检测本地服务…</div>
+
+<div class="card">
+  <h2>测试步骤</h2>
+  <ol class="steps">
+    <li>先启动本地服务（已在本页假设运行）：<br>
+      <code>python3 -m http.server 8010 --directory batch_db_tousu</code></li>
+    <li>把下面按钮拖到浏览器书签栏：<br>
+      <a class="bk" id="bk" href="javascript:(function(){var s=document.createElement('script');s.src='http://127.0.0.1:8010/invalid_check.js';s.onload=function(){this.remove()};document.head.appendChild(s);})();">🔍 链接失效检测(本地)</a>
+    </li>
+    <li>用<b>已登录豆瓣</b>的浏览器打开 <a href="https://www.douban.com" target="_blank" style="color:#7f9c82">douban.com</a> 任意页面</li>
+    <li>点击书签栏的 <b>"🔍 链接失效检测(本地)"</b>，面板出现后粘贴链接测试</li>
+  </ol>
+</div>
+
+<div class="card">
+  <h2>粘贴测试用链接</h2>
+  <p class="hint" style="margin-bottom:8px">一行一个，含 1 条必失效 + 1 条正常帖 + 1 条 dispatch 格式：</p>
+  <textarea id="t" readonly style="width:100%;min-height:96px;border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;font-size:12px;background:#fff;color:#4a554d">https://www.douban.com/group/topic/19294409/
+https://www.douban.com/group/topic/9999999999999999/
+https://www.douban.com/doubanapp/dispatch?uri=%2Fgroup%2Ftopic%2F1216540</textarea>
+  <button onclick="navigator.clipboard.writeText(document.getElementById('t').value).then(()=>this.textContent='已复制 ✓')" style="margin-top:8px;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px">复制测试链接</button>
+</div>
+
+<div class="card">
+  <h2>⚠️ Chrome 必须用以下命令启动</h2>
+  <p class="hint" style="margin-bottom:8px">Chrome 的「私有网络访问(PNA)」默认禁止 https 网站加载 localhost 脚本，需关闭该检查后本地书签才能注入（仅测试用）：</p>
+  <textarea readonly style="width:100%;min-height:110px;border:1px solid var(--border);border-radius:8px;padding:10px;font-family:monospace;font-size:11.5px;background:#fff;color:#4a554d">open -a "Google Chrome" --args \
+  --user-data-dir=/tmp/db-test-profile \
+  --disable-features=BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults,LocalNetworkAccessChecks,PrivateNetworkAccessChecks \
+  --unsafely-treat-insecure-origin-as-secure=http://127.0.0.1:8010</textarea>
+  <p class="hint" style="margin-top:8px">启动后在新开的 Chrome 里登录豆瓣，再把上面的书签拖到书签栏点击即可。测试完关掉这个 Chrome 窗口，正常 Chrome 不受影响。</p>
+</div>
+
+<p class="hint">说明：这是本地测试的临时方案。正式使用时走线上部署书签（https://if-wannable.github.io/...），无需任何启动参数。</p>
+
+<script>
+fetch('http://127.0.0.1:8010/invalid_check.js', {cache:'no-store'})
+  .then(r => { if (!r.ok) throw 0; return r.text(); })
+  .then(t => { document.getElementById('status').className='status ok';
+    document.getElementById('status').textContent = '✅ 本地服务正常，invalid_check.js 已可加载（' + t.length + ' 字节）'; })
+  .catch(() => { document.getElementById('status').className='status no';
+    document.getElementById('status').textContent = '❌ 无法访问 http://127.0.0.1:8010 —— 请先启动：python3 -m http.server 8010 --directory batch_db_tousu'; });
+</script>
+</body>
+</html>

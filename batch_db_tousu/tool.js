@@ -147,8 +147,18 @@
     return null;
   }
 
-  // ── 规范化 URL：支持 doubanapp/dispatch、/topic/ID 和 /group/topic/ID ──
+  // ── 规范化 URL：支持 douban://深链、doubanapp/dispatch、/topic/ID 和 /group/topic/ID ──
   function normalizeUrl(url) {
+    // 豆瓣 App 深链 douban://douban.com/... → https://www.douban.com/...
+    if (/^douban:\/\//i.test(url)) {
+      url = 'https://' + url.replace(/^douban:\/\//i, '').replace(/^douban\.com/i, 'www.douban.com');
+    }
+    if (/^https?:\/\/douban\.com/i.test(url)) {
+      url = url.replace(/^https?:\/\/douban\.com/i, 'https://www.douban.com');
+    }
+    // 查询参数里的 topic_id / topicId（如 App 举报页 .../report?topic_id=123&type=topic）
+    const mid = url.match(/[?&]topic_?id=(\d+)/i);
+    if (mid) return 'https://www.douban.com/group/topic/' + mid[1] + '/';
     // doubanapp/dispatch 格式
     if (url.includes('doubanapp/dispatch')) {
       try {
@@ -178,6 +188,12 @@
   }
 
   function normalizeUserUrl(url) {
+    if (/^douban:\/\//i.test(url)) {
+      url = 'https://' + url.replace(/^douban:\/\//i, '').replace(/^douban\.com/i, 'www.douban.com');
+    }
+    if (/^https?:\/\/douban\.com/i.test(url)) {
+      url = url.replace(/^https?:\/\/douban\.com/i, 'https://www.douban.com');
+    }
     const m = url.match(/\/people\/(\d+)/);
     return m ? 'https://www.douban.com/people/' + m[1] + '/' : null;
   }
@@ -229,7 +245,10 @@
     #db-jb-tool .rate-input { width:72px; background:rgba(255,255,255,.82); border:1px solid rgba(214,224,211,.9); border-radius:8px; color:#4a554d; padding:4px; font-size:12px; }
     #db-jb-tool .rate-hint { color:#8a968d; font-size:10px; }
     #db-jb-tool label { color:#808b83; font-size:11px; white-space:nowrap; }
-    #db-jb-tool button { background:#a9caa8; color:#fff; border:none; border-radius:6px; padding:8px 16px; font-size:13px; cursor:pointer; }
+    #db-jb-tool button { background:#a9caa8; color:#fff; border:none; border-radius:6px; padding:8px 16px; font-size:13px; cursor:pointer;
+      -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+    #db-jb-tool button, #db-jb-tool label, #db-jb-tool .tab, #db-jb-tool .mode-option, #db-jb-tool .custom-item {
+      -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
     #db-jb-tool button:hover:not(:disabled) { background:#94b994; }
     #db-jb-tool button:disabled { opacity:0.4; cursor:not-allowed; }
     #db-jb-tool button.danger { background:#c58f8f; }
