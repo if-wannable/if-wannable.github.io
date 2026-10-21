@@ -244,9 +244,6 @@
     #db-jb-tool .custom-controls select { min-width:0; flex:1; }
     #db-jb-tool .rate-input { width:72px; background:rgba(255,255,255,.82); border:1px solid rgba(214,224,211,.9); border-radius:8px; color:#4a554d; padding:4px; font-size:12px; }
     #db-jb-tool .rate-hint { color:#8a968d; font-size:10px; }
-    #db-jb-tool .full-input { width:100%; background:rgba(255,255,255,.82); border:1px solid rgba(214,224,211,.9); border-radius:8px; color:#4a554d; padding:8px; font-size:13px; }
-    #db-jb-tool .full-input:focus { outline:none; border-color:#aabdaa; box-shadow:0 0 0 3px rgba(170,189,170,.18); }
-    #db-jb-tool .hint-row { color:#8a968d; font-size:11px; line-height:1.6; margin-bottom:8px; }
     #db-jb-tool label { color:#808b83; font-size:11px; white-space:nowrap; }
     #db-jb-tool button { background:#a9caa8; color:#fff; border:none; border-radius:6px; padding:8px 16px; font-size:13px; cursor:pointer;
       -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
@@ -304,34 +301,11 @@
     <div class="tabs">
       <button class="tab active" type="button" data-tab="topic">讨论投诉</button>
       <button class="tab" type="button" data-tab="user">用户投诉</button>
-      <button class="tab" type="button" data-tab="reply">自动回复</button>
     </div>
 
     <textarea id="db-jb-urls" placeholder="每行一个链接（会自动跳过空行和纯文字）"></textarea>
-    <div class="row" id="db-jb-count-row">
+    <div class="row">
       <span id="db-jb-count" style="color:#808b83;font-size:11px"></span>
-    </div>
-
-    <div class="hidden" id="db-jb-reply-config">
-      <div class="row">
-        <input type="text" id="db-jb-reply-topic" class="full-input" placeholder="帖子链接（每行一个也可，仅取第一个）">
-      </div>
-      <div class="row">
-        <label>回复池</label>
-        <select id="db-jb-reply-pool-select" style="flex:1;min-width:0"></select>
-        <button id="db-jb-reply-pool-new" class="secondary" type="button">新建</button>
-        <button id="db-jb-reply-pool-del" class="secondary" type="button">删除</button>
-      </div>
-      <textarea id="db-jb-reply-pool" placeholder="回复池：每行一条，发送时随机抽取（内容保存在本机浏览器）"></textarea>
-      <div class="row">
-        <label>间隔</label>
-        <input type="number" id="db-jb-reply-delay" value="10" min="1" max="86400" step="1" class="rate-input"> 秒
-        <label>随机浮动</label>
-        <input type="number" id="db-jb-reply-jitter" value="10" min="0" max="3600" step="1" class="rate-input"> 秒
-        <label>最多发送</label>
-        <input type="number" id="db-jb-reply-max" value="10" min="1" max="1000" step="1" class="rate-input"> 条
-      </div>
-      <div class="hint-row" id="db-jb-reply-hint">低频为宜，避免触发验证码/风控；自动回复有账号风险，请自行判断。</div>
     </div>
 
     <div class="row mode-row" id="db-jb-topic-mode">
@@ -384,7 +358,7 @@
         <div class="custom-list" id="db-jb-user-custom-list"></div>
       </div>
     </div>
-    <div class="row" id="db-jb-report-rate">
+    <div class="row">
       <label>间隔</label>
       <input type="number" id="db-jb-delay" value="800" min="200" max="10000" step="100" class="rate-input"> ms
       <label>每批</label>
@@ -567,22 +541,15 @@
   function switchTarget(target) {
     reportTarget = target;
     const isUser = target === 'user';
-    const isReply = target === 'reply';
-    const hideReasons = isUser || isReply;
     overlay.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === target));
-    document.getElementById('db-jb-topic-mode').classList.toggle('hidden', hideReasons);
-    document.getElementById('db-jb-single-reason').classList.toggle('hidden', hideReasons || document.querySelector('input[name="db-jb-mode"]:checked').value !== 'single');
-    document.getElementById('db-jb-combo-reason').classList.toggle('hidden', hideReasons || document.querySelector('input[name="db-jb-mode"]:checked').value !== 'combo');
-    document.getElementById('db-jb-custom-reason').classList.toggle('hidden', hideReasons || document.querySelector('input[name="db-jb-mode"]:checked').value !== 'custom');
+    document.getElementById('db-jb-topic-mode').classList.toggle('hidden', isUser);
+    document.getElementById('db-jb-single-reason').classList.toggle('hidden', isUser || document.querySelector('input[name="db-jb-mode"]:checked').value !== 'single');
+    document.getElementById('db-jb-combo-reason').classList.toggle('hidden', isUser || document.querySelector('input[name="db-jb-mode"]:checked').value !== 'combo');
+    document.getElementById('db-jb-custom-reason').classList.toggle('hidden', isUser || document.querySelector('input[name="db-jb-mode"]:checked').value !== 'custom');
     document.getElementById('db-jb-user-reason').classList.toggle('hidden', !isUser);
-    document.getElementById('db-jb-urls').classList.toggle('hidden', isReply);
-    document.getElementById('db-jb-count-row').classList.toggle('hidden', isReply);
-    document.getElementById('db-jb-report-rate').classList.toggle('hidden', isReply);
-    document.getElementById('db-jb-reply-config').classList.toggle('hidden', !isReply);
     document.getElementById('db-jb-urls').placeholder = isUser
       ? '每行一个用户主页链接（会自动跳过空行和纯文字）'
       : '每行一个讨论链接（会自动跳过空行和纯文字）';
-    document.getElementById('db-jb-start').textContent = isReply ? '开始回复' : '开始投诉';
     checkReady();
   }
   overlay.querySelectorAll('.tab').forEach((tab) => { tab.onclick = function () { switchTarget(this.dataset.tab); }; });
@@ -749,137 +716,9 @@
   }
 
   function checkReady() {
-    if (reportTarget === 'reply') {
-      document.getElementById('db-jb-start').disabled = !(ck && getReplyTarget() && getReplyPool().length > 0);
-      return;
-    }
     const ok = ck && getUrls().length > 0 && getReasons().length > 0;
     document.getElementById('db-jb-start').disabled = !ok;
   }
-
-  // ── 自动回复：输入解析 ──
-  // 兼容 /topic/{id}（新版）与 /group/topic/{id}（小组）两种帖子地址
-  function normalizeReplyUrl(url) {
-    if (/^douban:\/\//i.test(url)) {
-      url = 'https://' + url.replace(/^douban:\/\//i, '').replace(/^douban\.com/i, 'www.douban.com');
-    }
-    if (/^https?:\/\/douban\.com/i.test(url)) {
-      url = url.replace(/^https?:\/\/douban\.com/i, 'https://www.douban.com');
-    }
-    let candidate = url;
-    const mid = url.match(/[?&]topic_?id=(\d+)/i);
-    if (mid) return { pageUrl: 'https://www.douban.com/topic/' + mid[1] + '/', id: mid[1] };
-    if (url.includes('doubanapp/dispatch')) {
-      try {
-        const uri = new URL(url).searchParams.get('uri') || '';
-        candidate = decodeURIComponent(uri);
-      } catch (e) { /* fallthrough */ }
-    }
-    const gm = candidate.match(/\/group\/topic\/(\d+)/);
-    if (gm) return { pageUrl: 'https://www.douban.com/group/topic/' + gm[1] + '/', id: gm[1] };
-    const tm = candidate.match(/\/topic\/(\d+)/);
-    if (tm) return { pageUrl: 'https://www.douban.com/topic/' + tm[1] + '/', id: tm[1] };
-    return null;
-  }
-
-  function getReplyTarget() {
-    const raw = document.getElementById('db-jb-reply-topic').value;
-    for (const line of raw.split(/[\r\n]+/)) {
-      const l = line.trim();
-      if (!l) continue;
-      const m = l.match(/https?:\/\/[^\s,;"'<>]+/);
-      const candidate = m ? m[0].replace(/[)\]}>，。；、]+$/g, '') : l;
-      const target = normalizeReplyUrl(candidate);
-      if (target) return target;
-    }
-    return null;
-  }
-
-  function getReplyPool() {
-    return document.getElementById('db-jb-reply-pool').value
-      .split(/[\r\n]+/).map((s) => s.trim()).filter(Boolean);
-  }
-
-  // ── 回复池管理（多池切换，存 localStorage） ──
-  const POOL_KEY = 'db-jb-reply-pools';
-  const poolSelect = document.getElementById('db-jb-reply-pool-select');
-  const poolText = document.getElementById('db-jb-reply-pool');
-  let poolState = { order: [], pools: {}, current: '' };
-
-  function loadPoolState() {
-    try {
-      const s = JSON.parse(localStorage.getItem(POOL_KEY) || 'null');
-      if (s && s.pools && Array.isArray(s.order) && s.order.length) {
-        poolState = { order: s.order, pools: s.pools, current: s.current || s.order[0] };
-        return;
-      }
-    } catch (e) { /* ignore */ }
-    poolState = { order: ['默认'], pools: { '默认': '' }, current: '默认' };
-  }
-
-  function savePoolState() {
-    try { localStorage.setItem(POOL_KEY, JSON.stringify(poolState)); } catch (e) { /* ignore */ }
-  }
-
-  function commitCurrentPool() {
-    if (poolState.current) poolState.pools[poolState.current] = poolText.value;
-  }
-
-  function renderPoolSelect() {
-    poolSelect.innerHTML = '';
-    if (!poolState.order.length) {
-      poolState = { order: ['默认'], pools: { '默认': '' }, current: '默认' };
-    }
-    poolState.order.forEach((name) => {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      poolSelect.appendChild(opt);
-    });
-    if (poolState.order.indexOf(poolState.current) === -1) poolState.current = poolState.order[0];
-    poolSelect.value = poolState.current;
-    poolText.value = poolState.pools[poolState.current] || '';
-  }
-
-  loadPoolState();
-  renderPoolSelect();
-
-  poolText.oninput = function () { commitCurrentPool(); savePoolState(); checkReady(); };
-
-  poolSelect.onchange = function () {
-    commitCurrentPool();
-    poolState.current = this.value;
-    poolText.value = poolState.pools[this.value] || '';
-    savePoolState();
-    checkReady();
-  };
-
-  document.getElementById('db-jb-reply-pool-new').onclick = function () {
-    const name = (prompt('新回复池名称：') || '').trim();
-    if (!name) return;
-    if (poolState.pools[name] != null) { alert('已存在同名回复池'); return; }
-    commitCurrentPool();
-    poolState.order.push(name);
-    poolState.pools[name] = '';
-    poolState.current = name;
-    savePoolState();
-    renderPoolSelect();
-    checkReady();
-  };
-
-  document.getElementById('db-jb-reply-pool-del').onclick = function () {
-    const name = poolState.current;
-    if (poolState.order.length <= 1) { alert('至少保留一个回复池'); return; }
-    if (!confirm('删除回复池「' + name + '」？')) return;
-    poolState.order = poolState.order.filter((n) => n !== name);
-    delete poolState.pools[name];
-    poolState.current = poolState.order[0];
-    savePoolState();
-    renderPoolSelect();
-    checkReady();
-  };
-
-  document.getElementById('db-jb-reply-topic').oninput = checkReady;
 
   // ── 批量处理 ──
   let stopped = false;
@@ -947,122 +786,7 @@
     }
   }
 
-  // ── 自动回复接口 ──
-  // 官方评论组件使用的接口：POST /rexxar/api/v2/group/topic/{id}/create_comment
-  // 表单字段：ck / resp_type=c_dict / text；header 需带 X-CSRF-TOKEN
-  async function sendReply(topicId, text) {
-    const endpoint = 'https://m.douban.com/rexxar/api/v2/group/topic/' + topicId + '/create_comment';
-    const body = new URLSearchParams({ ck: ck, resp_type: 'c_dict', text: text });
-    const resp = await fetch(endpoint, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
-        'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRF-TOKEN': ck,
-      },
-      body: body,
-    });
-    const raw = await resp.text();
-    let data = {};
-    try { data = raw ? JSON.parse(raw) : {}; } catch (e) { data = { raw: raw }; }
-    const needLogin = data.code === 103 || data.msg === 'need_login';
-    const ok = resp.status === 200 && !needLogin && !data.code && !data.localized_message && !data.error;
-    return { ok: ok, needLogin: needLogin, status: resp.status, data: data, raw: raw, endpoint: endpoint };
-  }
-
-  // ── 自动回复循环 ──
-  async function runReply() {
-    const target = getReplyTarget();
-    const pool = getReplyPool();
-    if (!target || !pool.length) return;
-    const topicId = target.id;
-    if (!topicId) { alert('无法识别帖子链接，请确认是讨论帖 URL'); return; }
-    const baseDelay = Math.max(1, parseInt(document.getElementById('db-jb-reply-delay').value) || 10) * 1000;
-    const jitter = Math.max(0, parseInt(document.getElementById('db-jb-reply-jitter').value) || 0) * 1000;
-    const maxCount = Math.max(1, parseInt(document.getElementById('db-jb-reply-max').value) || 10);
-    const endpoint = target.pageUrl;
-
-    stopped = false;
-    paused = false;
-    pauseVersion++;
-    resumeWaiters = [];
-    overlay.classList.add('compact-active');
-
-    const startBtn = document.getElementById('db-jb-start');
-    startBtn.disabled = true;
-    document.getElementById('db-jb-stop').disabled = false;
-    document.getElementById('db-jb-pause').disabled = false;
-    document.getElementById('db-jb-resume').disabled = true;
-    document.getElementById('db-jb-pbar').style.display = 'block';
-    document.getElementById('db-jb-stats').style.display = 'flex';
-    document.getElementById('db-jb-log').innerHTML = '';
-    const log = document.getElementById('db-jb-log');
-    let sent = 0;
-    let failed = 0;
-    let round = 0;
-    document.getElementById('db-jb-total').textContent = maxCount;
-    document.getElementById('db-jb-done').textContent = '0';
-    document.getElementById('db-jb-fail').textContent = '0';
-
-    while (!stopped && round < maxCount) {
-      await waitIfPaused();
-      if (stopped) break;
-      round++;
-      const reply = pool[Math.floor(Math.random() * pool.length)];
-      const pct = Math.round(((round - 1) / maxCount) * 100);
-      document.getElementById('db-jb-pfill').style.width = pct + '%';
-      document.getElementById('db-jb-pfill').textContent = pct + '%';
-      document.getElementById('db-jb-status').textContent = '运行中：正在发送第 ' + round + '/' + maxCount + ' 条';
-      try {
-        const result = await sendReply(topicId, reply);
-        const text = result.raw || '';
-        const hitCaptcha = /captcha|验证码|captcha_image/i.test(text);
-        if (result.ok) {
-          sent++;
-          addLog(log, 'ok', endpoint, '第 ' + round + ' 条：' + reply.slice(0, 40));
-        } else {
-          failed++;
-          let summary;
-          if (result.needLogin) {
-            summary = '未登录或登录已失效，请确认当前页面已登录豆瓣';
-          } else {
-            summary = (result.data.localized_message || result.data.msg || result.data.error || result.data.raw || '')
-              .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
-          }
-          addLog(log, 'no', endpoint, 'HTTP ' + result.status + (result.data.code ? ' code=' + result.data.code : '') + (summary ? '：' + summary : '') + (hitCaptcha ? '（疑似验证码，已停止）' : ''));
-          if (result.needLogin || hitCaptcha) break;
-        }
-        document.getElementById('db-jb-done').textContent = sent;
-        document.getElementById('db-jb-fail').textContent = failed;
-        if (hitCaptcha) break;
-      } catch (e) {
-        failed++;
-        document.getElementById('db-jb-fail').textContent = failed;
-        addLog(log, 'no', endpoint, String(e).slice(0, 80));
-      }
-      if (round < maxCount && !stopped) {
-        const wait = Math.max(0, baseDelay + Math.round((Math.random() * 2 - 1) * jitter));
-        document.getElementById('db-jb-status').textContent = '等待 ' + Math.round(wait / 1000) + ' 秒后发送下一条…';
-        await sleepWithPause(wait);
-      }
-    }
-
-    document.getElementById('db-jb-pfill').style.width = '100%';
-    document.getElementById('db-jb-pfill').textContent = '100%';
-    document.getElementById('db-jb-status').textContent = stopped ? '已停止：成功 ' + sent + '，失败 ' + failed : '已完成：成功 ' + sent + '，失败 ' + failed;
-    startBtn.disabled = false;
-    document.getElementById('db-jb-pause').disabled = true;
-    document.getElementById('db-jb-resume').disabled = true;
-    document.getElementById('db-jb-stop').disabled = true;
-    paused = false;
-    resumeWaiters.forEach((resolve) => resolve());
-    resumeWaiters = [];
-    checkReady();
-  }
-
   document.getElementById('db-jb-start').onclick = async function () {
-    if (reportTarget === 'reply') return runReply();
     const urls = getUrls();
     const reasons = getReasons();
     if (!urls.length || !reasons.length) return;
