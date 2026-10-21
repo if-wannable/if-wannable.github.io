@@ -325,7 +325,7 @@
       <textarea id="db-jb-reply-pool" placeholder="回复池：每行一条，发送时随机抽取（内容保存在本机浏览器）"></textarea>
       <div class="row">
         <label>间隔</label>
-        <input type="number" id="db-jb-reply-delay" value="60" min="1" max="86400" step="1" class="rate-input"> 秒
+        <input type="number" id="db-jb-reply-delay" value="10" min="1" max="86400" step="1" class="rate-input"> 秒
         <label>随机浮动</label>
         <input type="number" id="db-jb-reply-jitter" value="10" min="0" max="3600" step="1" class="rate-input"> 秒
         <label>最多发送</label>
@@ -978,7 +978,7 @@
     if (!target || !pool.length) return;
     const topicId = target.id;
     if (!topicId) { alert('无法识别帖子链接，请确认是讨论帖 URL'); return; }
-    const baseDelay = Math.max(1, parseInt(document.getElementById('db-jb-reply-delay').value) || 60) * 1000;
+    const baseDelay = Math.max(1, parseInt(document.getElementById('db-jb-reply-delay').value) || 10) * 1000;
     const jitter = Math.max(0, parseInt(document.getElementById('db-jb-reply-jitter').value) || 0) * 1000;
     const maxCount = Math.max(1, parseInt(document.getElementById('db-jb-reply-max').value) || 10);
     const endpoint = target.pageUrl;
