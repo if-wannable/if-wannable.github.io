@@ -360,7 +360,7 @@
     </div>
     <div class="row">
       <label>间隔</label>
-      <input type="number" id="db-jb-delay" value="800" min="200" max="10000" step="100" class="rate-input"> ms
+      <input type="number" id="db-jb-delay" value="1200" min="200" max="10000" step="100" class="rate-input"> ms
       <label>每批</label>
       <input type="number" id="db-jb-batch-limit" value="20" min="1" max="100" step="1" class="rate-input">
       <span class="rate-hint">条请求</span>
@@ -790,7 +790,7 @@
     const urls = getUrls();
     const reasons = getReasons();
     if (!urls.length || !reasons.length) return;
-    const delay = parseInt(document.getElementById('db-jb-delay').value) || 800;
+    const delay = parseInt(document.getElementById('db-jb-delay').value) || 1200;
     const batchLimit = Math.max(1, parseInt(document.getElementById('db-jb-batch-limit').value) || 20);
     const restDelay = Math.max(0, parseInt(document.getElementById('db-jb-rest-delay').value) || 0) * 1000;
     const estimatedRequests = urls.length * reasons.length;
