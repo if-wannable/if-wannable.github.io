@@ -44,24 +44,43 @@
     box.querySelector('button').onclick = function () { box.remove(); };
     document.body.appendChild(box);
   }
+  // 有效账户名单（与脚本同源，HTTPS，无混合内容问题）
+  var ROSTER_URL = 'https://if-wannable.github.io/batch_db_tousu/roster.json';
+  var ROSTER_MAX_AGE = 10 * 60 * 1000;
+  async function serverVerify(payload) {
+    // 对照「有效账户名单」：账号被删除/停用后，名单里就没有这条哈希
+    var accountKey = payload.h || '';
+    if (!accountKey) return '授权信息不完整，请重新获取书签。';
+    try {
+      var resp = await fetch(ROSTER_URL + '?t=' + Date.now(), { cache: 'no-store', credentials: 'omit' });
+      if (!resp.ok) return ''; // 名单拉不到时不阻断（本地签名已通过）
+      var data = await resp.json().catch(function () { return null; });
+      var roster = data && data.roster;
+      if (!roster) return '';
+      if (!Object.prototype.hasOwnProperty.call(roster, accountKey)) {
+        return '这个账号已被删除或停用，书签已失效。';
+      }
+      window.__DB_REPORT_USER__ = payload.u || '';
+      return '';
+    } catch (e) {
+      return ''; // 网络异常时容错
+    }
+  }
   async function verifyAuth() {
     if (!auth) return '缺少授权信息。请从「兔兔待办」页面重新获取书签。';
     var parts = auth.split('.');
     if (parts.length !== 2) return '授权信息格式不正确。请从「兔兔待办」重新获取书签。';
     var body = parts[0], sig = parts[1], payload;
-    try {
-      payload = JSON.parse(new TextDecoder().decode(b64urlToBuf(body)));
-    } catch (e) { return '授权信息无法解析。请从「兔兔待办」重新获取书签。'; }
-    if (!payload || typeof payload.e !== 'number') return '授权信息不完整。请重新获取书签。';
-    if (Date.now() > payload.e) return '授权已过期（' + new Date(payload.e).toLocaleDateString() + '）。请从「兔兔待办」重新获取书签。';
+    try { payload = JSON.parse(new TextDecoder().decode(b64urlToBuf(body))); }
+    catch (e) { return '授权信息无法解析。请从「兔兔待办」重新获取书签。'; }
+    if (!payload || !payload.h) return '授权信息不完整。请重新获取书签。';
     if (!window.crypto || !window.crypto.subtle) return '当前浏览器不支持授权校验，请更换浏览器。';
     try {
       var key = await crypto.subtle.importKey('jwk', AUTH_PUB_JWK, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
       var ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, b64urlToBuf(sig), b64urlToBuf(body));
       if (!ok) return '授权校验未通过。请从「兔兔待办」重新获取书签。';
     } catch (e) { return '授权校验失败。请重新获取书签。'; }
-    window.__DB_REPORT_USER__ = payload.u || '';
-    return '';
+    return await serverVerify(payload);
   }
   window.__DB_REPORT_AUTH_READY__ = true;
 
