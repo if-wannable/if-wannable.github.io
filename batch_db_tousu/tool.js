@@ -11,8 +11,9 @@
 
   // 检查域名
   var host = location.hostname;
-  if (host !== 'www.douban.com' && host !== 'douban.com') {
-    alert('请在 www.douban.com 页面使用本工具。\n如果是手机，请在浏览器设置中切换到"桌面版"或"电脑版"网站。');
+  var isMobileSite = host === 'm.douban.com';
+  if (host !== 'www.douban.com' && host !== 'douban.com' && !isMobileSite) {
+    alert('请在豆瓣页面（www.douban.com 或 m.douban.com）使用本工具。');
     return;
   }
 
@@ -960,16 +961,27 @@
                 url: targetUrl,
                 ck: ck,
               });
-          const reportResp = await fetch('https://www.douban.com/misc/audit_report', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: reportBody,
-          });
-          const responseText = await reportResp.text();
-          let data = {};
+          let reportResp, responseText, data = {};
+          if (reportTarget === 'topic' && isMobileSite) {
+            // 手机版豆瓣：rexxar v2 举报接口（参数 uri + reason）
+            const uri = 'https://www.douban.com/group/topic/' + ((/\/topic\/(\d+)/.exec(targetUrl) || [])[1] || '') + '/';
+            reportResp = await fetch('https://m.douban.com/rexxar/api/v2/report', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+              body: new URLSearchParams({ uri: uri, reason: String(reasons[j].id) }),
+            });
+          } else {
+            reportResp = await fetch('https://www.douban.com/misc/audit_report', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: reportBody,
+            });
+          }
+          responseText = await reportResp.text();
           try { data = responseText ? JSON.parse(responseText) : {}; } catch (parseError) { data = { raw: responseText }; }
-          const success = reportResp.status === 200 && data.result !== 'error' && !data.error;
+          const success = reportResp.status === 200 && data.result !== 'error' && !data.error && !data.code;
           requestCount++;
           document.getElementById('db-jb-status').textContent = '运行中：已完成 ' + requestCount + '/' + estimatedRequests + ' 条请求';
           if (success) {
