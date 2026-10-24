@@ -1043,4 +1043,33 @@
   }
 
   checkReady();
+
+  // 面板已就绪：自动填入由「兔兔待办」通过 URL hash 带过来的链接
+  // 必须在面板构建完成之后执行，否则输入框还不存在
+  function prefillFromHash() {
+    var m = /[#&]dbjt=([^&]+)/.exec(location.hash || '');
+    if (!m) return false;
+    try {
+      var b = m[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (b.length % 4) b += '=';
+      var text = decodeURIComponent(escape(atob(b)));
+      var ta = document.getElementById('db-jb-urls');
+      if (!ta) return false;
+      ta.value = text;
+      if (typeof ta.oninput === 'function') ta.oninput();
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      var panel = document.getElementById('db-jb-tool');
+      if (panel) panel.scrollIntoView({ block: 'nearest' });
+      // 清掉 hash，避免刷新页面时重复填入
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  var prefilled = prefillFromHash();
+  if (prefilled) {
+    var statusEl = document.getElementById('db-jb-status');
+    if (statusEl) statusEl.textContent = '已自动填入粘贴板上送来的链接，请选择举报理由';
+  }
 })();
