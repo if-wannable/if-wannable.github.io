@@ -1093,5 +1093,30 @@
   if (prefilled) {
     var statusEl = document.getElementById('db-jb-status');
     if (statusEl) statusEl.textContent = '已自动填入粘贴板上送来的链接，请选择举报理由';
+  } else {
+    // URL 里没有链接（例如从手机版首页跳转导致 hash 丢失）：尝试读剪贴板自动填入
+    autofillFromClipboard();
+  }
+
+  async function autofillFromClipboard() {
+    var ta = document.getElementById('db-jb-urls');
+    if (!ta || ta.value) return;
+    if (!navigator.clipboard || !navigator.clipboard.readText) return;
+    var text = '';
+    try {
+      text = await navigator.clipboard.readText();
+    } catch (e) {
+      return; // 未授权读取剪贴板，用户可手动粘贴
+    }
+    if (!text || !/https?:\/\//.test(text)) return;
+    // 只接受像链接清单的内容（每行一个或含多个链接）
+    var looksLikeList = /^[\s\S]*https?:\/\/[^\s]+[\s\S]*$/.test(text);
+    if (!looksLikeList) return;
+    ta.value = text.trim();
+    if (typeof ta.oninput === 'function') ta.oninput();
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+    var statusEl = document.getElementById('db-jb-status');
+    if (statusEl) statusEl.textContent = '已从剪贴板自动填入链接，请选择举报理由';
+    showToast && showToast('已自动填入剪贴板里的链接');
   }
 })();
