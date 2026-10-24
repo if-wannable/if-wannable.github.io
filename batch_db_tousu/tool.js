@@ -732,7 +732,11 @@
   function extractUrls(text) {
     const urls = [];
     for (const line of text.split(/[\r\n]+/)) {
-      const l = line.trim();
+      let l = line.trim();
+      if (!l) continue;
+      // 裸域名（www.douban.com/... / m.douban.com/...）自动补协议，避免整行被丢弃
+      if (/^(?:www\.|m\.)?douban\.com\//i.test(l)) l = 'https://' + l;
+      if (/^douban:\/\//i.test(l)) l = 'https://' + l.replace(/^douban:\/\//i, '');
       const m = l.match(/https?:\/\/[^\s,;"'<>]+/);
       if (m) urls.push(m[0].replace(/[)\]}>，。；、]+$/g, ''));
       else if (l.startsWith('http')) urls.push(l);
