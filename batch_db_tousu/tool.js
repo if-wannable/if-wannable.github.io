@@ -378,7 +378,7 @@
       <button class="close-btn" onclick="document.getElementById('db-jb-tool').remove()">&times;</button>
       </span>
     </h2>
-    <div class="ck-info">ck: ${ck || '❌ 未找到 ck，请确保已登录db'}</div>
+    <div class="ck-info">${isMobileSite ? (ck ? '手机版 · ck: ' + ck.slice(0, 6) + '…' : '手机版 · 已就绪') : 'ck: ' + (ck || '❌ 未找到 ck，请确保已登录db')}</div>
 
     <div class="tabs">
       <button class="tab active" type="button" data-tab="topic">讨论投诉</button>
@@ -802,7 +802,9 @@
   }
 
   function checkReady() {
-    const ok = ck && getUrls().length > 0 && getReasons().length > 0;
+    // 手机版走 rexxar 接口，不依赖 ck；桌面版仍需要 ck
+    const needCk = !isMobileSite;
+    const ok = (!needCk || ck) && getUrls().length > 0 && getReasons().length > 0;
     document.getElementById('db-jb-start').disabled = !ok;
   }
 
