@@ -1,0 +1,46 @@
+name: Sync report-tool roster
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch roster from sakura-todo
+        run: |
+          set -e
+          echo "probing server..."
+          curl -sS --max-time 25 --retry 3 --retry-delay 5 \
+            "http://39.96.202.78/api/report-tool/roster" -o /tmp/roster.json
+          echo "--- fetched ---"
+          head -c 300 /tmp/roster.json; echo
+
+      - name: Commit if changed
+        run: |
+          set -e
+          python3 - <<'PY'
+          import json, pathlib
+          src = pathlib.Path('/tmp/roster.json').read_text().strip()
+          data = json.loads(src)
+          if not isinstance(data.get('roster'), dict) or len(data['roster']) == 0:
+              raise SystemExit('invalid roster payload')
+          pathlib.Path('batch_db_tousu/roster.json').write_text(json.dumps(data, separators=(',',':')) + '\n')
+          print('roster keys:', len(data['roster']))
+          PY
+          git config user.name "roster-bot"
+          git config user.email "roster-bot@users.noreply.github.com"
+          if git diff --quiet -- batch_db_tousu/roster.json; then
+            echo "no change"
+          else
+            git add batch_db_tousu/roster.json
+            git commit -m "chore(roster): auto sync from sakura-todo"
+            git push
+          fi
