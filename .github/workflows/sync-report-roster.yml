@@ -1,6 +1,9 @@
 name: Sync report-tool roster
 
 on:
+  push:
+    paths:
+      - '.github/workflows/sync-report-roster.yml'
   schedule:
     - cron: '*/10 * * * *'
   workflow_dispatch:
