@@ -22,9 +22,9 @@ jobs:
           set -x
           ok=0
           for url in \
-            "http://39.96.202.78/api/report-tool/roster" \
-            "http://39.96.202.78.nip.io/api/report-tool/roster" \
-            "http://39-96-202-78.sslip.io/api/report-tool/roster" ; do
+            "http://39.96.202.78/api/report-tool/revoked" \
+            "http://39.96.202.78.nip.io/api/report-tool/revoked" \
+            "http://39-96-202-78.sslip.io/api/report-tool/revoked" ; do
             echo "== trying $url"
             if curl -sS --max-time 40 --retry 2 --retry-delay 8 --retry-all-errors \
                  "$url" -o /tmp/roster.json ; then
@@ -48,10 +48,10 @@ jobs:
           import json, pathlib
           src = pathlib.Path('/tmp/roster.json').read_text().strip()
           data = json.loads(src)
-          if not isinstance(data.get('roster'), dict) or len(data['roster']) == 0:
-              raise SystemExit('invalid roster payload')
+          if not isinstance(data.get('revoked'), dict):
+              raise SystemExit('invalid revoked payload')
           pathlib.Path('batch_db_tousu/roster.json').write_text(json.dumps(data, separators=(',',':')) + '\n')
-          print('roster keys:', len(data['roster']))
+          print('revoked count:', len(data['revoked']))
           PY
           git config user.name "roster-bot"
           git config user.email "roster-bot@users.noreply.github.com"

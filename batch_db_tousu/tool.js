@@ -44,21 +44,27 @@
     box.querySelector('button').onclick = function () { box.remove(); };
     document.body.appendChild(box);
   }
-  // 有效账户名单（与脚本同源，HTTPS，无混合内容问题）
+  // 吊销名单（黑名单）：只包含被删除/停用的账号，未列出即可用
   var ROSTER_URL = 'https://if-wannable.github.io/batch_db_tousu/roster.json';
   var ROSTER_MAX_AGE = 10 * 60 * 1000;
   async function serverVerify(payload) {
-    // 对照「有效账户名单」：账号被删除/停用后，名单里就没有这条哈希
+    // 黑名单机制：只有被删除/停用的账号才会出现在名单里
     var accountKey = payload.h || '';
     if (!accountKey) return '授权信息不完整，请重新获取书签。';
     try {
       var resp = await fetch(ROSTER_URL + '?t=' + Date.now(), { cache: 'no-store', credentials: 'omit' });
       if (!resp.ok) return ''; // 名单拉不到时不阻断（本地签名已通过）
       var data = await resp.json().catch(function () { return null; });
-      var roster = data && data.roster;
-      if (!roster) return '';
-      if (!Object.prototype.hasOwnProperty.call(roster, accountKey)) {
-        return '这个账号已被删除或停用，书签已失效。';
+      if (!data) return '';
+      // 兼容两种格式：v2 用 revoked（黑名单），v1 用 roster（白名单）
+      if (data.revoked && typeof data.revoked === 'object') {
+        if (Object.prototype.hasOwnProperty.call(data.revoked, accountKey)) {
+          return '这个账号已被删除或停用，书签已失效。';
+        }
+      } else if (data.roster && typeof data.roster === 'object') {
+        if (!Object.prototype.hasOwnProperty.call(data.roster, accountKey)) {
+          return '这个账号已被删除或停用，书签已失效。';
+        }
       }
       window.__DB_REPORT_USER__ = payload.u || '';
       return '';
