@@ -2,7 +2,7 @@
  * 在 douban.com 页面运行，自动获取 cookie，直接调用db API
  * 举报讨论本身（非回复），使用 /misc/audit_report 接口
  */
-(function () {
+(async function () {
   // 避免重复注入
   if (document.getElementById('db-jb-tool')) {
     document.getElementById('db-jb-tool').remove();
@@ -13,6 +13,62 @@
   var host = location.hostname;
   if (host !== 'www.douban.com' && host !== 'douban.com') {
     alert('请在 www.douban.com 页面使用本工具。\n如果是手机，请在浏览器设置中切换到"桌面版"或"电脑版"网站。');
+    return;
+  }
+
+  // ── 授权校验：书签由「兔兔待办」签发（ECDSA P-256 签名 token）──
+  // 签名公钥内置于脚本；token 过期或签名不符时不加载工具。
+  var AUTH_PUB_JWK = { kty: 'EC', crv: 'P-256',
+    x: 'pnDEkQKCtbMoCmKbPRfgl_SjqT2yhd0rL5E75S_2UEc',
+    y: 'BacZVdw_iZyhqmDK-TE5K89E8ipMthcw4KedE_IjFaY' };
+  var auth = window.__DB_REPORT_AUTH__ || (function () {
+    var m = /[#&]dbauth=([A-Za-z0-9_.-]+)/.exec(location.hash || '');
+    return m ? decodeURIComponent(m[1]) : '';
+  })();
+  function b64urlToBuf(str) {
+    var b = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (b.length % 4) b += '=';
+    var bin = atob(b), arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return arr;
+  }
+  function denyAuth(msg) {
+    var box = document.createElement('div');
+    box.id = 'db-jb-tool';
+    box.style.cssText = 'position:fixed;left:50%;top:24px;transform:translateX(-50%);z-index:2147483647;'
+      + 'background:#fff;color:#354b3c;border:1px solid #e3ecdf;border-radius:12px;padding:16px 20px;'
+      + 'box-shadow:0 12px 36px rgba(60,92,70,.2);font:14px/1.7 -apple-system,"PingFang SC",sans-serif;max-width:92vw;';
+    box.innerHTML = '<b style="color:#b7757d">需要授权</b><div style="margin-top:6px;font-size:13px;color:#6f8069">'
+      + msg + '</div><div style="margin-top:10px"><button type="button" style="min-height:32px;padding:0 14px;'
+      + 'border-radius:8px;border:1px solid #d9e3d4;background:#fff;color:#678261;cursor:pointer">关闭</button></div>';
+    box.querySelector('button').onclick = function () { box.remove(); };
+    document.body.appendChild(box);
+  }
+  async function verifyAuth() {
+    if (!auth) return '缺少授权信息。请从「兔兔待办」页面重新获取书签。';
+    var parts = auth.split('.');
+    if (parts.length !== 2) return '授权信息格式不正确。请从「兔兔待办」重新获取书签。';
+    var body = parts[0], sig = parts[1], payload;
+    try {
+      payload = JSON.parse(new TextDecoder().decode(b64urlToBuf(body)));
+    } catch (e) { return '授权信息无法解析。请从「兔兔待办」重新获取书签。'; }
+    if (!payload || typeof payload.e !== 'number') return '授权信息不完整。请重新获取书签。';
+    if (Date.now() > payload.e) return '授权已过期（' + new Date(payload.e).toLocaleDateString() + '）。请从「兔兔待办」重新获取书签。';
+    if (!window.crypto || !window.crypto.subtle) return '当前浏览器不支持授权校验，请更换浏览器。';
+    try {
+      var key = await crypto.subtle.importKey('jwk', AUTH_PUB_JWK, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+      var ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, b64urlToBuf(sig), b64urlToBuf(body));
+      if (!ok) return '授权校验未通过。请从「兔兔待办」重新获取书签。';
+    } catch (e) { return '授权校验失败。请重新获取书签。'; }
+    window.__DB_REPORT_USER__ = payload.u || '';
+    return '';
+  }
+  window.__DB_REPORT_AUTH_READY__ = true;
+
+  // ── 闸门：校验未通过则不构建任何界面 ──
+  var authError = await verifyAuth();
+  if (authError) {
+    denyAuth(authError);
     return;
   }
 
