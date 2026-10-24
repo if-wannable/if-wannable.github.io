@@ -964,9 +964,14 @@
                 ck: ck,
               });
           let reportResp, responseText, data = {};
-          if (reportTarget === 'topic' && isMobileSite) {
+          if (isMobileSite) {
             // 手机版豆瓣：rexxar v2 举报接口（参数 uri + reason）
-            const uri = 'https://www.douban.com/group/topic/' + ((/\/topic\/(\d+)/.exec(targetUrl) || [])[1] || '') + '/';
+            const topicId = (/\/topic\/(\d+)/.exec(targetUrl) || [])[1] || '';
+            const uri = reportTarget === 'user'
+              ? targetUrl.replace(/\?.*$/, '')
+              : (/\/topic\/\d+/.test(targetUrl)
+                  ? targetUrl.replace(/\?.*$/, '')
+                  : ('https://www.douban.com/group/topic/' + topicId + '/'));
             reportResp = await fetch('https://m.douban.com/rexxar/api/v2/report', {
               method: 'POST',
               credentials: 'include',
