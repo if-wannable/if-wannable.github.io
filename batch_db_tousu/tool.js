@@ -241,18 +241,24 @@
     // 查询参数里的 topic_id / topicId（如 App 举报页 .../report?topic_id=123&type=topic）
     const mid = url.match(/[?&]topic_?id=(\d+)/i);
     if (mid) return 'https://www.douban.com/group/topic/' + mid[1] + '/';
-    // doubanapp/dispatch 格式
+    // doubanapp/dispatch 格式（同样要区分小组讨论与广播页）
     if (url.includes('doubanapp/dispatch')) {
       try {
         const u = new URL(url);
         const uri = u.searchParams.get('uri') || '';
-        const m = uri.match(/\/(?:group\/)?topic\/(\d+)/);
-        if (m) return 'https://www.douban.com/group/topic/' + m[1] + '/';
+        const gm = uri.match(/\/group\/topic\/(\d+)/);
+        if (gm) return 'https://www.douban.com/group/topic/' + gm[1] + '/';
+        const bm = uri.match(/\/topic\/(\d+)/);
+        if (bm) return 'https://www.douban.com/topic/' + bm[1] + '/';
       } catch (e) { /* fallthrough */ }
     }
     // 直接 topic URL（兼容 /topic/ID 和 /group/topic/ID）
-    const m = url.match(/\/(?:group\/)?topic\/(\d+)/);
-    if (m) return 'https://www.douban.com/group/topic/' + m[1] + '/';
+    // 注意：/group/topic/ID/ 是小组讨论，/topic/ID/ 是广播页（不属于任何小组）；
+    // 把广播页改写成 /group/topic/ 会打不开，必须保留原形态。
+    const gm = url.match(/\/group\/topic\/(\d+)/);
+    if (gm) return 'https://www.douban.com/group/topic/' + gm[1] + '/';
+    const bm = url.match(/\/topic\/(\d+)/);
+    if (bm) return 'https://www.douban.com/topic/' + bm[1] + '/';
     return null;
   }
 
