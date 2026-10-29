@@ -448,13 +448,13 @@
     </div>
     <div class="row">
       <label>间隔</label>
-      <input type="number" id="db-jb-delay" value="1200" min="200" max="10000" step="100" class="rate-input"> ms
+      <input type="number" id="db-jb-delay" value="1400" min="200" max="10000" step="100" class="rate-input"> ms
       <label>每批</label>
       <input type="number" id="db-jb-batch-limit" value="20" min="1" max="100" step="1" class="rate-input">
       <span class="rate-hint">条请求</span>
       <label>暂停</label>
       <input type="number" id="db-jb-rest-delay" value="30" min="0" max="3600" step="5" class="rate-input"> 秒
-      <span class="rate-hint">每批后间隔自动递增 100ms，最高 1800ms</span>
+      <span class="rate-hint">间隔 ±200ms 随机抖动，每批 +100ms（最高 1800ms）</span>
     </div>
     <div class="row">
       <button id="db-jb-start" disabled>开始投诉</button>
@@ -1005,9 +1005,13 @@
             lastError = 'HTTP ' + reportResp.status + (responseSummary ? '：' + responseSummary : '：举报请求失败');
           }
 
-          const adaptiveDelay = Math.min(delay + Math.floor(requestCount / batchLimit) * 100, 1800);
+          // 间隔 = 基础 + 批次递增（封顶 1800ms）+ ±200ms 随机扰动
+          const adaptiveDelay = Math.max(300,
+            Math.min(delay + Math.floor(requestCount / batchLimit) * 100, 1800)
+            + (Math.random() * 2 - 1) * 200
+          );
           if (adaptiveDelay > 0 && (j < reasons.length - 1 || i < urls.length - 1)) {
-            await sleepWithPause(adaptiveDelay);
+            await sleepWithPause(Math.round(adaptiveDelay));
           }
         }
 
