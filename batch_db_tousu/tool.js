@@ -404,7 +404,9 @@
         在当前打开的帖子详情页里，按顺序自动发表评论（每行一条，随机顺序建议自行打乱）。<br>
         需要页面已加载出评论区（先手动展开一次「评论」）。
       </p>
-      <textarea id="db-jb-comment-texts" placeholder="每行一条评论内容" style="height:150px"></textarea>
+      <textarea id="db-jb-comment-texts" placeholder="每行一条评论内容" style="height:150px">#贺峻霖#
+#贺峻霖二代唯一all绿#
+#贺峻霖 宙颜一#</textarea>
       <div class="row">
         <label>发送条数</label>
         <input type="number" id="db-jb-comment-total" value="0" min="0" max="999" step="1" class="rate-input">
