@@ -389,11 +389,41 @@
     <div class="tabs">
       <button class="tab active" type="button" data-tab="topic">讨论投诉</button>
       <button class="tab" type="button" data-tab="user">用户投诉</button>
+      <button class="tab" type="button" data-tab="comment">增评</button>
     </div>
 
-    <textarea id="db-jb-urls" placeholder="每行一个链接（会自动跳过空行和纯文字）"></textarea>
-    <div class="row">
-      <span id="db-jb-count" style="color:#808b83;font-size:11px"></span>
+    <div id="db-jb-url-block">
+      <textarea id="db-jb-urls" placeholder="每行一个链接（会自动跳过空行和纯文字）"></textarea>
+      <div class="row">
+        <span id="db-jb-count" style="color:#808b83;font-size:11px"></span>
+      </div>
+    </div>
+
+    <div id="db-jb-comment-mode" class="hidden">
+      <p style="margin:0 0 6px;font-size:11.5px;line-height:1.7;color:#6f8069">
+        在当前打开的帖子详情页里，按顺序自动发表评论（每行一条，随机顺序建议自行打乱）。<br>
+        需要页面已加载出评论区（先手动展开一次「评论」）。
+      </p>
+      <textarea id="db-jb-comment-texts" placeholder="每行一条评论内容" style="height:150px"></textarea>
+      <div class="row">
+        <label>发送条数</label>
+        <input type="number" id="db-jb-comment-total" value="0" min="0" max="999" step="1" class="rate-input">
+        <span class="rate-hint" id="db-jb-comment-count"></span>
+      </div>
+      <div class="row">
+        <label>平均间隔</label>
+        <input type="number" id="db-jb-comment-gap" value="12" min="2" max="600" step="1" class="rate-input"> 秒
+        <label>随机扰动</label>
+        <span class="rate-hint">±</span>
+        <input type="number" id="db-jb-comment-jitter" value="4" min="0" max="300" step="1" class="rate-input"> 秒
+      </div>
+      <div class="row">
+        <label>每批</label>
+        <input type="number" id="db-jb-comment-batch" value="20" min="1" max="200" step="1" class="rate-input"> 条
+        <label>暂停</label>
+        <input type="number" id="db-jb-comment-rest" value="60" min="0" max="3600" step="5" class="rate-input"> 秒
+        <span class="rate-hint">实际间隔 = 平均 ± 随机扰动</span>
+      </div>
     </div>
 
     <div class="row mode-row" id="db-jb-topic-mode">
@@ -446,7 +476,7 @@
         <div class="custom-list" id="db-jb-user-custom-list"></div>
       </div>
     </div>
-    <div class="row">
+    <div class="row" id="db-jb-rate-row">
       <label>间隔</label>
       <input type="number" id="db-jb-delay" value="1400" min="200" max="10000" step="100" class="rate-input"> ms
       <label>每批</label>
@@ -629,7 +659,22 @@
   function switchTarget(target) {
     reportTarget = target;
     const isUser = target === 'user';
+    const isComment = target === 'comment';
     overlay.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === target));
+    if (isComment) {
+      document.getElementById('db-jb-topic-mode').classList.add('hidden');
+      document.getElementById('db-jb-single-reason').classList.add('hidden');
+      document.getElementById('db-jb-combo-reason').classList.add('hidden');
+      document.getElementById('db-jb-custom-reason').classList.add('hidden');
+      document.getElementById('db-jb-user-reason').classList.add('hidden');
+      document.getElementById('db-jb-rate-row').classList.add('hidden');
+      document.getElementById('db-jb-start').textContent = '开始增评';
+      updateCommentCount();
+      checkReady();
+      return;
+    }
+    document.getElementById('db-jb-start').textContent = '开始投诉';
+    document.getElementById('db-jb-rate-row').classList.remove('hidden');
     document.getElementById('db-jb-topic-mode').classList.toggle('hidden', isUser);
     document.getElementById('db-jb-single-reason').classList.toggle('hidden', isUser || document.querySelector('input[name="db-jb-mode"]:checked').value !== 'single');
     document.getElementById('db-jb-combo-reason').classList.toggle('hidden', isUser || document.querySelector('input[name="db-jb-mode"]:checked').value !== 'combo');
@@ -768,6 +813,8 @@
   }
 
   document.getElementById('db-jb-urls').oninput = updateCount;
+  document.getElementById('db-jb-comment-texts').oninput = function () { updateCommentCount(); checkReady(); };
+  document.getElementById('db-jb-comment-total').oninput = updateCommentCount;
 
   // ── 获取选中的理由 ──
   function getReason() {
@@ -808,10 +855,322 @@
   }
 
   function checkReady() {
+    if (reportTarget === 'comment') {
+      // 增评不需要 ck / 链接 / 理由，只要填了内容
+      const texts = getCommentTexts();
+      document.getElementById('db-jb-start').disabled = texts.length === 0;
+      return;
+    }
     // 手机版走 rexxar 接口，不依赖 ck；桌面版仍需要 ck
     const needCk = !isMobileSite;
     const ok = (!needCk || ck) && getUrls().length > 0 && getReasons().length > 0;
     document.getElementById('db-jb-start').disabled = !ok;
+  }
+
+  function getCommentTexts() {
+    return document.getElementById('db-jb-comment-texts').value
+      .split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  }
+  function updateCommentCount() {
+    const n = getCommentTexts().length;
+    const el = document.getElementById('db-jb-comment-count');
+    if (!el) return;
+    if (!n) { el.textContent = '还没有内容'; return; }
+    const planned = commentPlan(n);
+    el.textContent = planned > n
+      ? '文案 ' + n + ' 条 · 本次发 ' + planned + ' 条（不足则循环使用，顺序随机）'
+      : '文案 ' + n + ' 条 · 本次发 ' + planned + ' 条（顺序随机）';
+  }
+  /** 本次发送条数：填了就按填的条数发（文案不够则循环复用），0/空 = 全部文案一次 */
+  function commentPlan(available) {
+    const el = document.getElementById('db-jb-comment-total');
+    const t = el ? parseInt(el.value, 10) : 0;
+    if (!t || t <= 0) return available;
+    return Math.min(t, 999);
+  }
+  /** 构造发送队列：先打乱，不够就再打乱一轮接着用 */
+  function buildCommentQueue(texts, count) {
+    const pool = texts.slice();
+    const out = [];
+    while (out.length < count) {
+      const round = pool.slice();
+      for (let i = round.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [round[i], round[j]] = [round[j], round[i]];
+      }
+      for (const t of round) {
+        if (out.length >= count) break;
+        out.push(t);
+      }
+      if (!round.length) break;
+    }
+    return out;
+  }
+  /** 实际间隔：平均 ± 随机扰动，最低 1 秒 */
+  function commentDelayMs() {
+    const gap = Math.max(2, parseInt(document.getElementById('db-jb-comment-gap').value) || 12) * 1000;
+    const jitter = Math.max(0, parseInt(document.getElementById('db-jb-comment-jitter').value) || 0) * 1000;
+    if (!jitter) return gap;
+    const delta = (Math.random() * 2 - 1) * jitter;
+    return Math.max(1000, Math.round(gap + delta));
+  }
+
+
+  /**
+   * 增评：在已打开的帖子详情页按顺序发表评论。
+   * 参考《豆瓣增评》文案：原生 setter 赋值 + input/change 事件，再点提交按钮。
+   */
+  async function runCommentMode(btn) {
+    const allTexts = getCommentTexts();
+    if (!allTexts.length) { alert('请先填写评论内容'); return; }
+    const planned = commentPlan(allTexts.length);
+    const texts = buildCommentQueue(allTexts, planned);
+    const gapSec = Math.max(2, parseInt(document.getElementById('db-jb-comment-gap').value) || 12);
+    const jitterSec = Math.max(0, parseInt(document.getElementById('db-jb-comment-jitter').value) || 0);
+    const batch = Math.max(1, parseInt(document.getElementById('db-jb-comment-batch').value) || 20);
+    const restSec = Math.max(0, parseInt(document.getElementById('db-jb-comment-rest').value) || 0);
+
+    if (!findCommentBox()) {
+      alert('未找到评论框。\n请先打开帖子详情页，并手动点开一次「评论」让评论区加载出来，再运行。');
+      return;
+    }
+    const batches = Math.ceil(texts.length / batch);
+    const reuseNote = planned > allTexts.length ? '（文案 ' + allTexts.length + ' 条循环使用，顺序随机打乱）\n' : '（顺序随机打乱）\n';
+    if (!confirm('将自动发表 ' + texts.length + ' 条评论：\n'
+      + '· ' + reuseNote
+      + '· 平均间隔 ' + gapSec + ' 秒' + (jitterSec ? '（±' + jitterSec + ' 秒随机）' : '') + '\n'
+      + '· 每 ' + batch + ' 条暂停 ' + restSec + ' 秒（共 ' + batches + ' 批）\n\n'
+      + '请确认这是小号且当前在帖子页，是否继续？')) return;
+
+    stopped = false;
+    paused = false;
+    pauseVersion++;
+    resumeWaiters = [];
+    overlay.classList.add('compact-active');
+    btn.disabled = true;
+    document.getElementById('db-jb-stop').disabled = false;
+    document.getElementById('db-jb-pause').disabled = false;
+    document.getElementById('db-jb-resume').disabled = true;
+    document.getElementById('db-jb-pbar').style.display = 'block';
+    document.getElementById('db-jb-stats').style.display = 'flex';
+    document.getElementById('db-jb-log').innerHTML = '';
+    const log = document.getElementById('db-jb-log');
+    document.getElementById('db-jb-total').textContent = texts.length;
+    document.getElementById('db-jb-done').textContent = '0';
+    document.getElementById('db-jb-fail').textContent = '0';
+
+    let done = 0, failed = 0;
+    let lastSent = '';
+    try {
+      for (let i = 0; i < texts.length; i++) {
+        if (stopped) break;
+        await waitIfPaused();
+        if (stopped) break;
+
+        const box = findCommentBox();
+        if (!box) { addLog(log, 'no', '', '未找到评论框，任务停止'); failed++; break; }
+        // 与文档脚本一致：输入框里有残留内容时先判断，避免把别人的草稿发出去
+        if (box.value.trim()) {
+          if (lastSent && box.value.trim() === lastSent) {
+            setNativeValue(box, '');        // 上一条没清干净，先清空
+          } else {
+            addLog(log, 'no', '', '评论框有其他内容，请手动清空后重试');
+            failed++; break;
+          }
+        }
+        box.focus();
+        setNativeValue(box, texts[i]);
+        await sleepWithPause(500);
+        if (stopped) break;
+
+        const submit = findCommentSubmit();
+        if (!submit) { addLog(log, 'no', '', '发送按钮不可用，任务停止'); failed++; break; }
+        const legacyBefore = commentItemCount();
+        simulateRealClick(submit);
+        lastSent = texts[i];
+
+        // 发送后校验：等 3 秒看结果
+        await sleepWithPause(3000);
+        if (stopped) break;
+
+        const afterBox = findCommentBox();
+        const boxVal = afterBox ? afterBox.value.trim() : null;
+        const cleared = afterBox && boxVal === '';
+        const legacyOk = isLegacyCommentPage() && legacySuccessDetected(legacyBefore);
+
+        if (cleared || legacyOk) {
+          // 正常：输入框被清空，或老版页面给出了成功提示 / 新增了评论节点
+          if (afterBox && boxVal) setNativeValue(afterBox, '');
+          done++;
+        } else if (afterBox && boxVal === texts[i]) {
+          // 没清空且无成功迹象 → 判定失败
+          setNativeValue(afterBox, '');
+          failed++;
+          addLog(log, 'no', '', '疑似未发送成功（输入框未清空）');
+          continue;
+        } else if (afterBox && boxVal) {
+          addLog(log, 'no', '', '输入框出现其他内容，任务停止');
+          failed++;
+          break;
+        } else if (!afterBox) {
+          // 输入框消失且无成功迹象 → 页面异常
+          addLog(log, 'no', '', '评论框消失，任务停止');
+          failed++;
+          break;
+        } else {
+          done++;
+        }
+        document.getElementById('db-jb-done').textContent = done;
+        const pct = Math.round(((i + 1) / texts.length) * 100);
+        document.getElementById('db-jb-pfill').style.width = pct + '%';
+        document.getElementById('db-jb-pfill').textContent = pct + '%';
+        document.getElementById('db-jb-status').textContent = '运行中：已发送 ' + (i + 1) + '/' + texts.length;
+        addLog(log, 'ok', '', '第 ' + (i + 1) + ' 条已发送');
+        if (i < texts.length - 1) {
+          // 每批发完 → 长暂停
+          if ((i + 1) % batch === 0) {
+            if (restSec > 0) {
+              document.getElementById('db-jb-status').textContent = '已发 ' + (i + 1) + ' 条，暂停 ' + restSec + ' 秒（批次休息）';
+              addLog(log, 'ok', '', '本批完成，暂停 ' + restSec + ' 秒');
+              await sleepWithPause(restSec * 1000);
+            }
+          } else {
+            const waitMs = Math.max(0, commentDelayMs() - 3000);   // 已含发送后 3 秒校验
+            document.getElementById('db-jb-status').textContent = '运行中：已发送 ' + (i + 1) + '/' + texts.length
+              + '，下一条 ' + ((waitMs + 3000) / 1000).toFixed(1) + ' 秒后';
+            if (waitMs > 0) await sleepWithPause(waitMs);
+          }
+        }
+      }
+    } catch (err) {
+      addLog(log, 'no', '', String(err).slice(0, 120));
+    } finally {
+      document.getElementById('db-jb-start').disabled = false;
+      document.getElementById('db-jb-pause').disabled = true;
+      document.getElementById('db-jb-resume').disabled = true;
+      document.getElementById('db-jb-stop').disabled = true;
+      document.getElementById('db-jb-status').textContent = '已结束：发送 ' + done + ' 条（请核对页面实际数量）';
+    }
+  }
+
+  /** 新版 / 老版小组页面的评论输入框 */
+  /** url 与 base 是否同源（用于安全地设置 fetch referrer） */
+  function isSameOrigin(url, base) {
+    try { return new URL(url, base).origin === base; } catch (e) { return false; }
+  }
+
+  function findCommentBox() {
+    const cands = [
+      'textarea[name="comment-app-textarea"]',   // 新版（App 风格）
+      'textarea#last[name="rv_comment"]',        // 老版（经典小组页）
+      '#comment textarea',
+      'textarea#comment',
+      '.comment-form textarea',
+      'textarea.comment_textarea',
+    ];
+    for (const sel of cands) {
+      const el = document.querySelector(sel);
+      if (el && el.getClientRects().length > 0) return el;
+    }
+    return null;
+  }
+  /** 新版返回 button，老版返回 input[type=submit]，统一按可点击元素处理 */
+  function findCommentSubmit() {
+    const btns = [...document.querySelectorAll('button.comment-form-btn[type="submit"]')]
+      .filter(el => el.getClientRects().length > 0 && !el.disabled && el.getAttribute('aria-disabled') !== 'true');
+    if (btns.length === 1) return btns[0];
+    // 老版：<input name="submit_btn" type="submit" value="发送">
+    const legacy = [...document.querySelectorAll('input[name="submit_btn"][type="submit"], input[type="submit"][value="发送"]')]
+      .filter(el => el.getClientRects().length > 0 && !el.disabled);
+    if (legacy.length === 1) return legacy[0];
+    return null;
+  }
+  /** 是否老版页面（用于调整发送后的校验策略） */
+  function isLegacyCommentPage() {
+    if (document.querySelector('textarea#last[name="rv_comment"]')) return true;
+    if (document.querySelector('input[name="submit_btn"][type="submit"]')) return true;
+    return false;
+  }
+  function commentItemCount() {
+    return document.querySelectorAll('.comment-item, #comments .comment, .reply-item').length;
+  }
+  /** 老版发送成功判定：出现成功提示，或评论节点数量增加 */
+  function legacySuccessDetected(beforeCount) {
+    const t = document.body.innerText || '';
+    if (/你的回应已提交|回应已提交|发表成功|评论成功|发送成功/.test(t)) return true;
+    return commentItemCount() > beforeCount;
+  }
+  /**
+   * 【核心】模拟真人点击：完整鼠标事件序列
+   *
+   * 豆瓣前端用的是 React/Vue，它们的合成事件系统依赖完整的原生事件链：
+   *   pointerover → mouseover → pointerdown → mousedown → pointerup → mouseup → click
+   * 只调 .click() 或 dispatchEvent(new MouseEvent('click')) 经常触发不了，
+   * 因为 React 在 document 上做事件委托，需要冒泡的真实事件序列。
+   */
+  function simulateRealClick(el) {
+    if (!el) return false;
+    try { el.scrollIntoView({ block: 'center', behavior: 'instant' }); } catch (e) {}
+    const rect = el.getBoundingClientRect();
+    const x = Math.round(rect.left + rect.width / 2) || 0;
+    const y = Math.round(rect.top + rect.height / 2) || 0;
+    const base = {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      clientX: x,
+      clientY: y,
+      screenX: x + (window.screenX || 0),
+      screenY: y + (window.screenY || 0),
+      button: 0,
+      buttons: 1,
+    };
+    const fire = (type, Ctor, extra) => {
+      try {
+        el.dispatchEvent(new Ctor(type, Object.assign({}, base, extra || {})));
+      } catch (e) {
+        try { el.dispatchEvent(new MouseEvent(type, Object.assign({}, base, extra || {}))); } catch (e2) {}
+      }
+    };
+    // 移动端需要 pointer 事件；桌面端 pointer + mouse 都发一遍最稳
+    if (window.PointerEvent) {
+      fire('pointerover', PointerEvent, { pointerType: 'mouse', isPrimary: true });
+      fire('pointerenter', PointerEvent, { pointerType: 'mouse', isPrimary: true });
+      fire('mouseover', MouseEvent);
+      fire('pointerdown', PointerEvent, { pointerType: 'mouse', isPrimary: true });
+      fire('mousedown', MouseEvent);
+      el.focus && el.focus();
+      fire('pointerup', PointerEvent, { pointerType: 'mouse', isPrimary: true });
+      fire('mouseup', MouseEvent);
+      fire('click', MouseEvent);
+    } else {
+      fire('mouseover', MouseEvent);
+      fire('mousedown', MouseEvent);
+      el.focus && el.focus();
+      fire('mouseup', MouseEvent);
+      fire('click', MouseEvent);
+    }
+    // 表单提交型按钮（老版豆瓣是 input[type=submit]）：事件链未触发提交时补一次
+    try {
+      const form = el.form || el.closest('form');
+      const isSubmit = (el.type === 'submit') || (el.tagName === 'BUTTON' && el.type === 'submit');
+      if (form && isSubmit && typeof form.requestSubmit === 'function') {
+        // 只在 click 没被 preventDefault 时兜底；用 setTimeout 让页面先处理
+        // 注意：豆瓣的 onsubmit 会 return false，requestSubmit 会被它拦下，是安全的
+      }
+    } catch (e) {}
+    return true;
+  }
+
+  /** 绕过框架受控组件：原生 setter 赋值再触发事件 */
+  function setNativeValue(el, value) {
+    try {
+      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+      setter.call(el, value);
+    } catch (e) { el.value = value; }
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   // ── 批量处理 ──
@@ -858,7 +1217,9 @@
   async function sleepWithPause(ms) {
     let remaining = ms;
     while (remaining > 0) {
+      if (stopped) return;              // 停止后立即结束等待
       await waitIfPaused();
+      if (stopped) return;
       const started = Date.now();
       const finished = await waitUntilDeadline(started + remaining);
       remaining = Math.max(0, remaining - (Date.now() - started));
@@ -881,9 +1242,11 @@
   }
 
   document.getElementById('db-jb-start').onclick = async function () {
+    if (reportTarget === 'comment') { return runCommentMode(this); }
     const urls = getUrls();
     const reasons = getReasons();
     if (!urls.length || !reasons.length) return;
+
     const delay = parseInt(document.getElementById('db-jb-delay').value) || 1200;
     const batchLimit = Math.max(1, parseInt(document.getElementById('db-jb-batch-limit').value) || 20);
     const restDelay = Math.max(0, parseInt(document.getElementById('db-jb-rest-delay').value) || 0) * 1000;
@@ -981,6 +1344,9 @@
             reportResp = await fetch('https://m.douban.com/rexxar/api/v2/report', {
               method: 'POST',
               credentials: 'include',
+              // referrer 只能用 fetch 选项（Referer 是禁止头，写在 headers 里会被丢弃）。
+              // 但 m 站与 www 跨域，referrer 必须同源，否则抛错，所以这里只在同源时设置。
+              ...(isSameOrigin(uri, 'https://m.douban.com') ? { referrer: uri } : {}),
               headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
               body: new URLSearchParams({ uri: uri, reason: String(reasons[j].id) }),
             });
@@ -988,7 +1354,9 @@
             reportResp = await fetch('https://www.douban.com/misc/audit_report', {
               method: 'POST',
               credentials: 'include',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              // 目标是 www.douban.com 时，可用 referrer 模拟「在该帖页面点举报」
+              ...(isSameOrigin(targetUrl, 'https://www.douban.com') ? { referrer: targetUrl.replace(/\?.*$/, '') } : {}),
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
               body: reportBody,
             });
           }
@@ -1056,6 +1424,7 @@
   document.getElementById('db-jb-stop').onclick = function () {
     stopped = true;
     paused = false;
+    pauseVersion++;                     // 中断当前等待（暂停/间隔）
     resumeWaiters.forEach(resolve => resolve());
     resumeWaiters = [];
     document.getElementById('db-jb-pause').disabled = true;
