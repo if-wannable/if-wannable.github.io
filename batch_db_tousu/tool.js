@@ -412,10 +412,10 @@
       </div>
       <div class="row">
         <label>平均间隔</label>
-        <input type="number" id="db-jb-comment-gap" value="12" min="2" max="600" step="1" class="rate-input"> 秒
+        <input type="number" id="db-jb-comment-gap" value="10" min="2" max="600" step="1" class="rate-input"> 秒
         <label>随机扰动</label>
         <span class="rate-hint">±</span>
-        <input type="number" id="db-jb-comment-jitter" value="4" min="0" max="300" step="1" class="rate-input"> 秒
+        <input type="number" id="db-jb-comment-jitter" value="3" min="0" max="300" step="1" class="rate-input"> 秒
       </div>
       <div class="row">
         <label>每批</label>
@@ -908,7 +908,7 @@
   }
   /** 实际间隔：平均 ± 随机扰动，最低 1 秒 */
   function commentDelayMs() {
-    const gap = Math.max(2, parseInt(document.getElementById('db-jb-comment-gap').value) || 12) * 1000;
+    const gap = Math.max(2, parseInt(document.getElementById('db-jb-comment-gap').value) || 10) * 1000;
     const jitter = Math.max(0, parseInt(document.getElementById('db-jb-comment-jitter').value) || 0) * 1000;
     if (!jitter) return gap;
     const delta = (Math.random() * 2 - 1) * jitter;
@@ -925,7 +925,7 @@
     if (!allTexts.length) { alert('请先填写评论内容'); return; }
     const planned = commentPlan(allTexts.length);
     const texts = buildCommentQueue(allTexts, planned);
-    const gapSec = Math.max(2, parseInt(document.getElementById('db-jb-comment-gap').value) || 12);
+    const gapSec = Math.max(2, parseInt(document.getElementById('db-jb-comment-gap').value) || 10);
     const jitterSec = Math.max(0, parseInt(document.getElementById('db-jb-comment-jitter').value) || 0);
     const batch = Math.max(1, parseInt(document.getElementById('db-jb-comment-batch').value) || 20);
     const restSec = Math.max(0, parseInt(document.getElementById('db-jb-comment-rest').value) || 0);
