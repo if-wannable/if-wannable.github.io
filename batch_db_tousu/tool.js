@@ -661,6 +661,9 @@
     const isUser = target === 'user';
     const isComment = target === 'comment';
     overlay.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === target));
+    // 增评面板：切到「增评」时显示，其他 tab 隐藏（这一行之前丢失，导致参数区永远不显示）
+    document.getElementById('db-jb-url-block').classList.toggle('hidden', isComment);
+    document.getElementById('db-jb-comment-mode').classList.toggle('hidden', !isComment);
     if (isComment) {
       document.getElementById('db-jb-topic-mode').classList.add('hidden');
       document.getElementById('db-jb-single-reason').classList.add('hidden');
