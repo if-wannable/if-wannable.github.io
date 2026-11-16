@@ -246,9 +246,11 @@ h3.warn { color: var(--warn); font-size: 13.5px; }
     </div>
 
     <div class="section" id="xhsCandidates" style="display:none">
-      <h3>候选链接（逐个试，哪个能打开就用哪个）</h3>
-      <div id="xhsCandList"></div>
-      <p class="qr-hint">小红书的举报 scheme 未公开，用户举报入口需要用手机实测确认。</p>
+      <h3>用户举报说明</h3>
+      <p class="extract-line">小红书没有开放「用户举报」的直达链接，只能跳转到该用户主页，再在 App 内手动举报：</p>
+      <p class="extract-line">1. 扫码打开用户主页</p>
+      <p class="extract-line">2. 点右上角 <b>···</b></p>
+      <p class="extract-line">3. 选择 <b>举报</b> → 选择理由 → 提交</p>
     </div>
   </div>
 
@@ -346,16 +348,8 @@ function pickXhsShortUrl(text) {
   return m ? m[0] : '';
 }
 
-function buildXhsUserCandidates(userId) {
-  const id = encodeURIComponent(userId);
-  return [
-    { name: 'report?type=user&id', url: 'xhsdiscover://report?type=user&id=' + id },
-    { name: 'report?type=user&user_id', url: 'xhsdiscover://report?type=user&user_id=' + id },
-    { name: 'report?type=user&target_id', url: 'xhsdiscover://report?type=user&target_id=' + id },
-    { name: 'report?type=user&id&target_type', url: 'xhsdiscover://report?type=user&id=' + id + '&target_type=user' },
-    { name: 'report?type=user&id&source', url: 'xhsdiscover://report?type=user&id=' + id + '&source=profile' },
-    { name: 'user/{id} 主页', url: 'xhsdiscover://user/' + id },
-  ];
+function buildXhsUserLink(userId) {
+  return 'xhsdiscover://user/' + encodeURIComponent(userId);
 }
 
 function setStatus(msg, cls) {
@@ -590,39 +584,15 @@ function applyXhsIds(id) {
   document.getElementById('objectIdShow').textContent = id;
   document.getElementById('secUidShow').textContent = '';
 
-  const list = document.getElementById('xhsCandList');
-  list.innerHTML = '';
+  document.getElementById('xhsCandidates').style.display = 'none';
 
   if (!isUser) {
-    document.getElementById('xhsCandidates').style.display = 'none';
     document.getElementById('result').value = XHS_TEMPLATE.replace('{NOTE_ID}', encodeURIComponent(id));
     generateQR('xhs');
     return;
   }
 
-  const cands = buildXhsUserCandidates(id);
-  const wrap = document.createElement('div');
-  wrap.className = 'btn-row';
-  wrap.style.flexDirection = 'column';
-  cands.forEach((c, i) => {
-    const row = document.createElement('div');
-    row.style.cssText = 'width:100%;margin-bottom:10px;text-align:left';
-    const label = document.createElement('div');
-    label.className = 'extract-line';
-    label.textContent = (i + 1) + '. ' + c.name;
-    const btn = document.createElement('button');
-    btn.className = 'secondary btn-full';
-    btn.style.cssText = 'font-size:13px;word-break:break-all;text-align:left;padding:10px';
-    btn.textContent = c.url;
-    btn.onclick = () => { location.href = c.url; };
-    row.appendChild(label);
-    row.appendChild(btn);
-    wrap.appendChild(row);
-  });
-  list.appendChild(wrap);
-  document.getElementById('xhsCandidates').style.display = 'block';
-
-  document.getElementById('result').value = cands[0].url;
+  document.getElementById('result').value = buildXhsUserLink(id);
   generateQR('xhs');
 }
 
@@ -650,7 +620,8 @@ async function parseXhsAndGenerate() {
 
     hideXhsFallback();
     applyXhsIds(id);
-    setXhsStatus(isUser ? '已生成候选链接，请用手机逐个测试。' : '解析成功，链接和二维码已生成。', 'ok');
+    setXhsStatus(isUser ? '已生成用户主页链接，扫码后在 App 内举报。' : '解析成功，链接和二维码已生成。', 'ok');
+    if (isUser) document.getElementById('xhsCandidates').style.display = 'block';
   } catch (e) {
     showXhsFallback('解析失败：' + e.message + '。' + (isUser ? '请手动输入用户主页链接。' : '请手动输入笔记链接。'));
   } finally {
@@ -666,7 +637,8 @@ function generateXhsFromWeb() {
   const id = extract(text);
   if (!id) { alert(isUser ? '没有提取到用户 ID，请检查链接。' : '没有提取到笔记 ID，请检查链接。'); return; }
   applyXhsIds(id);
-  setXhsStatus(isUser ? '已生成候选链接，请用手机逐个测试。' : '已从网页链接生成。', 'ok');
+  setXhsStatus(isUser ? '已生成用户主页链接，扫码后在 App 内举报。' : '已从网页链接生成。', 'ok');
+  if (isUser) document.getElementById('xhsCandidates').style.display = 'block';
 }
 
 function switchXhsTarget(target) {
