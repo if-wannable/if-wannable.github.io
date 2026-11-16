@@ -30,6 +30,14 @@ def _extract_video_id(s):
     return m.group(1) if m else ''
 
 
+def _extract_note_id(s):
+    m = (re.search(r'xhsdiscover://report\?[^#\s]*\bid=([0-9a-fA-F]{24})', s) or
+         re.search(r'/(?:explore|discovery/item|item)/([0-9a-fA-F]{24})', s) or
+         re.search(r'note[_-]?id(?:%3D|=|"?\s*:\s*"?)([0-9a-fA-F]{24})', s, re.I) or
+         re.search(r'\b([0-9a-f]{24})\b', s))
+    return m.group(1) if m else ''
+
+
 def _extract_sec_uid(s):
     m = (re.search(r'iesdouyin\.com/share/user/([A-Za-z0-9_\-]{20,})', s) or
          re.search(r'douyin\.com/user/([A-Za-z0-9_\-]{20,})', s) or
@@ -108,6 +116,21 @@ def handler(event, context):
     sec_uid = ''
     final_url = ''
 
+    note_id = ''
+
+    if target and re.match(r'^https?://(?:www\.)?(?:xhslink\.cn|xhslink\.com|xhs\.link)/', target):
+        try:
+            resp = urllib.request.urlopen(
+                urllib.request.Request(target, headers={'User-Agent': MOBILE_UA}),
+                timeout=10
+            )
+            final_url = resp.url
+            body = resp.read().decode('utf-8', errors='ignore')
+        except Exception as e:
+            return _json({'error': f'短链请求失败: {e}'}, 502)
+        note_id = _extract_note_id(final_url) or _extract_note_id(body)
+        return _json({'finalUrl': final_url, 'noteId': note_id})
+
     if target:
         if not re.match(r'^https?://v\.douyin\.com/', target):
             return _json({'error': 'url 参数缺失或非抖音短链'}, 400)
@@ -135,4 +158,5 @@ def handler(event, context):
         'videoId': video_id,
         'secUid': sec_uid,
         'userId': user_id,
+        'noteId': note_id,
     })

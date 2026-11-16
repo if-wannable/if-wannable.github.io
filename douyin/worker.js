@@ -30,6 +30,15 @@ function extractUserId(s) {
   return m ? m[1] : '';
 }
 
+function extractNoteId(s) {
+  const m =
+    s.match(/\/(?:explore|discovery\/item|item)\/([0-9a-f]{24})/) ||
+    s.match(/[?&]note_?[Ii]d=([0-9a-f]{24})/) ||
+    s.match(/noteId(?:%3D|=)"?\s*:?\s*"?([0-9a-f]{24})/) ||
+    s.match(/\b([0-9a-f]{24})\b/);
+  return m ? m[1] : '';
+}
+
 async function registerTtwid() {
   try {
     const res = await fetch('https://ttwid.bytedance.com/ttwid/union/register/', {
@@ -94,8 +103,23 @@ export default {
     let body = '';
     let videoId = '';
     let secUid = '';
+    let noteId = '';
 
     if (target) {
+      if (/^https?:\/\/(?:www\.)?(?:xhslink\.cn|xhslink\.com|xhs\.link)\//i.test(target)) {
+        try {
+          const resp = await fetch(target, {
+            redirect: 'follow',
+            headers: { 'User-Agent': MOBILE_UA },
+          });
+          finalUrl = resp.url;
+          body = await resp.text();
+        } catch (e) {
+          return json({ error: '短链请求失败: ' + e.message }, 502);
+        }
+        noteId = extractNoteId(finalUrl) || extractNoteId(body);
+        return json({ finalUrl, noteId });
+      }
       if (!/^https?:\/\/v\.douyin\.com\//i.test(target)) {
         return json({ error: 'url 参数缺失或非抖音短链' }, 400);
       }
