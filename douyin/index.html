@@ -233,6 +233,36 @@ textarea.batch { height: 116px; font-size: 13px; line-height: 1.6; }
   border-width: 0 2px 2px 0;
   transform: rotate(42deg);
 }
+.idx-line {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 2px 0 14px;
+}
+.idx-line .check { margin: 0; white-space: nowrap; }
+.idx-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.idx-row label {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.idx-row input[type=text] {
+  width: 60px !important;
+  height: 28px;
+  margin: 0 !important;
+  padding: 0 8px !important;
+  font-size: 13px;
+  line-height: 26px;
+  text-align: center;
+}
 .hint {
   margin: -8px 0 14px;
   font-size: 11.5px;
@@ -525,11 +555,6 @@ h3.warn { color: var(--warn); font-size: 13.5px; }
     <p id="bbStatus"></p>
   </div>
 
-  <div class="section" id="extractSection">
-    <h3>自动提取结果</h3>
-    <p class="extract-line"><span id="idLabel">作品 ID：</span><span id="objectIdShow"></span></p>
-    <p class="extract-line" id="secUidLine">用户加密 ID：<span id="secUidShow"></span></p>
-  </div>
 
   <div class="section" id="resultSection" hidden>
     <h3>最终生成链接</h3>
@@ -542,6 +567,15 @@ h3.warn { color: var(--warn); font-size: 13.5px; }
 
   <div class="section" id="qrSection">
     <h3>二维码</h3>
+
+    <div class="idx-line">
+      <label class="check"><input type="checkbox" id="showIndex" onchange="toggleIndexInput()"> 图片标题显示序号</label>
+      <div id="indexInputRow" class="idx-row" style="display:none">
+        <label for="indexStart">起始序号（后面自动递增）</label>
+        <input type="text" id="indexStart" value="1" inputmode="numeric" placeholder="1">
+      </div>
+    </div>
+
     <div id="qrcode"></div>
     <p class="qr-hint" id="qrHint" style="display:none">iOS：长按图片 → 存储到相册</p>
     <div class="btn-row" style="margin-top:12px">
@@ -770,8 +804,6 @@ function hideFallback() {
 }
 
 async function applyIds(objectId, secUid) {
-  document.getElementById('objectIdShow').textContent = objectId;
-  document.getElementById('secUidShow').textContent = secUid;
 
   const videoLink = TEMPLATE
     .replace('{OBJECT_ID}', encodeURIComponent(objectId))
@@ -965,12 +997,10 @@ function switchTab(type) {
   if (isBbVideo) lastBbTab = 'bbVideo';
   if (isBbUser) lastBbTab = 'bbUser';
 
-  document.getElementById('idLabel').textContent =
     isVideo ? '作品 ID：'
     : (isUser || isXhsUser || isWbUser || isBbUser) ? '用户 ID：'
     : (isXhsNote) ? '笔记 ID：'
     : '作品 ID：';
-  document.getElementById('secUidLine').hidden = isXhs || isWb || isBb;
 
   document.getElementById('xhsUserNotice').style.display = isXhsUser ? 'block' : 'none';
   document.getElementById('bbUserNotice').style.display = isBbUser ? 'block' : 'none';
@@ -1020,8 +1050,6 @@ function hideUserFallback() {
 }
 
 function applyUserIds(userId, secUid) {
-  document.getElementById('objectIdShow').textContent = userId;
-  document.getElementById('secUidShow').textContent = secUid;
   document.getElementById('result').value = USER_TEMPLATE
     .replace(/\{USER_ID\}/g, encodeURIComponent(userId))
     .replace(/\{SEC_UID\}/g, encodeURIComponent(secUid));
@@ -1119,8 +1147,6 @@ function applyXhsIds(entries) {
   const list = (Array.isArray(entries) ? entries : [entries]).map(e =>
     typeof e === 'string' ? { id: e, source: e, type: xhsTarget } : e
   );
-  document.getElementById('objectIdShow').textContent = list.map(e => e.id).join('，');
-  document.getElementById('secUidShow').textContent = '';
   document.getElementById('result').value = list.map(e => xhsLinkFor(e.id, e.type)).join('\n');
   renderQRList(
     list.map(e => ({
@@ -1251,8 +1277,6 @@ function applyWbIds(entries) {
   } catch (err) {
     return err;
   }
-  document.getElementById('objectIdShow').textContent = entries.map(e => e.id).join('，');
-  document.getElementById('secUidShow').textContent = '';
   document.getElementById('result').value = list.map(x => x.link).join('\n');
   renderQRList(list, 'wb');
   return null;
@@ -1332,8 +1356,6 @@ function applyBbIds(entries) {
   } catch (err) {
     return err;
   }
-  document.getElementById('objectIdShow').textContent = entries.map(e => e.id).join('，');
-  document.getElementById('secUidShow').textContent = '';
   document.getElementById('result').value = list.map(x => x.link).join('\n');
   renderQRList(list, 'bb');
   return null;
@@ -1409,6 +1431,21 @@ function getReportReason() {
            : 'reportReason';
   const input = document.getElementById(id);
   return input && input.value ? input.value.trim() : '';
+}
+
+function toggleIndexInput() {
+  const on = document.getElementById('showIndex').checked;
+  document.getElementById('indexInputRow').style.display = on ? 'flex' : 'none';
+}
+
+/** 标题序号：勾选时生成 "🍠笔记1" / "b站视频1" 形式，编号从输入框递增 */
+function indexedLabel(baseLabel, i) {
+  const on = document.getElementById('showIndex')?.checked;
+  if (!on) return baseLabel;
+  const raw = (document.getElementById('indexStart')?.value || '1').trim();
+  const start = parseInt(raw, 10);
+  const n = (Number.isFinite(start) ? start : 1) + i;
+  return baseLabel.replace(/\s+/g, '') + n;
 }
 
 function getKindLabel(kind) {
@@ -1501,10 +1538,11 @@ async function renderQRList(items, kind) {
       continue;
     }
 
-    const canvas = composeCard(bg, srcCanvas, kind || currentKind, item.label);
+    const cardLabel = indexedLabel(item.label || getKindLabel(kind || currentKind), i);
+    const canvas = composeCard(bg, srcCanvas, kind || currentKind, cardLabel);
     const img = document.createElement('img');
     img.src = canvas.toDataURL('image/png');
-    img.alt = (item.label || getKindLabel(kind || currentKind)) + ' 举报二维码 ' + (i + 1);
+    img.alt = cardLabel + ' 举报二维码';
     img.dataset.index = String(i);
 
     const qwrap = document.createElement('div');
@@ -1604,10 +1642,11 @@ async function generateQR(kind) {
 
   try {
     const bg = await loadCardImage();
-    const canvas = composeCard(bg, srcCanvas, kind || currentKind);
+    const baseLabel = getKindLabel(kind || currentKind);
+    const canvas = composeCard(bg, srcCanvas, kind || currentKind, indexedLabel(baseLabel, 0));
     const img = document.createElement('img');
     img.src = canvas.toDataURL('image/png');
-    img.alt = getKindLabel(kind || currentKind) + ' 举报二维码';
+    img.alt = indexedLabel(baseLabel, 0) + ' 举报二维码';
     qrContainer.appendChild(img);
     if (isMobile) document.getElementById('qrHint').style.display = '';
     updateSaveBtn();
