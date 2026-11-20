@@ -310,8 +310,9 @@ button.secondary:active { background: #e2eee6; }
   margin-bottom: 4px;
 }
 .ptab {
-  flex: 1;
-  padding: 9px 0;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 9px 2px;
   font-size: 15px;
   line-height: 1.25;
   background: #f4f8f5;
@@ -333,14 +334,17 @@ button.secondary:active { background: #e2eee6; }
   gap: 2px;
   margin-bottom: 20px;
   padding-bottom: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
   border-bottom: 1px solid #e6efe9;
 }
+.stabs::-webkit-scrollbar { display: none; }
 .stabs[hidden] { display: none; }
 .stab {
   flex: 0 0 auto;
   min-width: 0;
-  padding: 8px 12px;
-  font-size: 13.5px;
+  padding: 8px 10px;
+  font-size: 13px;
   font-weight: 500;
   background: transparent;
   color: #94a89c;
@@ -357,6 +361,11 @@ button.secondary:active { background: #e2eee6; }
   height: 19px;
   display: block;
   margin: 0 auto;
+  flex: none;
+}
+@media (max-width: 380px) {
+  .ptab .ico { width: 17px; height: 17px; }
+  .ptabs { gap: 5px; }
 }
 .stab .ico {
   width: 14px;
