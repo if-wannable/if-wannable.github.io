@@ -888,6 +888,23 @@
     updatePageBar(); checkReady();
   };
   document.getElementById('db-jb-cmtreport-list').onchange = function () { syncSelectionsFromDom(); checkReady(); };
+  // 「手机举报」链接：点击时不触发整行勾选；微信等内置浏览器无法唤起 App，改为复制网页地址
+  document.getElementById('db-jb-cmtreport-list').addEventListener('click', function (ev) {
+    const a = ev.target.closest('a.cmt-report-link');
+    if (!a) return;
+    // 链接在 <label> 内，必须阻止默认行为，否则会顺带切换整行勾选
+    ev.preventDefault();
+    ev.stopPropagation();
+    const inApp = /MicroMessenger|Weixin| QQ\//i.test(navigator.userAgent || '');
+    if (inApp) {
+      const web = a.dataset.cmtWeb || '';
+      try { navigator.clipboard.writeText(web).catch(() => {}); } catch (e) { /* ignore */ }
+      alert('当前浏览器无法唤起豆瓣 App，评论链接已复制：\n\n' + web + '\n\n请用系统浏览器打开后举报。');
+      return;
+    }
+    // 普通手机/电脑浏览器：直接打开深链；打不开时用户可长按复制
+    window.location.href = a.getAttribute('href');
+  }, true);
   // 理由：大类 → 小类 两级
   (function fillCommentReasons() {
     const parent = document.getElementById('db-jb-cmtreport-parent');
@@ -1252,6 +1269,12 @@
             <b style="color:#3f775c">${escapeHtml(c.name)}</b>
             ${c.hot ? '<span style="font-size:9.5px;color:#c07a2a;background:#fff4e5;border:1px solid #f0dcc0;border-radius:99px;padding:0 5px;margin-left:3px">最赞</span>' : ''}
             ${c.img ? '<span style="font-size:9.5px;color:#7f9c82;margin-left:3px">[图]</span>' : ''}
+            ${(() => {
+              const L = commentReportLinks(c.cid);
+              return L
+                ? `<a href="${escapeHtml(L.deep)}" data-cmt-web="${escapeHtml(L.web)}" class="cmt-report-link" style="font-size:9.5px;color:#5f9066;margin-left:6px;text-decoration:underline" title="在豆瓣 App 打开该评论的举报页">手机举报</a>`
+                : '';
+            })()}
             <br><span style="color:#5f7759">${escapeHtml(c.content)}</span>
           </span>
         </label>`).join('');
@@ -1295,6 +1318,20 @@
 
   function escapeHtml(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  /** 单条评论的「手机举报」深链（App 内举报弹窗）+ 网页兜底 */
+  function commentReportLinks(cid) {
+    const topicId = commentCache.topicId || '';
+    const gid = commentCache.groupId || '';
+    if (!topicId || !cid) return null;
+    // 与豆瓣官方 createGroupReportButton 参数一致：group_id + topic_id + comment_id
+    const deep = gid
+      ? `douban://douban.com/group/${gid}/report?topic_id=${topicId}&comment_id=${cid}&type=comment`
+      : `douban://douban.com/topic/${topicId}/report?topic_id=${topicId}&comment_id=${cid}&type=comment`;
+    // 网页兜底：豆瓣 PC 页官方评论举报入口就是这个地址
+    const web = `https://www.douban.com/group/topic/${topicId}/?comment_id=${cid}`;
+    return { deep, web };
   }
 
   async function doFetchComments() {
