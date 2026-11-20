@@ -106,47 +106,47 @@
     {name:"算法推荐类违规信息", id:18},
     {name:"水军养号", id:79},
     {name:"网络暴力/网络戾气", subs:[
-      {name:"歧视偏见",id:39},{name:"谩骂攻击",id:40},{name:"泄露隐私",id:41},
-      {name:"煽动性言论",id:42},{name:"其他网暴信息",id:74},{name:"开盒行为",id:77},{name:"我被网暴",id:78}
+      {name:"歧视偏见",id:39,type:1},{name:"谩骂攻击",id:40,type:1},{name:"泄露隐私",id:41,type:1},
+      {name:"煽动性言论",id:42,type:1},{name:"其他网暴信息",id:74,type:1},{name:"开盒行为",id:77,type:1},{name:"我被网暴",id:78,type:1}
     ]},
     {name:"政治相关", subs:[
-      {name:"政治制度",id:20},{name:"历史虚无",id:21},{name:"民族仇恨",id:22},
-      {name:"分裂言论",id:23},{name:"煽动言论",id:24},{name:"其他政治有害信息",id:25}
+      {name:"政治制度",id:20,type:2},{name:"历史虚无",id:21,type:2},{name:"民族仇恨",id:22,type:2},
+      {name:"分裂言论",id:23,type:2},{name:"煽动言论",id:24,type:2},{name:"其他政治有害信息",id:25,type:2}
     ]},
     {name:"色情低俗", subs:[
-      {name:"低俗内容",id:26},{name:"色情作品",id:27},{name:"色情导流",id:28},
-      {name:"色情交易",id:29},{name:"其他色情低俗信息",id:30}
+      {name:"低俗内容",id:26,type:3},{name:"色情作品",id:27,type:3},{name:"色情导流",id:28,type:3},
+      {name:"色情交易",id:29,type:3},{name:"其他色情低俗信息",id:30,type:3}
     ]},
     {name:"不实信息", subs:[
-      {name:"疫情类不实信息",id:31},{name:"科普类不实信息",id:32},{name:"社会谣言",id:33},
-      {name:"时政谣言",id:34},{name:"虚假新闻",id:35},{name:"其他不实信息",id:36}
+      {name:"疫情类不实信息",id:31,type:4},{name:"科普类不实信息",id:32,type:4},{name:"社会谣言",id:33,type:4},
+      {name:"时政谣言",id:34,type:4},{name:"虚假新闻",id:35,type:4},{name:"其他不实信息",id:36,type:4}
     ]},
     {name:"辱骂攻击", subs:[
-      {name:"侮辱谩骂",id:37},{name:"人身攻击",id:38}
+      {name:"侮辱谩骂",id:37,type:5},{name:"人身攻击",id:38,type:5}
     ]},
     {name:"饭圈乱象", subs:[
-      {name:"涉未成年人",id:43},{name:"鼓动粉丝攀比",id:44},{name:"网络水军",id:45},
-      {name:"干扰舆论",id:46},{name:"造谣爆料",id:47},{name:"挂人引战",id:48},{name:"内容来源不明",id:49}
+      {name:"涉未成年人",id:43,type:6},{name:"鼓动粉丝攀比",id:44,type:6},{name:"网络水军",id:45,type:6},
+      {name:"干扰舆论",id:46,type:6},{name:"造谣爆料",id:47,type:6},{name:"挂人引战",id:48,type:6},{name:"内容来源不明",id:49,type:6}
     ]},
     {name:"违法违规", subs:[
-      {name:"涉嫌欺诈",id:50},{name:"涉枪涉爆",id:51},{name:"毒品危险品",id:52},
-      {name:"邪教相关",id:53},{name:"非法交易",id:54},{name:"恐怖血腥",id:55},
-      {name:"赌博内容",id:56},{name:"教唆犯罪",id:57},{name:"其他违法违规信息",id:59},
-      {name:"封建迷信",id:67},{name:"非法外链",id:75}
+      {name:"涉嫌欺诈",id:50,type:7},{name:"涉枪涉爆",id:51,type:7},{name:"毒品危险品",id:52,type:7},
+      {name:"邪教相关",id:53,type:7},{name:"非法交易",id:54,type:7},{name:"恐怖血腥",id:55,type:7},
+      {name:"赌博内容",id:56,type:7},{name:"教唆犯罪",id:57,type:7},{name:"其他违法违规信息",id:59,type:7},
+      {name:"封建迷信",id:67,type:7},{name:"非法外链",id:75,type:7}
     ]},
     {name:"涉未成年人", subs:[
-      {name:"诱导不良行为",id:60},{name:"欺凌霸凌",id:61},{name:"儿童邪典",id:62},
-      {name:"儿童色情",id:63},{name:"泄露隐私",id:64},{name:"其他涉未成年人有害信息",id:65}
+      {name:"诱导不良行为",id:60,type:8},{name:"欺凌霸凌",id:61,type:8},{name:"儿童邪典",id:62,type:8},
+      {name:"儿童色情",id:63,type:8},{name:"泄露隐私",id:64,type:8},{name:"其他涉未成年人有害信息",id:65,type:8}
     ]},
     {name:"自媒体乱象", subs:[
-      {name:"冒充机构媒体及特定职业",id:66},{name:"其他仿冒信息",id:68}
+      {name:"冒充机构媒体及特定职业",id:66,type:9},{name:"其他仿冒信息",id:68,type:9}
     ]},
     {name:"涉重大赛事", subs:[
-      {name:"违规营销",id:69},{name:"造谣传谣",id:70},{name:"未经授权",id:71},
-      {name:"假冒仿冒",id:72},{name:"其他不良信息",id:73}
+      {name:"违规营销",id:69,type:10},{name:"造谣传谣",id:70,type:10},{name:"未经授权",id:71,type:10},
+      {name:"假冒仿冒",id:72,type:10},{name:"其他不良信息",id:73,type:10}
     ]},
     {name:"AI乱象", subs:[
-      {name:"AI造假",id:80},{name:"其他AI违规信息",id:81}
+      {name:"AI造假",id:80,type:11},{name:"其他AI违规信息",id:81,type:11}
     ]},
   ];
 
@@ -390,6 +390,7 @@
       <button class="tab active" type="button" data-tab="topic">讨论投诉</button>
       <button class="tab" type="button" data-tab="user">用户投诉</button>
       <button class="tab" type="button" data-tab="comment">增评</button>
+      <button class="tab" type="button" data-tab="cmtreport">评论举报</button>
     </div>
 
     <div id="db-jb-url-block">
@@ -476,6 +477,41 @@
           <button id="db-jb-user-custom-add" class="secondary" type="button">加入理由</button>
         </div>
         <div class="custom-list" id="db-jb-user-custom-list"></div>
+      </div>
+    </div>
+    <div id="db-jb-cmtreport-mode" class="hidden">
+      <p style="margin:0 0 6px;font-size:11.5px;line-height:1.7;color:#6f8069">
+        填帖子链接 → 抓取评论 → 翻页勾选 → 选理由提交。<br>
+        每页 30 条，可翻页继续；理由按大类 → 小类两级选择。
+      </p>
+      <div class="row">
+        <label>帖子链接</label>
+        <input type="text" id="db-jb-cmtreport-url" placeholder="https://www.douban.com/group/topic/123456/" style="flex:1;min-width:120px">
+        <button type="button" class="secondary" id="db-jb-cmtreport-fetch">抓取评论</button>
+      </div>
+      <div class="row">
+        <label>关键词</label>
+        <input type="text" id="db-jb-cmtreport-kw" placeholder="空格分隔，留空=全部" style="flex:1;min-width:100px">
+        <label style="white-space:nowrap"><input type="checkbox" id="db-jb-cmtreport-hot"> 只看最赞</label>
+      </div>
+      <div class="row" style="gap:6px;align-items:center">
+        <button type="button" class="secondary" id="db-jb-cmtreport-prev" disabled>‹ 上一页</button>
+        <span id="db-jb-cmtreport-page" style="font-size:11.5px;color:#4f7a52;font-weight:600;white-space:nowrap">第 -/- 页</span>
+        <button type="button" class="secondary" id="db-jb-cmtreport-next" disabled>下一页 ›</button>
+        <span id="db-jb-cmtreport-count" style="color:#808b83;font-size:11px"></span>
+      </div>
+      <div class="row" style="gap:6px">
+        <button type="button" class="secondary" id="db-jb-cmtreport-all">全选本页</button>
+        <button type="button" class="secondary" id="db-jb-cmtreport-none">全不选</button>
+        <span id="db-jb-cmtreport-selected" style="color:#7f9c82;font-size:11px"></span>
+      </div>
+      <div id="db-jb-cmtreport-list" style="max-height:200px;overflow-y:auto;border:1px solid #e3ecdf;border-radius:8px;padding:4px;background:#fbfdf9">
+        <div style="padding:16px;text-align:center;color:#9aa89a;font-size:11px">还没有抓取评论</div>
+      </div>
+      <div class="row">
+        <label>举报理由</label>
+        <select id="db-jb-cmtreport-parent" style="flex:1;min-width:88px"><option value="">大类</option></select>
+        <select id="db-jb-cmtreport-sub" style="flex:1;min-width:88px;display:none"><option value="">小类</option></select>
       </div>
     </div>
     <div class="row" id="db-jb-rate-row">
@@ -663,9 +699,22 @@
     const isUser = target === 'user';
     const isComment = target === 'comment';
     overlay.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === target));
-    // 增评面板：切到「增评」时显示，其他 tab 隐藏（这一行之前丢失，导致参数区永远不显示）
-    document.getElementById('db-jb-url-block').classList.toggle('hidden', isComment);
+    const isCmtReport = target === 'cmtreport';
+    document.getElementById('db-jb-url-block').classList.toggle('hidden', isComment || isCmtReport);
     document.getElementById('db-jb-comment-mode').classList.toggle('hidden', !isComment);
+    document.getElementById('db-jb-cmtreport-mode').classList.toggle('hidden', !isCmtReport);
+    if (isCmtReport) {
+      document.getElementById('db-jb-topic-mode').classList.add('hidden');
+      document.getElementById('db-jb-single-reason').classList.add('hidden');
+      document.getElementById('db-jb-combo-reason').classList.add('hidden');
+      document.getElementById('db-jb-custom-reason').classList.add('hidden');
+      document.getElementById('db-jb-user-reason').classList.add('hidden');
+      document.getElementById('db-jb-rate-row').classList.remove('hidden');
+      document.getElementById('db-jb-start').textContent = '开始举报评论';
+      checkReady();
+      return;
+    }
+    document.getElementById('db-jb-cmtreport-mode').classList.add('hidden');
     if (isComment) {
       document.getElementById('db-jb-topic-mode').classList.add('hidden');
       document.getElementById('db-jb-single-reason').classList.add('hidden');
@@ -819,6 +868,71 @@
 
   document.getElementById('db-jb-urls').oninput = updateCount;
   document.getElementById('db-jb-comment-texts').oninput = function () { updateCommentCount(); checkReady(); };
+  // 评论举报：事件绑定
+  document.getElementById('db-jb-cmtreport-fetch').onclick = doFetchComments;
+  document.getElementById('db-jb-cmtreport-kw').oninput = syncSelectionsFromDom;
+  document.getElementById('db-jb-cmtreport-kw').oninput = function () { syncSelectionsFromDom(); renderCommentList(); };
+  document.getElementById('db-jb-cmtreport-hot').onchange = function () { syncSelectionsFromDom(); renderCommentList(); };
+  document.getElementById('db-jb-cmtreport-prev').onclick = function () { gotoCommentPage(commentCache.page - 1); };
+  document.getElementById('db-jb-cmtreport-next').onclick = function () { gotoCommentPage(commentCache.page + 1); };
+  document.getElementById('db-jb-cmtreport-all').onclick = function () {
+    document.querySelectorAll('#db-jb-cmtreport-list input[type=checkbox]').forEach(el => {
+      el.checked = true;
+      commentCache.selected.add(el.dataset.cid);
+    });
+    updatePageBar(); checkReady();
+  };
+  document.getElementById('db-jb-cmtreport-none').onclick = function () {
+    document.querySelectorAll('#db-jb-cmtreport-list input[type=checkbox]').forEach(el => el.checked = false);
+    commentCache.selected.clear();
+    updatePageBar(); checkReady();
+  };
+  document.getElementById('db-jb-cmtreport-list').onchange = function () { syncSelectionsFromDom(); checkReady(); };
+  // 理由：大类 → 小类 两级
+  (function fillCommentReasons() {
+    const parent = document.getElementById('db-jb-cmtreport-parent');
+    const sub = document.getElementById('db-jb-cmtreport-sub');
+    parent.innerHTML = '<option value="">大类</option>' +
+      REASONS.map((r, i) => `<option value="${i}">${escapeHtml(r.name)}</option>`).join('');
+    parent.onchange = function () {
+      const idx = this.value;
+      if (idx === '') {
+        sub.style.display = 'none';
+        sub.innerHTML = '<option value="">小类</option>';
+      } else {
+        const r = REASONS[Number(idx)];
+        if (r && r.subs && r.subs.length) {
+          sub.style.display = '';
+          sub.innerHTML = '<option value="">小类</option>' +
+            r.subs.map((s, j) => `<option value="${j}">${escapeHtml(s.name)}</option>`).join('');
+        } else {
+          sub.style.display = 'none';
+          sub.innerHTML = '<option value="">小类</option>';
+        }
+      }
+      checkReady();
+    };
+    sub.onchange = checkReady;
+  })();
+  /** 读取评论举报选中的理由 { id, name, type } */
+  function getCommentReason() {
+    const parent = document.getElementById('db-jb-cmtreport-parent');
+    const sub = document.getElementById('db-jb-cmtreport-sub');
+    const idx = parent.value;
+    if (idx === '') return null;
+    const r = REASONS[Number(idx)];
+    if (!r) return null;
+    if (r.subs && r.subs.length) {
+      if (sub.style.display !== 'none') {
+        if (sub.value === '') return null;
+        const s = r.subs[Number(sub.value)];
+        if (!s) return null;
+        return { id: s.id, name: r.name + ' / ' + s.name, type: s.type, reason: s.name };
+      }
+      return null;
+    }
+    return { id: r.id, name: r.name, type: r.id, reason: r.name };
+  }
   document.getElementById('db-jb-comment-total').oninput = updateCommentCount;
 
   // ── 获取选中的理由 ──
@@ -860,6 +974,12 @@
   }
 
   function checkReady() {
+    if (reportTarget === 'cmtreport') {
+      // 不再禁用按钮：原先条件不满足时按钮变灰且点击无提示，
+      // 用户会以为「举报没反应」。改为始终可点，由 runCommentReport 校验并提示。
+      document.getElementById('db-jb-start').disabled = false;
+      return;
+    }
     if (reportTarget === 'comment') {
       // 增评不需要 ck / 链接 / 理由，只要填了内容
       const texts = getCommentTexts();
@@ -920,6 +1040,462 @@
     return Math.max(1000, Math.round(gap + delta));
   }
 
+  // ==================== 评论举报 ====================
+  const COMMENT_PAGE_SIZE = 30;
+  let commentCache = {
+    url: '', topicId: '', groupId: '',
+    allItems: [],
+    hotIds: new Set(),
+    page: 0,
+    total: 0,
+    selected: new Set(),
+  };
+
+  function selectedCommentIds() {
+    return [...commentCache.selected];
+  }
+
+  function normalizeTopicUrl(raw) {
+    let u = String(raw || '').trim();
+    if (!u) return '';
+    if (/^(?:www\.|m\.)?douban\.com\//i.test(u)) u = 'https://' + u;
+    if (/doubanapp\/dispatch/i.test(u)) {
+      const dm = /[?&]uri=([^&]+)/i.exec(u);
+      if (dm) {
+        try {
+          const inner = decodeURIComponent(dm[1]);
+          u = /^https?:/i.test(inner) ? inner : 'https://www.douban.com' + (inner.charAt(0) === '/' ? inner : '/' + inner);
+        } catch (e) {}
+      }
+    }
+    const m = /\/topic\/(\d+)/.exec(u);
+    if (m) {
+      // 保留小组 ID：/group/{gid}/topic/{tid}/ 比 /group/topic/{tid}/ 信息更全，
+      // 少一次 rexxar 请求就能拿到 groupId。
+      const g = /\/group\/(\d+)\/topic\//.exec(u);
+      return g
+        ? `https://www.douban.com/group/${g[1]}/topic/${m[1]}/`
+        : `https://www.douban.com/group/topic/${m[1]}/`;
+    }
+    if (/^\d{6,}$/.test(u)) return 'https://www.douban.com/group/topic/' + u + '/';
+    return u;
+  }
+
+  /** 抓取第 0 页评论 + 解析 groupId / 最赞标记 */
+  async function fetchTopicComments(rawUrl) {
+    const url = normalizeTopicUrl(rawUrl);
+    const m = /\/topic\/(\d+)/.exec(url);
+    if (!m) throw new Error('链接格式不正确');
+    const topicId = m[1];
+
+    // groupId 优先级：
+    //   1) rexxar 话题接口（最可靠，不受网页风控影响）
+    //   2) URL 里的 /group/{gid}/topic/
+    //   3) 帖子页 HTML（可能被风控返回验证页）
+    let groupId = (/\/group\/(\d+)\/topic\//.exec(url) || [])[1] || '';
+    const hotIds = new Set();
+
+    if (!groupId) {
+      try {
+        const rr = await fetch(`https://m.douban.com/rexxar/api/v2/group/topic/${topicId}`, {
+          credentials: 'include',
+          headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        if (rr.ok) {
+          const j = await rr.json();
+          const g = j && j.group;
+          if (g && g.id) groupId = String(g.id);
+        }
+      } catch (e) { /* 继续走 HTML 兜底 */ }
+    }
+
+    try {
+      const resp = await fetch(url, { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      if (resp.ok) {
+        const html = await resp.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        if (!groupId) {
+          const gl = doc.querySelector('.side-reg .title a, .group-item .pic a');
+          if (gl) groupId = (/\/group\/(\d+)/.exec(gl.getAttribute('href') || '') || [])[1] || '';
+        }
+        if (!groupId) {
+          const gm = /group_id["']?\s*[:=]\s*["']?(\d+)/.exec(html);
+          if (gm) groupId = gm[1];
+        }
+        if (!groupId) {
+          const gm2 = /\/group\/(\d+)\//.exec(html);
+          if (gm2) groupId = gm2[1];
+        }
+        doc.querySelectorAll('#popular-comments li.comment-item, #popular-comments li.reply-item').forEach(li => {
+          const cid = li.getAttribute('data-cid') || li.getAttribute('id') || '';
+          if (cid) hotIds.add(String(cid));
+        });
+      }
+    } catch (e) { /* 忽略，评论走接口 */ }
+
+    commentCache = { url, topicId, groupId, allItems: [], hotIds, page: 0, total: 0, selected: new Set() };
+    await loadCommentPage(0);
+    return commentCache;
+  }
+
+  /** 按页加载：start = page * 30，已缓存则直接渲染 */
+  async function loadCommentPage(page) {
+    const start = page * COMMENT_PAGE_SIZE;
+    if (commentCache.allItems.length > start) {
+      commentCache.page = page;
+      renderCommentList();
+      return;
+    }
+    const resp = await fetch(
+      `https://m.douban.com/rexxar/api/v2/group/topic/${commentCache.topicId}/comments?start=${start}&limit=${COMMENT_PAGE_SIZE}`,
+      { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } }
+    );
+    if (resp.status === 403) throw new Error('请求过于频繁，请等几秒再试');
+    if (!resp.ok) throw new Error('抓取失败（HTTP ' + resp.status + '）');
+    const data = await resp.json();
+    const list = (data.comments || []).filter(c => !c.is_deleted && !c.is_disabled);
+    for (const c of list) {
+      const author = c.author || {};
+      commentCache.allItems.push({
+        cid: String(c.id),
+        name: author.name || '匿名',
+        content: String(c.text || '').replace(/\s+/g, ' ').trim().slice(0, 80),
+        hot: commentCache.hotIds.has(String(c.id)),
+        img: !!(c.photos && c.photos.length),
+      });
+    }
+    commentCache.total = Number(data.total) || commentCache.allItems.length;
+    commentCache.page = page;
+    renderCommentList();
+  }
+
+  /** 当前页可见评论（应用关键词 / 最赞过滤） */
+  function currentPageItems() {
+    const kwEl = document.getElementById('db-jb-cmtreport-kw');
+    const hotOnly = document.getElementById('db-jb-cmtreport-hot').checked;
+    const words = String(kwEl.value || '').trim().split(/\s+/).filter(Boolean);
+    const start = commentCache.page * COMMENT_PAGE_SIZE;
+    let list = commentCache.allItems.slice(start, start + COMMENT_PAGE_SIZE);
+    if (hotOnly) list = list.filter(x => x.hot);
+    if (words.length) list = list.filter(x => words.some(w => x.content.includes(w) || x.name.includes(w)));
+    return list;
+  }
+
+  function totalPages() {
+    const n = Math.max(commentCache.allItems.length, commentCache.total || 0);
+    return Math.max(1, Math.ceil(n / COMMENT_PAGE_SIZE));
+  }
+
+  /** 本页选中数量（勾选只在当前页生效，selected 里的 cid 都属于本页） */
+  function currentPageSelectedCount() {
+    const start = commentCache.page * COMMENT_PAGE_SIZE;
+    const pageItems = commentCache.allItems.slice(start, start + COMMENT_PAGE_SIZE);
+    let onPage = 0;
+    for (const it of pageItems) {
+      if (commentCache.selected.has(it.cid)) onPage++;
+    }
+    // 本页被关键词/最赞过滤掉、但仍已勾选的条数
+    const visibleIds = new Set(currentPageItems().map(c => c.cid));
+    let hidden = 0;
+    for (const it of pageItems) {
+      if (commentCache.selected.has(it.cid) && !visibleIds.has(it.cid)) hidden++;
+    }
+    return { onPage, pageTotal: pageItems.length, hidden };
+  }
+
+  function updatePageBar() {
+    const prev = document.getElementById('db-jb-cmtreport-prev');
+    const next = document.getElementById('db-jb-cmtreport-next');
+    const label = document.getElementById('db-jb-cmtreport-page');
+    const has = commentCache.allItems.length > 0 || commentCache.total > 0;
+    const cur = commentCache.page + 1;
+    const tp = totalPages();
+    if (label) {
+      if (!has) label.textContent = '第 -/- 页';
+      else {
+        const st = currentPageSelectedCount();
+        label.textContent = st.onPage
+          ? `第 ${cur}/${tp} 页 · 本页已选 ${st.onPage}`
+          : `第 ${cur}/${tp} 页`;
+      }
+    }
+    if (prev) prev.disabled = !has || commentCache.page <= 0;
+    if (next) next.disabled = !has || commentCache.page + 1 >= tp;
+
+    const sel = document.getElementById('db-jb-cmtreport-selected');
+    if (sel) {
+      const total = commentCache.selected.size;
+      if (!total) {
+        sel.textContent = '';
+      } else {
+        const st = currentPageSelectedCount();
+        const parts = [`本页已选 ${total} 条`];
+        if (st.hidden > 0) parts.push(`⚠️ 其中 ${st.hidden} 条被过滤隐藏`);
+        sel.textContent = parts.join(' ');
+      }
+    }
+  }
+
+  function renderCommentList() {
+    const box = document.getElementById('db-jb-cmtreport-list');
+    const list = currentPageItems();
+
+    if (!commentCache.allItems.length) {
+      box.innerHTML = '<div style="padding:16px;text-align:center;color:#9aa89a;font-size:11px">还没有抓取评论</div>';
+    } else if (!list.length) {
+      box.innerHTML = '<div style="padding:16px;text-align:center;color:#9aa89a;font-size:11px">本页没有匹配的评论</div>';
+    } else {
+      box.innerHTML = list.map(c => `
+        <label style="display:flex;gap:6px;padding:5px 6px;border-bottom:1px solid #f0f4ed;cursor:pointer;font-size:11.5px;line-height:1.5">
+          <input type="checkbox" data-cid="${escapeHtml(c.cid)}" ${commentCache.selected.has(c.cid) ? 'checked' : ''} style="margin-top:2px;flex:0 0 auto">
+          <span style="flex:1;min-width:0">
+            <b style="color:#3f775c">${escapeHtml(c.name)}</b>
+            ${c.hot ? '<span style="font-size:9.5px;color:#c07a2a;background:#fff4e5;border:1px solid #f0dcc0;border-radius:99px;padding:0 5px;margin-left:3px">最赞</span>' : ''}
+            ${c.img ? '<span style="font-size:9.5px;color:#7f9c82;margin-left:3px">[图]</span>' : ''}
+            <br><span style="color:#5f7759">${escapeHtml(c.content)}</span>
+          </span>
+        </label>`).join('');
+    }
+    document.getElementById('db-jb-cmtreport-count').textContent =
+      commentCache.total ? `共 ${commentCache.total} 条` : (commentCache.allItems.length ? `已载入 ${commentCache.allItems.length} 条` : '');
+    updatePageBar();
+    checkReady();
+  }
+
+  /** 记录勾选状态（跨页保留） */
+  function syncSelectionsFromDom() {
+    document.querySelectorAll('#db-jb-cmtreport-list input[type=checkbox]').forEach(el => {
+      if (el.checked) commentCache.selected.add(el.dataset.cid);
+      else commentCache.selected.delete(el.dataset.cid);
+    });
+    updatePageBar();
+  }
+
+  async function gotoCommentPage(page) {
+    const tp = totalPages();
+    if (page < 0 || page >= tp) return;
+    // 勾选只在当前页生效：翻页即清空，避免一次跨页举报过多。
+    const cleared = commentCache.selected.size;
+    commentCache.selected.clear();
+    const btns = ['db-jb-cmtreport-prev', 'db-jb-cmtreport-next'].map(id => document.getElementById(id));
+    btns.forEach(b => b && (b.disabled = true));
+    try {
+      await loadCommentPage(page);
+      if (cleared > 0) {
+        const sel = document.getElementById('db-jb-cmtreport-selected');
+        if (sel) sel.textContent = `已切换页码，清空了上一页的 ${cleared} 条勾选`;
+      }
+    } catch (e) {
+      alert(e.message || '翻页失败');
+    } finally {
+      updatePageBar();
+      checkReady();
+    }
+  }
+
+  function escapeHtml(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function doFetchComments() {
+    const btn = document.getElementById('db-jb-cmtreport-fetch');
+    const url = document.getElementById('db-jb-cmtreport-url').value.trim();
+    if (!url) { alert('请填入帖子链接'); return; }
+    btn.disabled = true; btn.textContent = '抓取中…';
+    try {
+      const data = await fetchTopicComments(url);
+      commentCache = data;
+      renderCommentList();
+    } catch (e) {
+      alert(e.message || '抓取失败');
+    } finally {
+      btn.disabled = false; btn.textContent = '抓取评论';
+    }
+  }
+
+  /** 从豆瓣错误页里提取可读信息（去掉 CSS/JS/标签） */
+  function cleanErrorText(txt, status) {
+    const raw = String(txt || '');
+    // JSON 错误
+    try {
+      const j = JSON.parse(raw);
+      const m = j.msg || j.error || j.localized_message;
+      if (m) return m + (j.code ? ` (${j.code})` : '');
+      if (j.r !== undefined) return '接口返回 r=' + JSON.stringify(j.r);
+    } catch (e) { /* 非 JSON */ }
+
+    if (status === 403) return '没有访问权限（检查是否登录 / 是否被限制）';
+    if (status === 404) return '内容不存在或已删除';
+
+    // HTML 错误页：只取 <p> 或 title，去掉样式脚本
+    let s = raw
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<head[\s\S]*?<\/head>/gi, ' ');
+    const p = s.match(/<p[^>]*>([\s\S]{0,200}?)<\/p>/i);
+    if (p) s = p[1];
+    else {
+      const t = s.match(/<title[^>]*>([\s\S]{0,120}?)<\/title>/i);
+      if (t) s = t[1];
+    }
+    s = s.replace(/<[^>]+>/g, ' ')
+      .replace(/\{[^}]*\}/g, ' ')        // 残留的 CSS 规则
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!s || s.length < 2) return 'HTTP ' + status;
+    return s.slice(0, 90);
+  }
+
+  /** 提交评论举报 */
+  async function runCommentReport(btn) {
+    syncSelectionsFromDom();
+    const ids = selectedCommentIds();
+    if (!ids.length) {
+      alert('还没有勾选评论。\n\n请在下方「评论列表」里勾选要举报的评论（可用「全选本页」）。');
+      return;
+    }
+    const reason = getCommentReason();
+    if (!reason) {
+      const parent = document.getElementById('db-jb-cmtreport-parent');
+      const sub = document.getElementById('db-jb-cmtreport-sub');
+      if (!parent.value) {
+        alert('还没有选择举报理由。\n\n请在最下方「举报理由」里选择一个大类。');
+      } else if (sub && sub.style.display !== 'none' && !sub.value) {
+        alert('举报理由还缺少「小类」。\n\n选完大类后，右侧会多出一个小类下拉框，需要再选一个小类。');
+      } else {
+        alert('举报理由不完整，请重新选择。');
+      }
+      return;
+    }
+    // 豆瓣真实接口 /j/group/{gid}/member_report 的 type 取「小类的 type」（不是 id）
+    // 例如「辱骂攻击 / 侮辱谩骂」→ type=5（id 是 37，传 id 无效）
+    const reasonType = Number(reason.type);
+    if (!Number.isFinite(reasonType)) {
+      alert('举报理由缺少 type，请重新选择理由。');
+      return;
+    }
+    // reason 字段必须是「理由名称」：有小类用小类名，无小类用大类名
+    const reasonText = reason.reason || reason.name;
+
+    const topicId = commentCache.topicId || ((/\/topic\/(\d+)/.exec(commentCache.url) || [])[1] || '');
+    if (!topicId) { alert('链接里没有帖子 ID'); return; }
+    const groupId = commentCache.groupId || '';
+    if (!groupId) {
+      alert('没有识别到小组 ID，无法举报。\n\n请确认帖子链接是 /group/topic/数字/ 形式，或刷新页面重试。');
+      return;
+    }
+
+    const delay = Math.max(200, parseInt(document.getElementById('db-jb-delay').value) || 1400);
+    const batchLimit = Math.max(1, parseInt(document.getElementById('db-jb-batch-limit').value) || 20);
+    const restDelay = Math.max(0, parseInt(document.getElementById('db-jb-rest-delay').value) || 0) * 1000;
+
+    const st = currentPageSelectedCount();
+    const lines = [
+      `将举报本页 ${ids.length} 条评论。`,
+      `理由：${reason.name}（type ${reasonType}）`,
+      `间隔：约 ${delay}ms`,
+    ];
+    if (st.hidden > 0) {
+      lines.push('');
+      lines.push(`注意：其中 ${st.hidden} 条被关键词/最赞过滤隐藏，仍然会提交。`);
+    }
+    lines.push('');
+    lines.push('确认继续？');
+    if (!confirm(lines.join('\n'))) return;
+
+    stopped = false; paused = false; pauseVersion++; resumeWaiters = [];
+    overlay.classList.add('compact-active');
+    btn.disabled = true;
+    document.getElementById('db-jb-stop').disabled = false;
+    document.getElementById('db-jb-pause').disabled = false;
+    document.getElementById('db-jb-resume').disabled = true;
+    document.getElementById('db-jb-pbar').style.display = 'block';
+    document.getElementById('db-jb-stats').style.display = 'flex';
+    document.getElementById('db-jb-log').innerHTML = '';
+    const log = document.getElementById('db-jb-log');
+    document.getElementById('db-jb-total').textContent = ids.length;
+    document.getElementById('db-jb-done').textContent = '0';
+    document.getElementById('db-jb-fail').textContent = '0';
+
+    let done = 0, failed = 0, reqCount = 0;
+    try {
+      for (let i = 0; i < ids.length; i++) {
+        if (stopped) break;
+        await waitIfPaused();
+        if (stopped) break;
+
+        const cid = ids[i];
+        try {
+          // 豆瓣真实举报接口（与官方举报弹窗同源）：
+          //   POST /j/group/{group_id}/member_report
+          //   topic_id / comment_id / type / reason / ck
+          // 成功返回 JSON {"r":0}；ck 失效返回 403。
+          // 注意：旧的 /misc/audit_report 也返回 200，但不会进入审核队列（用户收不到豆邮），
+          // 所以必须用 member_report。
+          const resp = await fetch(`https://www.douban.com/j/group/${groupId}/member_report`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Accept': 'application/json, text/plain, */*',
+              'Content-Type': 'application/json;charset=UTF-8',
+              'X-Requested-With': 'XMLHttpRequest',
+              'x-csrf-token': ck,
+            },
+            referrer: 'https://www.douban.com',
+            body: JSON.stringify({
+              type: reasonType,
+              reason: reasonText,
+              comment_id: String(cid),
+              topic_id: String(topicId),
+            }),
+          });
+          const txt = await resp.text();
+          reqCount++;
+          let ok = false;
+          try {
+            const j = JSON.parse(txt);
+            ok = j && (j.r === 0 || j.r === '0');
+          } catch (e) {
+            ok = false;
+          }
+          if (ok) { done++; addLog(log, 'ok', '', `评论 ${cid} 举报成功`); }
+          else {
+            failed++;
+            let msg;
+            if (resp.status === 403) msg = 'ck 已失效，刷新页面后重试';
+            else msg = cleanErrorText(txt, resp.status) || ('HTTP ' + resp.status);
+            addLog(log, 'no', '', `评论 ${cid} 失败：${msg}`);
+          }
+        } catch (e) {
+          failed++;
+          addLog(log, 'no', '', `评论 ${cid} 异常：${String(e).slice(0, 50)}`);
+        }
+
+        document.getElementById('db-jb-done').textContent = done;
+        document.getElementById('db-jb-fail').textContent = failed;
+        const pct = Math.round(((i + 1) / ids.length) * 100);
+        document.getElementById('db-jb-pfill').style.width = pct + '%';
+        document.getElementById('db-jb-pfill').textContent = pct + '%';
+        document.getElementById('db-jb-status').textContent = `运行中：${i + 1}/${ids.length}（成功 ${done}，失败 ${failed}）`;
+
+        // 分批暂停
+        if (i < ids.length - 1) {
+          if ((i + 1) % batchLimit === 0 && restDelay > 0) {
+            addLog(log, 'ok', '', `本批完成，暂停 ${restDelay / 1000} 秒`);
+            await sleepWithPause(restDelay);
+          } else {
+            await sleepWithPause(nextGapMs(delay, reqCount, batchLimit));
+          }
+        }
+      }
+    } finally {
+      document.getElementById('db-jb-start').disabled = false;
+      document.getElementById('db-jb-pause').disabled = true;
+      document.getElementById('db-jb-resume').disabled = true;
+      document.getElementById('db-jb-stop').disabled = true;
+      document.getElementById('db-jb-status').textContent = `已结束：成功 ${done}，失败 ${failed}`;
+    }
+  }
 
   /**
    * 增评：在已打开的帖子详情页按顺序发表评论。
@@ -936,8 +1512,11 @@
     const restSec = Math.max(0, parseInt(document.getElementById('db-jb-comment-rest').value) || 0);
 
     if (!findCommentBox()) {
-      alert('未找到评论框。\n请先打开帖子详情页，并手动点开一次「评论」让评论区加载出来，再运行。');
-      return;
+      const opened = await expandCommentEditor();
+      if (!opened) {
+        alert('未找到评论框。\n\n诊断信息：\n' + dumpCommentBoxDiag());
+        return;
+      }
     }
     const batches = Math.ceil(texts.length / batch);
     const reuseNote = planned > allTexts.length ? '（文案 ' + allTexts.length + ' 条循环使用，顺序随机打乱）\n' : '（顺序随机打乱）\n';
@@ -972,21 +1551,29 @@
         await waitIfPaused();
         if (stopped) break;
 
-        const box = findCommentBox();
+        let box = findCommentBox();
+        if (!box) {
+          // 发完一条后编辑器可能自动收起，重新点「继续发言」展开
+          await expandCommentEditor(2);
+          box = findCommentBox();
+        }
         if (!box) { addLog(log, 'no', '', '未找到评论框，任务停止'); failed++; break; }
         // 与文档脚本一致：输入框里有残留内容时先判断，避免把别人的草稿发出去
-        if (box.value.trim()) {
-          if (lastSent && box.value.trim() === lastSent) {
-            setNativeValue(box, '');        // 上一条没清干净，先清空
+        if (getBoxValue(box).trim()) {
+          if (lastSent && getBoxValue(box).trim() === lastSent) {
+            setBoxValue(box, '');        // 上一条没清干净，先清空
           } else {
             addLog(log, 'no', '', '评论框有其他内容，请手动清空后重试');
             failed++; break;
           }
         }
         box.focus();
-        setNativeValue(box, texts[i]);
+        setBoxValue(box, texts[i]);
         await sleepWithPause(500);
         if (stopped) break;
+
+        // 组内帖子的 ck 是一次性的：每条发送前换新令牌，否则会弹人工验证
+        await refreshCkToken();
 
         const submit = findCommentSubmit();
         if (!submit) { addLog(log, 'no', '', '发送按钮不可用，任务停止'); failed++; break; }
@@ -998,28 +1585,36 @@
         await sleepWithPause(3000);
         if (stopped) break;
 
+        // 被要求验证 / 触发风控 → 立刻停下，交给人处理
+        const blocked = detectBlockReason();
+        if (blocked) {
+          addLog(log, 'no', '', '遇到' + blocked + '，任务已暂停。请手动完成验证或刷新页面后重新开始');
+          document.getElementById('db-jb-status').textContent = '已暂停：' + blocked;
+          failed++;
+          break;
+        }
+
         const afterBox = findCommentBox();
-        const boxVal = afterBox ? afterBox.value.trim() : null;
+        const boxVal = afterBox ? getBoxValue(afterBox).trim() : null;
         const cleared = afterBox && boxVal === '';
         const legacyOk = isLegacyCommentPage() && legacySuccessDetected(legacyBefore);
 
         if (cleared || legacyOk) {
           // 正常：输入框被清空，或老版页面给出了成功提示 / 新增了评论节点
-          if (afterBox && boxVal) setNativeValue(afterBox, '');
+          if (afterBox && boxVal) setBoxValue(afterBox, '');
           done++;
+        } else if (!afterBox) {
+          // 新版 UI 发完常把编辑器收起 → 视为成功（下一轮会重新展开）
+          done++;
+          addLog(log, 'ok', '', '第 ' + (i + 1) + ' 条已发送（编辑器已收起）');
         } else if (afterBox && boxVal === texts[i]) {
           // 没清空且无成功迹象 → 判定失败
-          setNativeValue(afterBox, '');
+          setBoxValue(afterBox, '');
           failed++;
           addLog(log, 'no', '', '疑似未发送成功（输入框未清空）');
           continue;
         } else if (afterBox && boxVal) {
           addLog(log, 'no', '', '输入框出现其他内容，任务停止');
-          failed++;
-          break;
-        } else if (!afterBox) {
-          // 输入框消失且无成功迹象 → 页面异常
-          addLog(log, 'no', '', '评论框消失，任务停止');
           failed++;
           break;
         } else {
@@ -1072,14 +1667,170 @@
       'textarea#comment',
       '.comment-form textarea',
       'textarea.comment_textarea',
+      // ── 新版小组帖：富文本 contenteditable 编辑器（占位「继续发言」）──
+      '.comment-editor [contenteditable="true"]',
+      '.reply-editor [contenteditable="true"]',
+      '.comment-form [contenteditable="true"]',
+      '[data-testid="comment-editor"] [contenteditable="true"]',
+      'div[contenteditable="true"][role="textbox"]',
+      'div[contenteditable="true"]',
     ];
     for (const sel of cands) {
-      const el = document.querySelector(sel);
-      if (el && el.getClientRects().length > 0) return el;
+      const els = [...document.querySelectorAll(sel)];
+      // 从后往前找：页面底部的「你的回复」输入框优先（顶部可能是搜索框）
+      for (let i = els.length - 1; i >= 0; i--) {
+        const el = els[i];
+        if (!el || el.getClientRects().length === 0) continue;
+        if (el.closest('.search, #inp-query, form[action*="search"]')) continue;
+        if (el.getAttribute('aria-hidden') === 'true') continue;
+        return el;
+      }
     }
     return null;
   }
-  /** 新版返回 button，老版返回 input[type=submit]，统一按可点击元素处理 */
+  /** 文本框/富文本编辑器统一取值 */
+  function getBoxValue(el) {
+    if (!el) return '';
+    if (typeof el.value === 'string') return el.value;
+    return String(el.innerText || el.textContent || '');
+  }
+  /** 文本框/富文本编辑器统一写值（富文本走 execCommand，保留 React/Vue 状态） */
+  function setBoxValue(el, value) {
+    if (!el) return;
+    if (typeof el.value === 'string') { setNativeValue(el, value); return; }
+    el.focus();
+    try {
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      if (!value) {
+        document.execCommand('delete', false, null);
+      } else {
+        document.execCommand('insertText', false, value);
+      }
+      if (getBoxValue(el).trim() === String(value).trim()) return;
+    } catch (e) { /* 继续走兜底 */ }
+    // 兜底：直接写文本节点再补发事件
+    el.textContent = value;
+    try {
+      el.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertText', data: value }));
+      el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
+    } catch (e) {
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  /** 找不到评论框时输出页面结构，便于定位新版 UI */
+  function dumpCommentBoxDiag() {
+    const lines = [];
+    lines.push('地址：' + location.href.slice(0, 120));
+    const tas = [...document.querySelectorAll('textarea')];
+    lines.push('textarea 数量：' + tas.length);
+    tas.slice(0, 5).forEach((el, i) => {
+      const r = el.getBoundingClientRect();
+      lines.push(`  [${i}] name="${el.name}" id="${el.id}" visible=${el.getClientRects().length > 0} ${Math.round(r.width)}x${Math.round(r.height)}`);
+    });
+    const ces = [...document.querySelectorAll('[contenteditable]')];
+    lines.push('contenteditable 数量：' + ces.length);
+    ces.slice(0, 8).forEach((el, i) => {
+      const r = el.getBoundingClientRect();
+      const t = (el.textContent || '').trim().slice(0, 30);
+      lines.push(`  [${i}] tag=${el.tagName} ce="${el.getAttribute('contenteditable')}" role="${el.getAttribute('role') || ''}" cls="${(el.className || '').toString().slice(0, 40)}" visible=${el.getClientRects().length > 0} ${Math.round(r.width)}x${Math.round(r.height)} text="${t}"`);
+    });
+    const btns = [...document.querySelectorAll('button, [role="button"], input[type="submit"]')]
+      .filter(el => el.getClientRects().length > 0);
+    lines.push('可见按钮数量：' + btns.length);
+    btns.slice(0, 12).forEach((el, i) => {
+      const label = (el.getAttribute('aria-label') || el.value || el.textContent || '').trim().slice(0, 20);
+      lines.push(`  [${i}] ${el.tagName} type=${el.type || ''} text="${label}"`);
+    });
+    lines.push('——— 页面文字片段（寻找「继续发言」）———');
+    const bodyTxt = (document.body.innerText || '').replace(/\s+/g, ' ');
+    const idx = bodyTxt.indexOf('继续发言');
+    lines.push(idx >= 0 ? bodyTxt.slice(Math.max(0, idx - 60), idx + 120) : '（页面里没有「继续发言」四个字）');
+    return lines.join('\n');
+  }
+  /** 组内帖子：ck 令牌一次性，发完必须换新的。不刷新整页，用 fetch 拉最新 ck 写回表单 */
+  async function refreshCkToken() {
+    const inputs = [...document.querySelectorAll('input[name="ck"]')];
+    if (!inputs.length) return true;            // 新版 UI 没有 ck 字段，跳过
+    try {
+      const resp = await fetch(location.href.split('#')[0], {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      });
+      if (!resp.ok) return false;
+      const html = await resp.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const fresh = doc.querySelector('input[name="ck"]');
+      const token = fresh && fresh.getAttribute('value');
+      if (!token) return false;
+      inputs.forEach(el => { el.value = token; });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  /** 检测是否被要求验证 / 触发风控 */
+  function detectBlockReason() {
+    const href = location.href;
+    if (/\/misc\/sorry/.test(href)) return '触发风控（/misc/sorry）';
+    const txt = (document.body.innerText || '').replace(/\s+/g, ' ');
+    if (/请输入验证码|安全验证|异常请求|操作过于频繁|账号异常/.test(txt)) return '需要人工验证';
+    for (const el of document.querySelectorAll('.js-verify-account, iframe[src*="captcha"]')) {
+      if (el.getClientRects().length > 0 && el.tagName !== 'SCRIPT') {
+        // 老版页面的 js-verify-account 是发送按钮外壳，data-is-verified=true 表示已通过
+        if (el.getAttribute('data-is-verified') === 'True') continue;
+        return '需要人工验证';
+      }
+    }
+    return '';
+  }
+  /** 找「继续发言」这类占位触发器（未展开时的评论入口） */
+  function findCommentTriggers() {
+    const rx = /^(继续发言|写下你的回复|添加回复|发表回复|说点什么|回应一下|写评论)/;
+    const hits = [];
+    for (const el of document.querySelectorAll('div, span, a, button, p, section, li')) {
+      if (el.getClientRects().length === 0) continue;
+      if (el.closest('.topic-list, .paginator, form[action*="search"], #inp-query')) continue;
+      const t = (el.textContent || '').trim();
+      if (!t || t.length > 30) continue;            // 只要短文本，避免命中外层容器
+      if (!rx.test(t)) continue;
+      if (el.isContentEditable) continue;            // 已经是可编辑的不用点
+      if (el.querySelector('[contenteditable="true"]')) continue;
+      hits.push(el);
+    }
+    // 最深（子元素最少）的优先，通常就是要点的那个
+    hits.sort((a, b) => a.querySelectorAll('*').length - b.querySelectorAll('*').length);
+    return hits;
+  }
+  /** 点击触发器并轮询等待编辑器出现 */
+  async function expandCommentEditor(maxRounds = 3) {
+    if (findCommentBox()) return true;
+    for (let round = 0; round < maxRounds; round++) {
+      const triggers = findCommentTriggers();
+      if (!triggers.length && round === 0) {
+        // 页面可能还没渲染完，等一下再找
+        await sleepWithPause(500);
+        continue;
+      }
+      for (const el of triggers.slice(0, 4)) {
+        simulateRealClick(el);
+        const clickable = el.closest('a, button, [role="button"], [role="textbox"], [tabindex]');
+        if (clickable && clickable !== el) simulateRealClick(clickable);
+        for (let i = 0; i < 10; i++) {          // 最多等 1.5 秒
+          await sleepWithPause(150);
+          if (findCommentBox()) return true;
+        }
+      }
+      await sleepWithPause(300);
+      if (findCommentBox()) return true;
+    }
+    return !!findCommentBox();
+  }
   function findCommentSubmit() {
     const btns = [...document.querySelectorAll('button.comment-form-btn[type="submit"]')]
       .filter(el => el.getClientRects().length > 0 && !el.disabled && el.getAttribute('aria-disabled') !== 'true');
@@ -1088,6 +1839,29 @@
     const legacy = [...document.querySelectorAll('input[name="submit_btn"][type="submit"], input[type="submit"][value="发送"]')]
       .filter(el => el.getClientRects().length > 0 && !el.disabled);
     if (legacy.length === 1) return legacy[0];
+    // 新版小组帖：发送/发布 按钮（文字或 aria-label）
+    const textRx = /^(发送|发布|发表|提交|继续发言)$/;
+    const cand = [...document.querySelectorAll('button, [role="button"], a.button')].filter(el => {
+      if (el.disabled || el.getAttribute('aria-disabled') === 'true') return false;
+      if (el.getClientRects().length === 0) return false;
+      if (el.closest('.comment-item, .reply-item, .topic-list, .paginator, .search')) return false;
+      if (el.type === 'submit' && el.closest('form[name="comment_form"], form[action*="add_comment"]')) return true;
+      const label = (el.getAttribute('aria-label') || '') + ' ' + (el.textContent || '').trim();
+      return textRx.test(label.trim());
+    });
+    if (cand.length === 1) return cand[0];
+    // 多个候选时：取最靠近评论框的那个（发送按钮通常紧挨编辑器）
+    const box = findCommentBox();
+    if (cand.length > 1 && box) {
+      let best = null, bestDist = Infinity;
+      const br = box.getBoundingClientRect();
+      for (const el of cand) {
+        const r = el.getBoundingClientRect();
+        const d = Math.abs(r.top - br.bottom) + Math.abs(r.left - br.right) * 0.2;
+        if (d < bestDist) { bestDist = d; best = el; }
+      }
+      if (best) return best;
+    }
     return null;
   }
   /** 是否老版页面（用于调整发送后的校验策略） */
@@ -1219,6 +1993,24 @@
     });
   }
 
+  /**
+   * 计算下一次请求的等待时间（更接近真人的节奏）
+   * - 基础间隔 delay（用户可调）
+   * - 批次递增：每过一个批次 +100ms，但最多累加到 +500ms（不会无限增长）
+   * - 随机扰动：±200ms 以内
+   * - 最低 300ms，最高不超过 15 秒
+   */
+  function nextGapMs(delay, requestCount, batchLimit) {
+    const base = Math.max(200, delay || 1400);
+    // 每完成一批 +100ms，最多累计 +500ms（5 批后封顶）
+    const batches = Math.floor(Math.max(0, requestCount) / Math.max(1, batchLimit));
+    const batchStep = Math.min(500, batches * 100);
+    const center = base + batchStep;
+    // 随机扰动 ±200ms 以内
+    const jitter = (Math.random() * 2 - 1) * 200;
+    return Math.max(300, Math.min(15000, Math.round(center + jitter)));
+  }
+
   async function sleepWithPause(ms) {
     let remaining = ms;
     while (remaining > 0) {
@@ -1247,6 +2039,7 @@
   }
 
   document.getElementById('db-jb-start').onclick = async function () {
+    if (reportTarget === 'cmtreport') { return runCommentReport(this); }
     if (reportTarget === 'comment') { return runCommentMode(this); }
     const urls = getUrls();
     const reasons = getReasons();
