@@ -173,6 +173,17 @@ ul.features li { margin-bottom: 6px; }
 </div>
 
 <div class="card">
+  <h2>链接有效性检验</h2>
+  <p style="font-size:.85rem;color:var(--text-dim);margin-bottom:10px">
+    批量检测讨论/用户链接是否已失效，并把<b>有效链接的标题</b>提取出来（可一键复制标题+链接，或导出 CSV）。
+    只读取页面、不提交任何举报。
+  </p>
+  <a class="bookmarklet" id="bk-check" href="javascript:(function(){var s=document.createElement('script');s.src='https://if-wannable.github.io/batch_db_tousu/invalid_check.js';s.onload=function(){this.remove()};document.head.appendChild(s);})();">🩺 有效性检验</a>
+  <button class="bookmarklet copy-btn" id="copy-check" type="button" style="margin-left:8px">📋 复制检验代码</button>
+  <div class="hint" id="script-src">用法：在 douban.com 已登录页面点击该书签 → 粘贴链接 → 开始检测 → 复制有效标题。</div>
+</div>
+
+<div class="card">
   <h2>功能说明</h2>
   <ul class="features">
     <li><b>举报对象</b>：讨论本身（原始帖），非回复</li>
@@ -190,26 +201,50 @@ ul.features li { margin-bottom: 6px; }
 
 <script>
 (function () {
-  var btn = document.getElementById('copy-main');
-  var main = document.getElementById('bk-main');
-  if (!btn || !main) return;
-  btn.addEventListener('click', function () {
-    var code = main.getAttribute('href');
-    function ok() { btn.textContent = '已复制 ✓ 去新建书签粘贴'; }
-    function fail() { btn.textContent = '复制失败，请长按下方按钮复制'; }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(code).then(ok, fail);
-    } else {
-      var ta = document.createElement('textarea');
-      ta.value = code;
-      ta.setAttribute('readonly', '');
-      ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
-      document.body.appendChild(ta);
-      ta.select();
-      try { document.execCommand('copy') ? ok() : fail(); } catch (e) { fail(); }
-      ta.remove();
-    }
-  });
+  // 脚本来源：本地打开本页时优先用本机脚本，避免点了线上旧版
+  var isLocal = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
+  var BASE = isLocal ? location.origin : 'https://if-wannable.github.io/batch_db_tousu';
+  function bookmarklet(file) {
+    return "javascript:(function(){var s=document.createElement('script');s.src='" + BASE + '/' + file +
+      "?t='+Date.now();s.onload=function(){this.remove()};document.head.appendChild(s);})();";
+  }
+  var MAIN_FILE = 'tool.js';
+  var CHECK_FILE = 'invalid_check.js';
+  var bkMain = document.getElementById('bk-main');
+  var bkCheck = document.getElementById('bk-check');
+  if (bkMain) bkMain.setAttribute('href', bookmarklet(MAIN_FILE));
+  if (bkCheck) bkCheck.setAttribute('href', bookmarklet(CHECK_FILE));
+  var src = document.getElementById('script-src');
+  if (src) {
+    src.innerHTML = isLocal
+      ? '当前书签加载：本机 <code>' + BASE + '</code>（本地测试模式）'
+      : '当前书签加载：<code>' + BASE + '</code>';
+  }
+
+  function bindCopy(btnId, bkId) {
+    var btn = document.getElementById(btnId);
+    var main = document.getElementById(bkId);
+    if (!btn || !main) return;
+    btn.addEventListener('click', function () {
+      var code = main.getAttribute('href');
+      function ok() { btn.textContent = '已复制 ✓ 去新建书签粘贴'; }
+      function fail() { btn.textContent = '复制失败，请长按下方按钮复制'; }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(ok, fail);
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = code;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy') ? ok() : fail(); } catch (e) { fail(); }
+        ta.remove();
+      }
+    });
+  }
+  bindCopy('copy-main', 'bk-main');
+  bindCopy('copy-check', 'bk-check');
 })();
 </script>
 

@@ -66,15 +66,61 @@
     v = v.replace(/<[^>]+>/g, ' ');
     return v.replace(/\s+/g, ' ').trim();
   }
+  // 清掉豆瓣页面标题里的站点后缀、登录页等噪声
+  function cleanTitle(raw) {
+    let t = String(raw || '').replace(/[\s\u3000]+/g, ' ').trim();
+    if (!t) return '';
+    t = t.replace(/\s*[-–—|·•]\s*豆瓣(?:小组|同城|电影|读书|音乐|FM)?\s*$/i, '');
+    t = t.replace(/\s*[-–—|·•]\s*$/, '').trim();
+    if (!t) return '';
+    if (/^(豆瓣|豆瓣小组|豆瓣同城|登录豆瓣|豆瓣 - 登录跳转页|登录跳转页)$/i.test(t)) return '';
+    return t.slice(0, 160);
+  }
   function pageMeta(body) {
     let title = '';
-    const tm = body.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-    if (tm) title = stripTags(tm[1]);
+    let doc = null;
+    try { doc = new DOMParser().parseFromString(body, 'text/html'); } catch (e) { /* 退回正则 */ }
+    if (doc) {
+      // og:title 最干净（通常只有帖子标题本身）
+      const og = doc.querySelector('meta[property="og:title"], meta[name="og:title"], meta[name="title"]');
+      if (og) title = og.getAttribute('content') || '';
+      if (!title) {
+        const hm = doc.querySelector('#content h1, .topic-content h1, .article h1, h1');
+        if (hm) title = hm.textContent || '';
+      }
+      if (!title && doc.title) title = doc.title;
+    }
+    if (!title) {
+      const tm = body.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      if (tm) title = stripTags(tm[1]);
+    }
     if (!title) {
       const hm = body.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
       if (hm) title = stripTags(hm[1]);
     }
-    return { title: title.slice(0, 160) };
+    return { title: cleanTitle(title) };
+  }
+
+  // 讨论帖再问一次移动端接口，拿最准确的帖子标题（失败就用 HTML 里的）
+  async function topicApiTitle(url) {
+    const m = /\/group\/topic\/(\d+)/.exec(url) || /\/topic\/(\d+)/.exec(url);
+    if (!m) return '';
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const resp = await fetch('https://m.douban.com/rexxar/api/v2/group/topic/' + m[1], {
+        credentials: 'include',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        signal: ctrl.signal,
+      });
+      if (!resp.ok) return '';
+      const data = await resp.json();
+      return cleanTitle(data.title || (data.topic && data.topic.title) || '');
+    } catch (e) {
+      return '';
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   // ── 创建 UI ──
@@ -161,6 +207,8 @@
       <button id="db-ic-stop" class="danger" disabled>停止</button>
       <button id="db-ic-export" class="secondary hidden">导出结果CSV</button>
       <button id="db-ic-copy-dead" class="secondary hidden">复制失效链接</button>
+      <button id="db-ic-copy-alive" class="secondary hidden">复制有效链接</button>
+      <button id="db-ic-copy-titles" class="secondary hidden">复制有效标题</button>
     </div>
 
     <div class="progress-bar hidden" id="db-ic-pbar"><div class="progress-fill" id="db-ic-pfill"></div></div>
@@ -232,7 +280,11 @@
         return { status: 'unknown', label: 'HTTP 403 风控/无权限', http: code, title: meta.title };
       }
       if (code === 200) {
-        return { status: 'alive', label: '页面正常返回', http: code, title: meta.title };
+        let title = meta.title;
+        if (!title) title = await topicApiTitle(url);
+        // 200 但标题为空多半是登录页/风控页，标为无法判断更稳
+        if (!title) return { status: 'unknown', label: '页面无标题（可能被风控）', http: code };
+        return { status: 'alive', label: '页面正常返回', http: code, title: title };
       }
       return { status: 'unknown', label: 'HTTP ' + code, http: code, title: meta.title };
     } catch (e) {
@@ -278,6 +330,8 @@
     document.getElementById('db-ic-stop').disabled = false;
     document.getElementById('db-ic-export').classList.add('hidden');
     document.getElementById('db-ic-copy-dead').classList.add('hidden');
+    document.getElementById('db-ic-copy-alive').classList.add('hidden');
+    document.getElementById('db-ic-copy-titles').classList.add('hidden');
     document.getElementById('db-ic-pbar').classList.remove('hidden');
     document.getElementById('db-ic-stats').classList.remove('hidden');
     document.getElementById('db-ic-groups').classList.remove('hidden');
@@ -310,6 +364,8 @@
     if (results.length) {
       document.getElementById('db-ic-export').classList.remove('hidden');
       document.getElementById('db-ic-copy-dead').classList.remove('hidden');
+      document.getElementById('db-ic-copy-alive').classList.remove('hidden');
+      document.getElementById('db-ic-copy-titles').classList.remove('hidden');
     }
   };
 
@@ -332,14 +388,26 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 3000);
   };
 
-  // ── 复制失效链接 ──
+  // ── 复制失效链接 / 有效链接 / 有效标题 ──
+  function copyText(btn, text, tip, fallbackLabel) {
+    if (!text) { alert('没有可复制的内容'); return; }
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject())
+      .then(() => { btn.textContent = '已复制✓'; setTimeout(() => btn.textContent = fallbackLabel, 1500); })
+      .catch(() => { window.prompt(tip, text); });
+  }
   document.getElementById('db-ic-copy-dead').onclick = function () {
     const dead = results.filter(r => r.status === 'dead').map(r => r.url).join('\n');
-    if (!dead) { alert('没有失效链接'); return; }
-    const btn = this;
-    (navigator.clipboard ? navigator.clipboard.writeText(dead) : Promise.reject())
-      .then(() => { btn.textContent = '已复制✓'; setTimeout(() => btn.textContent = '复制失效链接', 1500); })
-      .catch(() => { window.prompt('复制以下失效链接：', dead); });
+    copyText(this, dead, '复制以下失效链接：', '复制失效链接');
+  };
+  document.getElementById('db-ic-copy-alive').onclick = function () {
+    const alive = results.filter(r => r.status === 'alive').map(r => r.url).join('\n');
+    copyText(this, alive, '复制以下有效链接：', '复制有效链接');
+  };
+  document.getElementById('db-ic-copy-titles').onclick = function () {
+    // 有效标题：优先「标题<TAB>链接」，没有标题的用链接兜底
+    const lines = results.filter(r => r.status === 'alive')
+      .map(r => (r.title || '（无标题）') + '\t' + r.url);
+    copyText(this, lines.join('\n'), '复制以下有效标题：', '复制有效标题');
   };
 
   // ── 标题栏拖动 ──
