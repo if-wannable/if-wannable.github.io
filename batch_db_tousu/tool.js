@@ -891,7 +891,7 @@
   // 「手机举报」链接：点击时不触发整行勾选；微信等内置浏览器无法唤起 App，改为复制网页地址
   document.getElementById('db-jb-cmtreport-list').addEventListener('click', function (ev) {
     const a = ev.target.closest('a.cmt-report-link');
-    if (!a) return;
+    if (!a) return;   // 电脑端的 cmt-web-link 不拦，走原生 target=_blank
     // 链接在 <label> 内，必须阻止默认行为，否则会顺带切换整行勾选
     ev.preventDefault();
     ev.stopPropagation();
@@ -1271,9 +1271,14 @@
             ${c.img ? '<span style="font-size:9.5px;color:#7f9c82;margin-left:3px">[图]</span>' : ''}
             ${(() => {
               const L = commentReportLinks(c.cid);
-              return L
-                ? `<a href="${escapeHtml(L.deep)}" data-cmt-web="${escapeHtml(L.web)}" class="cmt-report-link" style="font-size:9.5px;color:#5f9066;margin-left:6px;text-decoration:underline" title="在豆瓣 App 打开该评论的举报页">手机举报</a>`
-                : '';
+              if (!L) return '';
+              const mobile = /Android|iPhone|iPad|iPod|Mobile|HarmonyOS/i.test(navigator.userAgent || '')
+                || (navigator.maxTouchPoints > 0 && window.innerWidth <= 900);
+              if (mobile) {
+                return `<a href="${escapeHtml(L.deep)}" data-cmt-web="${escapeHtml(L.web)}" class="cmt-report-link" style="font-size:9.5px;color:#5f9066;margin-left:6px;text-decoration:underline" title="在豆瓣 App 打开该评论的举报页">手机举报</a>`;
+              }
+              // 电脑端：深链打不开，给网页版评论定位链接
+              return `<a href="${escapeHtml(L.web)}" target="_blank" rel="noopener" class="cmt-web-link" style="font-size:9.5px;color:#8a968d;margin-left:6px;text-decoration:underline" title="在新标签页打开该评论（豆瓣网页版）">打开评论</a>`;
             })()}
             <br><span style="color:#5f7759">${escapeHtml(c.content)}</span>
           </span>
