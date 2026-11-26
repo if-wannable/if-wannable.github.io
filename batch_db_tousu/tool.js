@@ -17,7 +17,7 @@
     return;
   }
 
-  // ── 授权校验：书签由「兔兔待办」签发（ECDSA P-256 签名 token）──
+  // ── 授权校验：书签由todo签发（ECDSA P-256 签名 token）──
   // 签名公钥内置于脚本；token 过期或签名不符时不加载工具。
   var AUTH_PUB_JWK = { kty: 'EC', crv: 'P-256',
     x: 'pnDEkQKCtbMoCmKbPRfgl_SjqT2yhd0rL5E75S_2UEc',
@@ -74,18 +74,18 @@
     }
   }
   async function verifyAuth() {
-    if (!auth) return '缺少授权信息。请从「兔兔待办」页面重新获取书签。';
+    if (!auth) return '缺少授权信息。请从todo页面重新获取书签。';
     var parts = auth.split('.');
-    if (parts.length !== 2) return '授权信息格式不正确。请从「兔兔待办」重新获取书签。';
+    if (parts.length !== 2) return '授权信息格式不正确。请从todo重新获取书签。';
     var body = parts[0], sig = parts[1], payload;
     try { payload = JSON.parse(new TextDecoder().decode(b64urlToBuf(body))); }
-    catch (e) { return '授权信息无法解析。请从「兔兔待办」重新获取书签。'; }
+    catch (e) { return '授权信息无法解析。请从todo重新获取书签。'; }
     if (!payload || !payload.h) return '授权信息不完整。请重新获取书签。';
     if (!window.crypto || !window.crypto.subtle) return '当前浏览器不支持授权校验，请更换浏览器。';
     try {
       var key = await crypto.subtle.importKey('jwk', AUTH_PUB_JWK, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
       var ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, b64urlToBuf(sig), b64urlToBuf(body));
-      if (!ok) return '授权校验未通过。请从「兔兔待办」重新获取书签。';
+      if (!ok) return '授权校验未通过。请从todo重新获取书签。';
     } catch (e) { return '授权校验失败。请重新获取书签。'; }
     return await serverVerify(payload);
   }
@@ -2287,7 +2287,7 @@
 
   checkReady();
 
-  // 面板已就绪：自动填入由「兔兔待办」通过 URL hash 带过来的链接
+  // 面板已就绪：自动填入由todo通过 URL hash 带过来的链接
   // 必须在面板构建完成之后执行，否则输入框还不存在
   function prefillFromHash() {
     var m = /[#&]dbjt=([^&]+)/.exec(location.hash || '');
