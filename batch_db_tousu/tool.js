@@ -498,6 +498,9 @@
         <button type="button" class="secondary" id="db-jb-cmtreport-prev" disabled>‹ 上一页</button>
         <span id="db-jb-cmtreport-page" style="font-size:11.5px;color:#4f7a52;font-weight:600;white-space:nowrap">第 -/- 页</span>
         <button type="button" class="secondary" id="db-jb-cmtreport-next" disabled>下一页 ›</button>
+        <span style="font-size:11px;color:#6f8069;white-space:nowrap;margin-left:2px">跳至</span>
+        <input type="number" id="db-jb-cmtreport-jump" min="1" value="1" inputmode="numeric" title="输入页码后回车或点跳转" style="width:52px;padding:3px 4px;border:1px solid #d2ded0;border-radius:6px;font-size:11.5px;text-align:center;color:#4f7a52">
+        <button type="button" class="secondary" id="db-jb-cmtreport-go" disabled>跳转</button>
         <span id="db-jb-cmtreport-count" style="color:#808b83;font-size:11px"></span>
       </div>
       <div class="row" style="gap:6px">
@@ -875,6 +878,10 @@
   document.getElementById('db-jb-cmtreport-hot').onchange = function () { syncSelectionsFromDom(); renderCommentList(); };
   document.getElementById('db-jb-cmtreport-prev').onclick = function () { gotoCommentPage(commentCache.page - 1); };
   document.getElementById('db-jb-cmtreport-next').onclick = function () { gotoCommentPage(commentCache.page + 1); };
+  document.getElementById('db-jb-cmtreport-go').onclick = function () { jumpToCommentPage(); };
+  document.getElementById('db-jb-cmtreport-jump').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); jumpToCommentPage(); }
+  });
   document.getElementById('db-jb-cmtreport-all').onclick = function () {
     document.querySelectorAll('#db-jb-cmtreport-list input[type=checkbox]').forEach(el => {
       el.checked = true;
@@ -1239,6 +1246,16 @@
     if (prev) prev.disabled = !has || commentCache.page <= 0;
     if (next) next.disabled = !has || commentCache.page + 1 >= tp;
 
+    const jump = document.getElementById('db-jb-cmtreport-jump');
+    const go = document.getElementById('db-jb-cmtreport-go');
+    if (jump) {
+      jump.max = tp || '';
+      jump.disabled = !has || tp <= 1;
+      // 正在输入时不覆盖用户内容
+      if (document.activeElement !== jump) jump.value = has ? cur : '';
+    }
+    if (go) go.disabled = !has || tp <= 1;
+
     const sel = document.getElementById('db-jb-cmtreport-selected');
     if (sel) {
       const total = commentCache.selected.size;
@@ -1297,6 +1314,20 @@
       else commentCache.selected.delete(el.dataset.cid);
     });
     updatePageBar();
+  }
+
+  function jumpToCommentPage() {
+    const tp = totalPages();
+    if (!tp) return;
+    const el = document.getElementById('db-jb-cmtreport-jump');
+    let n = parseInt(el && el.value, 10);
+    if (!Number.isFinite(n)) n = commentCache.page + 1;
+    n = Math.max(1, Math.min(tp, n));
+    if (n - 1 === commentCache.page) {
+      if (el) el.value = n;
+      return;
+    }
+    gotoCommentPage(n - 1);
   }
 
   async function gotoCommentPage(page) {
