@@ -1068,7 +1068,7 @@
   const COMMENT_PAGE_SIZE = 30;
   let commentCache = {
     url: '', topicId: '', groupId: '',
-    allItems: [],
+    pageData: {},   // { 页码: [评论...] }，按页存储，支持任意页跳转
     hotIds: new Set(),
     page: 0,
     total: 0,
@@ -1157,19 +1157,19 @@
       }
     } catch (e) { /* 忽略，评论走接口 */ }
 
-    commentCache = { url, topicId, groupId, allItems: [], hotIds, page: 0, total: 0, selected: new Set() };
+    commentCache = { url, topicId, groupId, pageData: {}, hotIds, page: 0, total: 0, selected: new Set() };
     await loadCommentPage(0);
     return commentCache;
   }
 
-  /** 按页加载：start = page * 30，已缓存则直接渲染 */
+  /** 按页加载：已缓存则直接渲染；否则按 start 拉取该页并存到 pageData[page] */
   async function loadCommentPage(page) {
-    const start = page * COMMENT_PAGE_SIZE;
-    if (commentCache.allItems.length > start) {
+    if (commentCache.pageData[page]) {
       commentCache.page = page;
       renderCommentList();
       return;
     }
+    const start = page * COMMENT_PAGE_SIZE;
     const resp = await fetch(
       `https://m.douban.com/rexxar/api/v2/group/topic/${commentCache.topicId}/comments?start=${start}&limit=${COMMENT_PAGE_SIZE}`,
       { credentials: 'include', headers: { 'X-Requested-With': 'XMLHttpRequest' } }
@@ -1178,17 +1178,19 @@
     if (!resp.ok) throw new Error('抓取失败（HTTP ' + resp.status + '）');
     const data = await resp.json();
     const list = (data.comments || []).filter(c => !c.is_deleted && !c.is_disabled);
-    for (const c of list) {
+    commentCache.pageData[page] = list.map(c => {
       const author = c.author || {};
-      commentCache.allItems.push({
+      return {
         cid: String(c.id),
         name: author.name || '匿名',
         content: String(c.text || '').replace(/\s+/g, ' ').trim().slice(0, 80),
         hot: commentCache.hotIds.has(String(c.id)),
         img: !!(c.photos && c.photos.length),
-      });
-    }
-    commentCache.total = Number(data.total) || commentCache.allItems.length;
+      };
+    });
+    const total = Number(data.total) || 0;
+    if (total) commentCache.total = total;
+    else if (!commentCache.total) commentCache.total = start + (commentCache.pageData[page] || []).length;
     commentCache.page = page;
     renderCommentList();
   }
@@ -1198,22 +1200,20 @@
     const kwEl = document.getElementById('db-jb-cmtreport-kw');
     const hotOnly = document.getElementById('db-jb-cmtreport-hot').checked;
     const words = String(kwEl.value || '').trim().split(/\s+/).filter(Boolean);
-    const start = commentCache.page * COMMENT_PAGE_SIZE;
-    let list = commentCache.allItems.slice(start, start + COMMENT_PAGE_SIZE);
+    let list = (commentCache.pageData[commentCache.page] || []).slice();
     if (hotOnly) list = list.filter(x => x.hot);
     if (words.length) list = list.filter(x => words.some(w => x.content.includes(w) || x.name.includes(w)));
     return list;
   }
 
   function totalPages() {
-    const n = Math.max(commentCache.allItems.length, commentCache.total || 0);
+    const n = commentCache.total || 0;
     return Math.max(1, Math.ceil(n / COMMENT_PAGE_SIZE));
   }
 
   /** 本页选中数量（勾选只在当前页生效，selected 里的 cid 都属于本页） */
   function currentPageSelectedCount() {
-    const start = commentCache.page * COMMENT_PAGE_SIZE;
-    const pageItems = commentCache.allItems.slice(start, start + COMMENT_PAGE_SIZE);
+    const pageItems = (commentCache.pageData[commentCache.page] || []).slice();
     let onPage = 0;
     for (const it of pageItems) {
       if (commentCache.selected.has(it.cid)) onPage++;
@@ -1231,7 +1231,7 @@
     const prev = document.getElementById('db-jb-cmtreport-prev');
     const next = document.getElementById('db-jb-cmtreport-next');
     const label = document.getElementById('db-jb-cmtreport-page');
-    const has = commentCache.allItems.length > 0 || commentCache.total > 0;
+    const has = Object.keys(commentCache.pageData).length > 0 || commentCache.total > 0;
     const cur = commentCache.page + 1;
     const tp = totalPages();
     if (label) {
@@ -1274,7 +1274,7 @@
     const box = document.getElementById('db-jb-cmtreport-list');
     const list = currentPageItems();
 
-    if (!commentCache.allItems.length) {
+    if (!Object.keys(commentCache.pageData).length) {
       box.innerHTML = '<div style="padding:16px;text-align:center;color:#9aa89a;font-size:11px">还没有抓取评论</div>';
     } else if (!list.length) {
       box.innerHTML = '<div style="padding:16px;text-align:center;color:#9aa89a;font-size:11px">本页没有匹配的评论</div>';
@@ -1302,7 +1302,7 @@
         </label>`).join('');
     }
     document.getElementById('db-jb-cmtreport-count').textContent =
-      commentCache.total ? `共 ${commentCache.total} 条` : (commentCache.allItems.length ? `已载入 ${commentCache.allItems.length} 条` : '');
+      commentCache.total ? `共 ${commentCache.total} 条` : '';
     updatePageBar();
     checkReady();
   }
