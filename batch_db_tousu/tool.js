@@ -1323,10 +1323,8 @@
     let n = parseInt(el && el.value, 10);
     if (!Number.isFinite(n)) n = commentCache.page + 1;
     n = Math.max(1, Math.min(tp, n));
-    if (n - 1 === commentCache.page) {
-      if (el) el.value = n;
-      return;
-    }
+    if (el) el.value = n;
+    if (n - 1 === commentCache.page) return;
     gotoCommentPage(n - 1);
   }
 
